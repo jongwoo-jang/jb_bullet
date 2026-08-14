@@ -69,8 +69,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;letter
   box-shadow:0 8px 18px rgba(217,91,115,.28);position:relative;overflow:hidden;
 }
 .wordmark .dot::after{content:"";position:absolute;left:8px;top:8px;width:14px;height:14px;border:2px solid rgba(255,255,255,.72);border-radius:5px}
-.wordmark b{display:flex;flex-direction:column;font-size:17px;font-weight:760;line-height:1.08;letter-spacing:0}
-.wordmark b span{color:var(--ink2);font-size:11px;font-weight:650;margin-top:4px}
+.wordmark b{font-size:17px;font-weight:760;line-height:1.08;letter-spacing:0}
+.wordmark b span{color:var(--pink);font-weight:760}
 .ico{
   position:relative;width:38px;height:38px;display:grid;place-items:center;color:#4C5560;
   border-radius:8px;background:var(--surface);border:1px solid var(--line);
@@ -106,19 +106,6 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;letter
 .panel[hidden]{display:none}
 
 .masonry{column-count:2;column-gap:10px}
-.feed-brief{
-  display:grid;grid-template-columns:1.2fr .8fr;gap:10px;margin:0 0 14px;
-}
-.brief-main,.brief-stat{
-  background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--e1);
-}
-.brief-main{padding:14px}
-.brief-main span{display:block;color:var(--pink-deep);font-size:11px;font-weight:800;margin-bottom:7px}
-.brief-main strong{display:block;font-size:20px;line-height:1.2;font-weight:800;margin-bottom:6px}
-.brief-main p{margin:0;color:var(--ink2);font-size:12px;line-height:1.45}
-.brief-stat{display:flex;flex-direction:column;justify-content:center;padding:12px}
-.brief-stat b{font-size:22px;line-height:1;font-weight:820;color:var(--mint)}
-.brief-stat span{margin-top:7px;color:var(--ink2);font-size:11px;font-weight:700}
 .pin{
   break-inside:avoid;display:block;width:100%;margin:0 0 18px;text-align:left;
   opacity:0;transform:translateY(16px);
@@ -336,7 +323,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;letter
     <button class="ico hidden" id="backBtn" aria-label="뒤로">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
     </button>
-    <div class="wordmark" id="wordmark"><span class="dot"></span><b>전환법인 라운지 <span>FP growth workspace</span></b></div>
+    <div class="wordmark" id="wordmark"><span class="dot"></span><b>전환법인 <span>라운지</span></b></div>
     <button class="ico" id="bellBtn" aria-label="알림">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       <span class="badge"></span>
@@ -352,47 +339,14 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;letter
 
   <div class="scroller" id="scroller">
     <section class="panel" id="p-issue" role="tabpanel">
-      <div class="feed-brief">
-        <div class="brief-main">
-          <span>이번 주 브리핑</span>
-          <strong>핵심 자료 12건</strong>
-          <p>상품, 세무, 리모델링 이슈를 빠르게 확인하세요.</p>
-        </div>
-        <div class="brief-stat">
-          <b>94%</b>
-          <span>교육 신청률</span>
-        </div>
-      </div>
       <div class="masonry" id="gridIssue"></div>
     </section>
 
     <section class="panel" id="p-award" role="tabpanel" hidden>
-      <div class="feed-brief">
-        <div class="brief-main">
-          <span>시상 현황</span>
-          <strong>진행 캠페인 8건</strong>
-          <p>주간 랭킹과 지급 기준을 한 화면에서 확인하세요.</p>
-        </div>
-        <div class="brief-stat">
-          <b>2주</b>
-          <span>마감 예정</span>
-        </div>
-      </div>
       <div class="masonry" id="gridAward"></div>
     </section>
 
     <section class="panel" id="p-edu" role="tabpanel" hidden>
-      <div class="feed-brief">
-        <div class="brief-main">
-          <span>교육 캘린더</span>
-          <strong>필수 과정 5개</strong>
-          <p>온·오프라인 과정을 날짜별로 놓치지 않게 정리했습니다.</p>
-        </div>
-        <div class="brief-stat">
-          <b>14일</b>
-          <span>다음 일정</span>
-        </div>
-      </div>
       <div class="month">
         <b>2026년 8월</b>
         <div class="nv"><button aria-label="이전 달">‹</button><button aria-label="다음 달">›</button></div>
