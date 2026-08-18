@@ -101,6 +101,8 @@ a{color:inherit;text-decoration:none}
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app-config.js"></script>
 <script>
 const STORE_KEY='fpLoungePosts';
 const form=document.getElementById('postForm');
@@ -109,6 +111,10 @@ const preview=document.getElementById('preview');
 const list=document.getElementById('postList');
 const adminSearch=document.getElementById('adminSearch');
 let selected=null;
+const SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
+const supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
+  ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
+  : null;
 function getPosts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){return[]}}
 function setPosts(posts){localStorage.setItem(STORE_KEY,JSON.stringify(posts))}
 function today(){const d=new Date();return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`}
@@ -117,12 +123,12 @@ fileInput.addEventListener('change',async()=>{
   const file=fileInput.files[0];if(!file)return;
   const src=await readFile(file);
   const type=file.type.includes('pdf')||file.name.toLowerCase().endsWith('.pdf')?'pdf':'image';
-  selected={src,type,name:file.name};
+  selected={src,type,name:file.name,file};
   preview.classList.add('show');
   preview.innerHTML=type==='image'?`<img src="${src}" alt="">`:`<div class="pdf">PDF 미리보기</div>`;
 });
 form.addEventListener('reset',()=>{selected=null;preview.classList.remove('show');preview.innerHTML=''});
-form.addEventListener('submit',e=>{
+form.addEventListener('submit',async e=>{
   e.preventDefault();
   if(!selected){toast('파일을 선택해 주세요');return}
   const post={
@@ -137,22 +143,80 @@ form.addEventListener('submit',e=>{
     date:today(),
     ratio:selected.type==='pdf'?'3/4':'4/5'
   };
-  setPosts([post,...getPosts()]);
+  const ok=await savePost(post);
+  if(!ok)return;
   form.reset();
   render();
   toast('자료를 게시했습니다');
 });
+async function savePost(post){
+  if(!supabaseClient){
+    setPosts([post,...getPosts()]);
+    return true;
+  }
+  const bucket=SUPABASE_CONFIG.bucket||'fp-lounge-media';
+  const ext=(selected.name.split('.').pop()||'bin').toLowerCase();
+  const path=`posts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const upload=await supabaseClient.storage.from(bucket).upload(path,selected.file,{contentType:selected.file.type,upsert:false});
+  if(upload.error){toast('파일 업로드에 실패했습니다');return false}
+  const {data:publicData}=supabaseClient.storage.from(bucket).getPublicUrl(path);
+  const insert=await supabaseClient.from('fp_posts').insert({
+    type:post.type,
+    title:post.title,
+    category:post.category,
+    author:post.author,
+    tags:post.tags,
+    description:post.desc,
+    media_url:publicData.publicUrl,
+    storage_path:path,
+    ratio:post.ratio
+  });
+  if(insert.error){toast('게시물 저장에 실패했습니다');return false}
+  return true;
+}
 list.addEventListener('click',e=>{
   const btn=e.target.closest('[data-del]');if(!btn)return;
-  setPosts(getPosts().filter(p=>p.id!==btn.dataset.del));
-  render();toast('자료를 삭제했습니다');
+  deletePost(btn.dataset.del,btn.dataset.path);
 });
 document.getElementById('clearBtn').addEventListener('click',()=>{
+  if(supabaseClient){toast('Supabase 전체 삭제는 대시보드에서 관리해 주세요');return}
   if(!getPosts().length){toast('삭제할 자료가 없습니다');return}
   if(confirm('관리자에서 등록한 자료를 모두 삭제할까요?')){setPosts([]);render();toast('전체 삭제했습니다')}
 });
-function render(){
-  const posts=getPosts();
+async function deletePost(id,path){
+  if(supabaseClient){
+    if(path)await supabaseClient.storage.from(SUPABASE_CONFIG.bucket||'fp-lounge-media').remove([path]);
+    const {error}=await supabaseClient.from('fp_posts').delete().eq('id',id);
+    if(error){toast('삭제에 실패했습니다');return}
+  }else{
+    setPosts(getPosts().filter(p=>p.id!==id));
+  }
+  render();toast('자료를 삭제했습니다');
+}
+async function getAdminPosts(){
+  if(supabaseClient){
+    const {data,error}=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
+    if(!error&&Array.isArray(data))return data.map(row=>({
+      id:String(row.id),
+      type:row.type,
+      src:row.media_url,
+      title:row.title,
+      category:row.category,
+      author:row.author,
+      tags:row.tags||[],
+      date:formatDate(row.created_at),
+      storagePath:row.storage_path||''
+    }));
+  }
+  return getPosts();
+}
+function formatDate(value){
+  const d=value?new Date(value):new Date();
+  if(Number.isNaN(d.getTime()))return '';
+  return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+async function render(){
+  const posts=await getAdminPosts();
   const q=adminSearch.value.trim().toLowerCase();
   const filtered=q?posts.filter(p=>[p.title,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q)):posts;
   if(!posts.length){list.innerHTML='<p class="empty">아직 등록한 자료가 없습니다.</p>';return}
@@ -160,7 +224,7 @@ function render(){
   list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
     <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)}</p></div>
-    <button class="danger" data-del="${p.id}" type="button">삭제</button>
+    <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
   </article>`).join('');
 }
 adminSearch.addEventListener('input',render);

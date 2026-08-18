@@ -264,6 +264,8 @@ a{color:inherit;text-decoration:none}
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app-config.js"></script>
 <script>
 const STORE_KEY='fpLoungePosts';
 const SEEN_KEY='fpSeenPosts';
@@ -285,11 +287,41 @@ let unreadOnly=false;
 let searchQuery='';
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
+const SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
+const supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
+  ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
+  : null;
 
-function loadPosts(){
+async function loadPosts(){
+  if(supabaseClient){
+    const {data,error}=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
+    if(!error&&Array.isArray(data)){
+      posts=[...data.map(rowToPost),...DEFAULT_POSTS];
+      return;
+    }
+  }
   let custom=[];
   try{custom=JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){custom=[]}
   posts=[...custom,...DEFAULT_POSTS];
+}
+function rowToPost(row){
+  return {
+    id:String(row.id),
+    type:row.type||'image',
+    title:row.title||'제목 없음',
+    author:row.author||'관리자',
+    date:formatDate(row.created_at),
+    category:row.category||'상품',
+    tags:row.tags||[],
+    ratio:row.ratio||'4/5',
+    src:row.media_url||'',
+    desc:row.description||''
+  };
+}
+function formatDate(value){
+  const d=value?new Date(value):new Date();
+  if(Number.isNaN(d.getTime()))return '';
+  return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
 function mediaMarkup(post,large=false){
   if(post.type==='pdf'){
@@ -324,8 +356,8 @@ function card(post){
     </div>
   </article>`;
 }
-function render(){
-  loadPosts();
+async function render(){
+  await loadPosts();
   const searchedPosts=posts.filter(matchesSearch);
   const visiblePosts=unreadOnly?searchedPosts.filter(p=>isUnread(p)):searchedPosts;
   const groups={all:visiblePosts,product:visiblePosts.filter(p=>p.category==='상품'),award:visiblePosts.filter(p=>p.category==='시상')};
@@ -377,8 +409,8 @@ function openDetail(id,focusComment=false){
   document.getElementById('dMedia').innerHTML=mediaMarkup(current,true);
   document.getElementById('dCaption').innerHTML=`<b>${escapeHtml(current.author||'관리자')}</b>${escapeHtml(current.desc||current.title)}<span class="tagline">${(current.tags||[]).map(t=>'#'+escapeHtml(t)).join(' ')}</span>`;
   document.getElementById('dCta').innerHTML=current.type==='pdf'&&current.src
-    ? `<a class="btn primary" href="${current.src}" download>PDF 내려받기</a><button class="btn" id="copyBtn">링크 복사</button>`
-    : `<button class="btn primary" id="copyBtn">링크 복사</button>`;
+    ? `<a class="btn primary" href="${current.src}" download>PDF 내려받기</a>`
+    : '';
   renderComments();
   syncDetail();
   render();
@@ -404,16 +436,29 @@ function toggleLike(id){
   render();
   if(current&&current.id===id)syncDetail();
 }
-function renderComments(){
+async function renderComments(){
   if(!current)return;
-  comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
-  const list=comments[current.id]||[];
+  let list=[];
+  if(supabaseClient&&!current.id.startsWith('seed-')){
+    const {data,error}=await supabaseClient.from('fp_comments').select('*').eq('post_id',current.id).order('created_at',{ascending:true});
+    if(!error&&Array.isArray(data))list=data.map(c=>({author:c.author||'방문자',text:c.text||''}));
+  }else{
+    comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
+    list=comments[current.id]||[];
+  }
   document.getElementById('commentCount').textContent=list.length;
   document.getElementById('commentEmpty').style.display=list.length?'none':'block';
   document.getElementById('commentList').innerHTML=list.map(c=>`<div class="comment"><b>${escapeHtml(c.author)}</b>${escapeHtml(c.text)}</div>`).join('');
 }
-function addComment(text){
+async function addComment(text){
   if(!current)return;
+  if(supabaseClient&&!current.id.startsWith('seed-')){
+    const {error}=await supabaseClient.from('fp_comments').insert({post_id:current.id,author:'방문자',text});
+    if(error){toast('댓글 저장에 실패했습니다');return}
+    await renderComments();
+    render();
+    return;
+  }
   comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
   comments[current.id]=[...(comments[current.id]||[]),{author:'방문자',text,at:Date.now()}];
   localStorage.setItem(COMMENT_KEY,JSON.stringify(comments));
@@ -493,7 +538,6 @@ document.getElementById('searchInput').addEventListener('input',e=>{
   searchQuery=e.target.value;
   render();
 });
-document.getElementById('dCta').addEventListener('click',async e=>{if(e.target.id==='copyBtn'){try{await navigator.clipboard.writeText(location.href);toast('링크를 복사했습니다')}catch(err){toast('링크 복사를 준비했습니다')}}});
 document.getElementById('commentForm').addEventListener('submit',e=>{
   e.preventDefault();
   const input=document.getElementById('commentInput');
@@ -503,8 +547,8 @@ document.getElementById('commentForm').addEventListener('submit',e=>{
   input.value='';
   toast('댓글을 등록했습니다');
 });
-document.getElementById('bellBtn').addEventListener('click',()=>{
-  loadPosts();
+document.getElementById('bellBtn').addEventListener('click',async()=>{
+  await loadPosts();
   const count=unreadPosts().length;
   if(!count){unreadOnly=false;render();toast('새로운 알림이 없습니다');return}
   unreadOnly=true;
