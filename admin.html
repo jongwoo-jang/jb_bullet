@@ -6,16 +6,16 @@
 <title>전환법인 라운지 관리자</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
-:root{--bg:#EEF3F7;--surface:#fff;--ink:#20242A;--ink2:#68717C;--ink3:#A9B0B8;--brand:#D95B73;--line:#E6EAEE;--soft:#FCE9EE;--shadow:0 12px 32px rgba(24,34,45,.1)}
+:root{--bg:#F3F5F7;--surface:#fff;--ink:#20242A;--ink2:#626B76;--ink3:#A4ACB5;--brand:#5BC2E7;--brand2:#003CDC;--line:#ECEFF2;--soft:#E8F8FD;--shadow:0 12px 32px rgba(24,34,45,.1)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%}
-body{background:linear-gradient(180deg,#F8FAFC 0%,var(--bg) 100%);color:var(--ink);font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;letter-spacing:0}
+body{background:var(--bg);color:var(--ink);font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;letter-spacing:0}
 button,input,textarea,select{font:inherit}
 button{border:0;cursor:pointer}
 a{color:inherit;text-decoration:none}
 .wrap{width:min(980px,100%);margin:0 auto;padding:22px 16px 40px}
 .top{display:flex;align-items:center;gap:10px;margin-bottom:18px}
-.mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(145deg,var(--brand),#E88E68);position:relative;box-shadow:0 8px 18px rgba(217,91,115,.24)}
+.mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(145deg,var(--brand),var(--brand2));position:relative;box-shadow:0 8px 18px rgba(0,60,220,.18)}
 .mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.75);border-radius:5px}
 .top h1{font-size:20px;margin:0;font-weight:850}
 .top a{margin-left:auto;height:38px;display:inline-flex;align-items:center;padding:0 12px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:800;color:var(--ink2)}
@@ -32,12 +32,12 @@ a{color:inherit;text-decoration:none}
 .preview{margin-top:12px;border-radius:8px;overflow:hidden;background:#EEF2F5;border:1px solid var(--line);display:none}
 .preview.show{display:block}
 .preview img{display:block;width:100%;max-height:360px;object-fit:contain;background:#111}
-.preview .pdf{aspect-ratio:4/3;display:grid;place-items:center;font-weight:850;color:var(--brand);background:var(--soft)}
+.preview .pdf{aspect-ratio:4/3;display:grid;place-items:center;font-weight:850;color:var(--brand2);background:var(--soft)}
 .actions{display:flex;gap:8px;margin-top:16px}
 .primary,.ghost,.danger{height:44px;border-radius:8px;font-weight:850}
-.primary{flex:1;background:var(--brand);color:#fff;box-shadow:0 10px 22px rgba(217,91,115,.22)}
+.primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
 .ghost{padding:0 14px;background:#F4F6F8;color:var(--ink2)}
-.danger{padding:0 12px;background:#FFF1F3;color:#B93F58}
+.danger{padding:0 12px;background:#EDF6FF;color:var(--brand2)}
 .list{padding:10px}
 .list-head{display:flex;align-items:center;padding:5px 6px 12px}
 .list-head b{font-size:14px}
@@ -45,7 +45,7 @@ a{color:inherit;text-decoration:none}
 .item{display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;padding:10px 6px;border-top:1px solid var(--line)}
 .item-media{width:74px;height:88px;border-radius:8px;overflow:hidden;background:#EEF2F5}
 .item-media img{width:100%;height:100%;object-fit:cover}
-.item-media .pdf{width:100%;height:100%;display:grid;place-items:center;background:var(--soft);color:var(--brand);font-size:12px;font-weight:900}
+.item-media .pdf{width:100%;height:100%;display:grid;place-items:center;background:var(--soft);color:var(--brand2);font-size:12px;font-weight:900}
 .item h3{font-size:13px;line-height:1.35;margin:0 0 5px;font-weight:820}
 .item p{margin:0;color:var(--ink2);font-size:11px;font-weight:650}
 .empty{padding:48px 10px;text-align:center;color:var(--ink3);font-size:13px}
