@@ -132,10 +132,10 @@ a{color:inherit;text-decoration:none}
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 .pin-meta{display:flex;align-items:center;gap:7px;color:var(--ink2);font-size:11px;font-weight:650}
-.pin-actions{display:flex;align-items:center;gap:8px;margin-top:8px}
+.pin-actions{display:flex;align-items:center;gap:4px;margin-top:7px}
 .pin-actions button{
-  width:30px;height:30px;display:grid;place-items:center;border-radius:50%;color:#2B3036;
-  background:#F7F9FA;transition:background .2s,color .2s,transform .16s;
+  width:28px;height:28px;display:grid;place-items:center;border-radius:50%;color:#22272E;
+  background:transparent;transition:background .2s,color .2s,transform .16s;
 }
 .pin-actions button:hover{background:var(--brand-soft);color:var(--brand2)}
 .pin-actions button:active{transform:scale(.9)}
@@ -158,8 +158,8 @@ a{color:inherit;text-decoration:none}
 .hero-media{background:#E9EEF3;border-bottom:1px solid var(--line)}
 .hero-media img{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain;background:#111}
 .hero-media .pdf-thumb{margin:0;aspect-ratio:1/1;padding:28px}
-.actions{display:flex;align-items:center;gap:12px;padding:14px 16px 6px}
-.actions button,.actions a{width:38px;height:38px;display:grid;place-items:center;border-radius:8px;color:var(--ink);transition:background .2s,color .2s,transform .16s}
+.actions{display:flex;align-items:center;gap:4px;padding:12px 12px 6px}
+.actions button,.actions a{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
 .actions button:hover,.actions a:hover{background:var(--surface);color:var(--brand2)}
 .actions button:active,.actions a:active{transform:scale(.9)}
 .actions .bookmark{margin-left:auto}
@@ -235,16 +235,16 @@ a{color:inherit;text-decoration:none}
       <div class="hero-media" id="dMedia"></div>
       <div class="actions">
         <button id="likeBtn" aria-label="좋아요" aria-pressed="false">
-          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7-4.6-7-9.3A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7 2.7C19 15.4 12 20 12 20z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"><path d="M12 20s-7-4.6-7-9.3A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7 2.7C19 15.4 12 20 12 20z"/></svg>
         </button>
         <button id="focusCommentBtn" aria-label="댓글">
-          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.6 7.1L4 20l1.5-4.9A8 8 0 1 1 21 11.5z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.6 7.1L4 20l1.5-4.9A8 8 0 1 1 21 11.5z"/></svg>
         </button>
         <button id="shareBtn" aria-label="공유">
-          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
         </button>
         <button class="bookmark" id="saveBtn" aria-label="저장" aria-pressed="false">
-          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>
         </button>
       </div>
       <p class="caption" id="dCaption"></p>
@@ -343,13 +343,13 @@ function card(post){
       <div class="pin-meta"><span>${escapeHtml(post.author||'관리자')}</span><span>${escapeHtml(post.date||'')}</span></div>
       <div class="pin-actions">
         <button class="${isLiked?'on':''}" data-like="${post.id}" aria-label="좋아요">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="${isLiked?'currentColor':'none'}" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 20s-7-4.6-7-9.3A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7 2.7C19 15.4 12 20 12 20z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="${isLiked?'currentColor':'none'}" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 20s-7-4.6-7-9.3A4.1 4.1 0 0 1 12 8a4.1 4.1 0 0 1 7 2.7C19 15.4 12 20 12 20z"/></svg>
         </button>
         <button data-comment="${post.id}" aria-label="댓글">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.6 7.1L4 20l1.5-4.9A8 8 0 1 1 21 11.5z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M21 11.5a8 8 0 0 1-11.6 7.1L4 20l1.5-4.9A8 8 0 1 1 21 11.5z"/></svg>
         </button>
         <button data-share="${post.id}" aria-label="공유">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
         </button>
         ${commentCount?`<span class="count">댓글 ${commentCount}</span>`:''}
       </div>
