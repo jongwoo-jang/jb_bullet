@@ -54,12 +54,17 @@ a{color:inherit;text-decoration:none}
 .brand b{font-size:19px;font-weight:850;white-space:nowrap;letter-spacing:0}
 .brand b span{color:var(--brand)}
 .icon-btn{
-  width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
+  position:relative;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
   background:transparent;border:0;color:#252A30;
   transition:transform .16s var(--ease),background .2s,color .2s;
 }
 .icon-btn:hover{background:var(--soft);color:var(--brand2)}
 .icon-btn:active{transform:scale(.92)}
+.notice-dot{
+  position:absolute;right:7px;top:7px;width:8px;height:8px;border-radius:50%;
+  background:var(--brand);box-shadow:0 0 0 2px var(--surface);display:none;
+}
+.icon-btn.has-unread .notice-dot{display:block}
 .tabs{
   flex:0 0 auto;position:relative;display:flex;gap:18px;margin:0;padding:0 14px;
   background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);
@@ -67,6 +72,12 @@ a{color:inherit;text-decoration:none}
 .tab{position:relative;z-index:2;min-height:42px;padding:12px 0 10px;color:var(--ink2);font-size:14px;font-weight:780}
 .tab[aria-selected="true"]{color:var(--ink)}
 .tab-ind{position:absolute;left:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ink);transition:transform .32s var(--ease),width .32s var(--ease)}
+.unread-filter{
+  display:none;margin:0 4px 12px;padding:10px 12px;border-radius:10px;
+  background:#20242A;color:#fff;font-size:12px;font-weight:760;align-items:center;gap:8px;
+}
+.unread-filter.show{display:flex}
+.unread-filter button{margin-left:auto;color:#fff;font-size:12px;font-weight:850}
 .scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 10px calc(24px + env(safe-area-inset-bottom));scrollbar-width:thin;scrollbar-color:#D9E0E6 transparent}
 .panel[hidden]{display:none}
 .empty{
@@ -160,6 +171,7 @@ a{color:inherit;text-decoration:none}
     </a>
     <button class="icon-btn" id="bellBtn" aria-label="알림">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <span class="notice-dot"></span>
     </button>
   </header>
 
@@ -171,6 +183,7 @@ a{color:inherit;text-decoration:none}
   </nav>
 
   <main class="scroller" id="scroller">
+    <div class="unread-filter" id="unreadFilter"><span id="unreadFilterText"></span><button type="button" id="clearUnreadFilter">전체 보기</button></div>
     <section class="panel" id="p-all" role="tabpanel"><div class="masonry" id="gridAll"></div><p class="empty" id="emptyAll">등록된 자료가 없습니다.</p></section>
     <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
     <section class="panel" id="p-award" role="tabpanel" hidden><div class="masonry" id="gridAward"></div><p class="empty" id="emptyAward">등록된 시상 자료가 없습니다.</p></section>
@@ -206,6 +219,7 @@ a{color:inherit;text-decoration:none}
 
 <script>
 const STORE_KEY='fpLoungePosts';
+const SEEN_KEY='fpSeenPosts';
 const DEFAULT_POSTS=[
   {id:'seed-1',type:'image',title:'신담보 간병인지원 판매 포인트',author:'상품개발팀',date:'08.14',category:'상품',tags:['상품','간병인지원'],ratio:'3/4',src:'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',desc:'현장에서 바로 꺼내 볼 수 있는 핵심 이미지 자료입니다.'},
   {id:'seed-2',type:'image',title:'FP 상담 테이블 토크 스크립트',author:'상품교육팀',date:'08.13',category:'상품',tags:['상담','스크립트'],ratio:'4/5',src:'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80',desc:'고객 상담 흐름을 시각적으로 정리했습니다.'},
@@ -216,7 +230,9 @@ const DEFAULT_POSTS=[
 ];
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const saved=new Set(JSON.parse(localStorage.getItem('fpSaved')||'[]'));
+const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
 let posts=[], current=null;
+let unreadOnly=false;
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
 
@@ -247,12 +263,14 @@ function card(post){
 }
 function render(){
   loadPosts();
-  const groups={all:posts,product:posts.filter(p=>p.category==='상품'),award:posts.filter(p=>p.category==='시상')};
+  const visiblePosts=unreadOnly?posts.filter(p=>isUnread(p)):posts;
+  const groups={all:visiblePosts,product:visiblePosts.filter(p=>p.category==='상품'),award:visiblePosts.filter(p=>p.category==='시상')};
   Object.entries(groups).forEach(([key,list])=>{
     grids[key].innerHTML=list.map(card).join('');
     empties[key].classList.toggle('show',list.length===0);
     reveal(grids[key].querySelectorAll('.pin'));
   });
+  updateUnreadUi();
 }
 function bindFeed(){
   document.querySelector('.scroller').addEventListener('click',e=>{
@@ -274,6 +292,7 @@ function reveal(nodes){[...nodes].forEach((el,i)=>setTimeout(()=>el.classList.ad
 function openDetail(id){
   current=posts.find(p=>p.id===id);
   if(!current)return;
+  markSeen(current.id);
   document.getElementById('dTitle').textContent=current.title;
   document.getElementById('dMeta').textContent=`${current.author||'관리자'} · ${current.category||'자료'} · ${current.date||''}`;
   document.getElementById('dMedia').innerHTML=mediaMarkup(current,true);
@@ -282,6 +301,7 @@ function openDetail(id){
     ? `<a class="btn primary" href="${current.src}" download>PDF 내려받기</a><button class="btn" id="copyBtn">링크 복사</button>`
     : `<button class="btn primary" id="copyBtn">링크 복사</button>`;
   syncDetail();
+  render();
   document.getElementById('detail').classList.add('open');
   document.getElementById('detail').setAttribute('aria-hidden','false');
 }
@@ -313,6 +333,23 @@ function setupTabs(){
   requestAnimationFrame(move);
   document.fonts?.ready.then(move);
 }
+function isUnread(post){return !post.id.startsWith('seed-')&&!seen.has(post.id)}
+function unreadPosts(){return posts.filter(p=>isUnread(p))}
+function markSeen(id){
+  if(seen.has(id))return;
+  seen.add(id);
+  localStorage.setItem(SEEN_KEY,JSON.stringify([...seen]));
+}
+function updateUnreadUi(){
+  const count=unreadPosts().length;
+  const bell=document.getElementById('bellBtn');
+  const filter=document.getElementById('unreadFilter');
+  const filterText=document.getElementById('unreadFilterText');
+  bell.classList.toggle('has-unread',count>0);
+  bell.setAttribute('aria-label',count>0?`미확인 게시물 ${count}개`:'알림');
+  filter.classList.toggle('show',unreadOnly);
+  filterText.textContent=count>0?`미확인 게시물 ${count}개를 보고 있습니다`:'미확인 게시물이 없습니다';
+}
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let toastTimer;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1800)}
@@ -332,9 +369,21 @@ document.getElementById('saveBtn').addEventListener('click',()=>{
 });
 document.getElementById('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('링크를 복사했습니다')}catch(e){toast('링크 복사를 준비했습니다')}});
 document.getElementById('dCta').addEventListener('click',async e=>{if(e.target.id==='copyBtn'){try{await navigator.clipboard.writeText(location.href);toast('링크를 복사했습니다')}catch(err){toast('링크 복사를 준비했습니다')}}});
-document.getElementById('bellBtn').addEventListener('click',()=>toast('새로운 알림이 없습니다'));
+document.getElementById('bellBtn').addEventListener('click',()=>{
+  loadPosts();
+  const count=unreadPosts().length;
+  if(!count){unreadOnly=false;render();toast('새로운 알림이 없습니다');return}
+  unreadOnly=true;
+  document.querySelector('.tab[aria-controls="p-all"]').click();
+  render();
+  toast(`미확인 게시물 ${count}개`);
+});
+document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
+  unreadOnly=false;
+  render();
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
-window.addEventListener('storage',e=>{if(e.key===STORE_KEY)render()});
+window.addEventListener('storage',e=>{if(e.key===STORE_KEY||e.key===SEEN_KEY)render()});
 setupTabs();render();bindFeed();
 </script>
 </body>
