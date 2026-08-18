@@ -1,5 +1,5 @@
 create table if not exists public.fp_posts (
-  id uuid primary key default gen_random_uuid(),
+  id text primary key default ('post-' || extract(epoch from now())::bigint || '-' || substr(md5(random()::text), 1, 8)),
   type text not null check (type in ('image', 'pdf')),
   title text not null,
   category text not null check (category in ('상품', '시상')),
@@ -22,8 +22,8 @@ alter table public.fp_posts add column if not exists storage_provider text not n
 alter table public.fp_posts add column if not exists drive_file_id text;
 
 create table if not exists public.fp_comments (
-  id uuid primary key default gen_random_uuid(),
-  post_id uuid not null references public.fp_posts(id) on delete cascade,
+  id text primary key default ('comment-' || extract(epoch from now())::bigint || '-' || substr(md5(random()::text), 1, 8)),
+  post_id text not null references public.fp_posts(id) on delete cascade,
   author text not null default '방문자',
   text text not null,
   created_at timestamptz not null default now()
