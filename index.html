@@ -315,6 +315,9 @@ function rowToPost(row){
     tags:row.tags||[],
     ratio:row.ratio||'4/5',
     src:row.media_url||'',
+    downloadUrl:row.download_url||row.media_url||'',
+    webViewUrl:row.web_view_url||row.media_url||'',
+    driveFileId:row.drive_file_id||'',
     desc:row.description||''
   };
 }
@@ -327,7 +330,7 @@ function mediaMarkup(post,large=false){
   if(post.type==='pdf'){
     return `<div class="pdf-thumb" style="--ratio:${post.ratio||'3/4'}"><span class="pdf-badge">PDF</span><div class="pdf-title">${escapeHtml(post.title)}</div><div class="pdf-lines"><span></span><span></span><span></span></div></div>`;
   }
-  return `<img class="thumb" src="${post.src}" alt="${escapeHtml(post.title)}" style="--ratio:${post.ratio||'3/4'}" loading="${large?'eager':'lazy'}">`;
+  return `<img class="thumb" src="${post.src}" alt="${escapeHtml(post.title)}" style="--ratio:${post.ratio||'3/4'}" loading="${large?'eager':'lazy'}" referrerpolicy="no-referrer">`;
 }
 function card(post){
   const isSaved=saved.has(post.id), isLiked=liked.has(post.id);
@@ -408,8 +411,9 @@ function openDetail(id,focusComment=false){
   document.getElementById('dMeta').textContent=`${current.author||'관리자'} · ${current.category||'자료'} · ${current.date||''}`;
   document.getElementById('dMedia').innerHTML=mediaMarkup(current,true);
   document.getElementById('dCaption').innerHTML=`<b>${escapeHtml(current.author||'관리자')}</b>${escapeHtml(current.desc||current.title)}<span class="tagline">${(current.tags||[]).map(t=>'#'+escapeHtml(t)).join(' ')}</span>`;
-  document.getElementById('dCta').innerHTML=current.type==='pdf'&&current.src
-    ? `<a class="btn primary" href="${current.src}" download>PDF 내려받기</a>`
+  const downloadHref=current.downloadUrl||current.src;
+  document.getElementById('dCta').innerHTML=current.type==='pdf'&&downloadHref
+    ? `<a class="btn primary" href="${downloadHref}" target="_blank" rel="noopener">PDF 내려받기</a>`
     : '';
   renderComments();
   syncDetail();

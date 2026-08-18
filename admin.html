@@ -36,8 +36,10 @@ a{color:inherit;text-decoration:none}
 .actions{display:flex;gap:8px;margin-top:16px}
 .primary,.ghost,.danger{height:44px;border-radius:8px;font-weight:850}
 .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
+.primary:disabled{opacity:.58;cursor:progress;box-shadow:none}
 .ghost{padding:0 14px;background:#F4F6F8;color:var(--ink2)}
 .danger{padding:0 12px;background:#EDF6FF;color:var(--brand2)}
+.hint{margin:-3px 0 0;color:var(--ink3);font-size:11.5px;line-height:1.5}
 .list{padding:10px}
 .list-head{display:flex;align-items:center;padding:5px 6px 12px}
 .list-head b{font-size:14px}
@@ -83,6 +85,11 @@ a{color:inherit;text-decoration:none}
         <div class="field"><label for="author">작성 부서</label><input id="author" value="관리자"></div>
         <div class="field"><label for="tags">태그</label><input id="tags" placeholder="상품, 교육, 시상"></div>
         <div class="field"><label for="desc">설명</label><textarea id="desc" placeholder="피드 상세 화면에 표시할 짧은 설명"></textarea></div>
+        <div class="field">
+          <label for="adminToken">관리자 토큰</label>
+          <input id="adminToken" type="password" autocomplete="current-password" placeholder="Vercel ADMIN_UPLOAD_TOKEN">
+          <p class="hint">Google Drive 업로드와 삭제에만 사용되며 브라우저 세션에만 보관됩니다.</p>
+        </div>
         <div class="actions"><button class="primary" type="submit">게시하기</button><button class="ghost" type="reset">초기화</button></div>
       </form>
     </section>
@@ -110,11 +117,16 @@ const fileInput=document.getElementById('file');
 const preview=document.getElementById('preview');
 const list=document.getElementById('postList');
 const adminSearch=document.getElementById('adminSearch');
+const adminTokenInput=document.getElementById('adminToken');
+const submitButton=form.querySelector('button[type="submit"]');
+const ADMIN_TOKEN_KEY='fpAdminToken';
 let selected=null;
 const SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
 const supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
   ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
   : null;
+adminTokenInput.value=sessionStorage.getItem(ADMIN_TOKEN_KEY)||'';
+adminTokenInput.defaultValue=adminTokenInput.value;
 function getPosts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){return[]}}
 function setPosts(posts){localStorage.setItem(STORE_KEY,JSON.stringify(posts))}
 function today(){const d=new Date();return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`}
@@ -131,6 +143,8 @@ form.addEventListener('reset',()=>{selected=null;preview.classList.remove('show'
 form.addEventListener('submit',async e=>{
   e.preventDefault();
   if(!selected){toast('파일을 선택해 주세요');return}
+  submitButton.disabled=true;
+  submitButton.textContent='업로드 중';
   const post={
     id:'post-'+Date.now(),
     type:selected.type,
@@ -143,35 +157,35 @@ form.addEventListener('submit',async e=>{
     date:today(),
     ratio:selected.type==='pdf'?'3/4':'4/5'
   };
-  const ok=await savePost(post);
-  if(!ok)return;
-  form.reset();
-  render();
-  toast('자료를 게시했습니다');
+  try{
+    const ok=await savePost(post);
+    if(!ok)return;
+    form.reset();
+    render();
+    toast('자료를 게시했습니다');
+  }finally{
+    submitButton.disabled=false;
+    submitButton.textContent='게시하기';
+  }
 });
 async function savePost(post){
   if(!supabaseClient){
     setPosts([post,...getPosts()]);
     return true;
   }
-  const bucket=SUPABASE_CONFIG.bucket||'fp-lounge-media';
-  const ext=(selected.name.split('.').pop()||'bin').toLowerCase();
-  const path=`posts/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const upload=await supabaseClient.storage.from(bucket).upload(path,selected.file,{contentType:selected.file.type,upsert:false});
-  if(upload.error){toast('파일 업로드에 실패했습니다');return false}
-  const {data:publicData}=supabaseClient.storage.from(bucket).getPublicUrl(path);
-  const insert=await supabaseClient.from('fp_posts').insert({
-    type:post.type,
-    title:post.title,
-    category:post.category,
-    author:post.author,
-    tags:post.tags,
-    description:post.desc,
-    media_url:publicData.publicUrl,
-    storage_path:path,
-    ratio:post.ratio
-  });
-  if(insert.error){toast('게시물 저장에 실패했습니다');return false}
+  const token=getAdminToken();
+  if(!token){toast('관리자 토큰을 입력해 주세요');return false}
+  const body=new FormData();
+  body.append('file',selected.file,selected.name);
+  body.append('title',post.title);
+  body.append('category',post.category);
+  body.append('author',post.author);
+  body.append('tags',JSON.stringify(post.tags));
+  body.append('description',post.desc);
+  body.append('ratio',post.ratio);
+  const response=await fetch('/api/admin/upload',{method:'POST',headers:{'x-admin-token':token},body});
+  const result=await response.json().catch(()=>({error:'업로드 응답을 읽을 수 없습니다.'}));
+  if(!response.ok){toast(result.error||'Google Drive 업로드에 실패했습니다');return false}
   return true;
 }
 list.addEventListener('click',e=>{
@@ -185,9 +199,15 @@ document.getElementById('clearBtn').addEventListener('click',()=>{
 });
 async function deletePost(id,path){
   if(supabaseClient){
-    if(path)await supabaseClient.storage.from(SUPABASE_CONFIG.bucket||'fp-lounge-media').remove([path]);
-    const {error}=await supabaseClient.from('fp_posts').delete().eq('id',id);
-    if(error){toast('삭제에 실패했습니다');return}
+    const token=getAdminToken();
+    if(!token){toast('관리자 토큰을 입력해 주세요');return}
+    const response=await fetch('/api/admin/delete',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-admin-token':token},
+      body:JSON.stringify({id,driveFileId:path})
+    });
+    const result=await response.json().catch(()=>({error:'삭제 응답을 읽을 수 없습니다.'}));
+    if(!response.ok){toast(result.error||'삭제에 실패했습니다');return}
   }else{
     setPosts(getPosts().filter(p=>p.id!==id));
   }
@@ -205,7 +225,8 @@ async function getAdminPosts(){
       author:row.author,
       tags:row.tags||[],
       date:formatDate(row.created_at),
-      storagePath:row.storage_path||''
+      storagePath:row.drive_file_id||row.storage_path||'',
+      storageProvider:row.storage_provider||'local'
     }));
   }
   return getPosts();
@@ -223,11 +244,19 @@ async function render(){
   if(!filtered.length){list.innerHTML='<p class="empty">조회된 자료가 없습니다.</p>';return}
   list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
-    <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)}</p></div>
+    <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p></div>
     <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
   </article>`).join('');
 }
 adminSearch.addEventListener('input',render);
+function getAdminToken(){
+  const token=adminTokenInput.value.trim();
+  if(token){
+    sessionStorage.setItem(ADMIN_TOKEN_KEY,token);
+    adminTokenInput.defaultValue=token;
+  }
+  return token;
+}
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let timer;function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(timer);timer=setTimeout(()=>el.classList.remove('on'),1800)}
 render();
