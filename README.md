@@ -1,6 +1,6 @@
 # FP Lounge
 
-Static photo/PDF lounge for Vercel deployment.
+Static product/award media lounge for Vercel deployment.
 
 ## Files
 

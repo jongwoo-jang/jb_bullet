@@ -172,14 +172,14 @@ a{color:inherit;text-decoration:none}
   <nav class="tabs" role="tablist" id="tabs">
     <span class="tab-ind" id="ind"></span>
     <button class="tab" role="tab" aria-selected="true" aria-controls="p-all">전체</button>
-    <button class="tab" role="tab" aria-selected="false" aria-controls="p-photo">사진</button>
-    <button class="tab" role="tab" aria-selected="false" aria-controls="p-pdf">PDF</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-product">상품</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-award">시상</button>
   </nav>
 
   <main class="scroller" id="scroller">
     <section class="panel" id="p-all" role="tabpanel"><div class="masonry" id="gridAll"></div><p class="empty" id="emptyAll">등록된 자료가 없습니다.</p></section>
-    <section class="panel" id="p-photo" role="tabpanel" hidden><div class="masonry" id="gridPhoto"></div><p class="empty" id="emptyPhoto">등록된 사진 자료가 없습니다.</p></section>
-    <section class="panel" id="p-pdf" role="tabpanel" hidden><div class="masonry" id="gridPdf"></div><p class="empty" id="emptyPdf">등록된 PDF 자료가 없습니다.</p></section>
+    <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
+    <section class="panel" id="p-award" role="tabpanel" hidden><div class="masonry" id="gridAward"></div><p class="empty" id="emptyAward">등록된 시상 자료가 없습니다.</p></section>
   </main>
 
   <section class="detail" id="detail" aria-hidden="true">
@@ -213,18 +213,18 @@ a{color:inherit;text-decoration:none}
 <script>
 const STORE_KEY='fpLoungePosts';
 const DEFAULT_POSTS=[
-  {id:'seed-1',type:'image',title:'신담보 간병인지원 판매 포인트',author:'상품개발팀',date:'08.14',category:'영업이슈',tags:['상품','간병인지원'],ratio:'3/4',src:'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',desc:'현장에서 바로 꺼내 볼 수 있는 핵심 이미지 자료입니다.'},
-  {id:'seed-2',type:'image',title:'FP 상담 테이블 토크 스크립트',author:'교육팀',date:'08.13',category:'교육',tags:['상담','스크립트'],ratio:'4/5',src:'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80',desc:'고객 상담 흐름을 시각적으로 정리했습니다.'},
+  {id:'seed-1',type:'image',title:'신담보 간병인지원 판매 포인트',author:'상품개발팀',date:'08.14',category:'상품',tags:['상품','간병인지원'],ratio:'3/4',src:'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',desc:'현장에서 바로 꺼내 볼 수 있는 핵심 이미지 자료입니다.'},
+  {id:'seed-2',type:'image',title:'FP 상담 테이블 토크 스크립트',author:'상품교육팀',date:'08.13',category:'상품',tags:['상담','스크립트'],ratio:'4/5',src:'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80',desc:'고객 상담 흐름을 시각적으로 정리했습니다.'},
   {id:'seed-3',type:'pdf',title:'8월 시상 기준 요약 PDF',author:'영업기획팀',date:'08.12',category:'시상',tags:['시상','기준'],ratio:'3/4',src:'',desc:'시상 기준과 지급 조건을 한 장으로 정리한 PDF 자료입니다.'},
-  {id:'seed-4',type:'image',title:'법인 CEO 플랜 제안 장표',author:'세무지원팀',date:'08.10',category:'법인',tags:['법인','CEO플랜'],ratio:'1/1',src:'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=80',desc:'법인 고객 제안 시 활용할 수 있는 시각 자료입니다.'},
-  {id:'seed-5',type:'image',title:'보장분석 리모델링 체크포인트',author:'현장 FP',date:'08.08',category:'영업이슈',tags:['보장분석','리모델링'],ratio:'2/3',src:'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',desc:'보장분석 상담 전 확인할 체크 포인트입니다.'},
-  {id:'seed-6',type:'pdf',title:'전환계약 컴플라이언스 체크리스트',author:'컴플라이언스팀',date:'08.05',category:'필수',tags:['컴플라이언스'],ratio:'4/5',src:'',desc:'계약 전 확인해야 할 필수 항목을 정리했습니다.'}
+  {id:'seed-4',type:'image',title:'법인 CEO 플랜 제안 장표',author:'상품개발팀',date:'08.10',category:'상품',tags:['법인','CEO플랜'],ratio:'1/1',src:'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=80',desc:'법인 고객 제안 시 활용할 수 있는 시각 자료입니다.'},
+  {id:'seed-5',type:'image',title:'보장분석 리모델링 체크포인트',author:'상품개발팀',date:'08.08',category:'상품',tags:['보장분석','리모델링'],ratio:'2/3',src:'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',desc:'보장분석 상담 전 확인할 체크 포인트입니다.'},
+  {id:'seed-6',type:'pdf',title:'전환계약 시상 캠페인 체크리스트',author:'영업기획팀',date:'08.05',category:'시상',tags:['시상','캠페인'],ratio:'4/5',src:'',desc:'시상 캠페인 적용 전 확인해야 할 항목을 정리했습니다.'}
 ];
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const saved=new Set(JSON.parse(localStorage.getItem('fpSaved')||'[]'));
 let posts=[], current=null;
-const grids={all:document.getElementById('gridAll'),photo:document.getElementById('gridPhoto'),pdf:document.getElementById('gridPdf')};
-const empties={all:document.getElementById('emptyAll'),photo:document.getElementById('emptyPhoto'),pdf:document.getElementById('emptyPdf')};
+const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
+const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
 
 function loadPosts(){
   let custom=[];
@@ -253,7 +253,7 @@ function card(post){
 }
 function render(){
   loadPosts();
-  const groups={all:posts,photo:posts.filter(p=>p.type==='image'),pdf:posts.filter(p=>p.type==='pdf')};
+  const groups={all:posts,product:posts.filter(p=>p.category==='상품'),award:posts.filter(p=>p.category==='시상')};
   Object.entries(groups).forEach(([key,list])=>{
     grids[key].innerHTML=list.map(card).join('');
     empties[key].classList.toggle('show',list.length===0);
