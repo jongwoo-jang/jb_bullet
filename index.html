@@ -76,6 +76,14 @@ a{color:inherit;text-decoration:none}
 .tab{position:relative;z-index:2;min-height:42px;padding:12px 0 10px;color:var(--ink2);font-size:14px;font-weight:780}
 .tab[aria-selected="true"]{color:var(--ink)}
 .tab-ind{position:absolute;left:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ink);transition:transform .32s var(--ease),width .32s var(--ease)}
+.search-wrap{padding:0 14px 12px;background:rgba(255,255,255,.94)}
+.search-box{
+  display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border:1px solid var(--line);
+  border-radius:999px;background:#F7F9FA;color:var(--ink2);
+}
+.search-box svg{flex:0 0 auto}
+.search-box input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font-size:14px}
+.search-box input::placeholder{color:var(--ink3)}
 .unread-filter{
   display:none;margin:0 4px 12px;padding:10px 12px;border-radius:10px;
   background:#20242A;color:#fff;font-size:12px;font-weight:760;align-items:center;gap:8px;
@@ -118,6 +126,11 @@ a{color:inherit;text-decoration:none}
   background:rgba(255,255,255,.9);backdrop-filter:blur(8px);color:#20242A;font-size:11px;font-weight:850;
 }
 .save.on{background:var(--brand2);color:#fff}
+.card-share{
+  position:absolute;right:8px;bottom:8px;z-index:2;width:32px;height:32px;border-radius:50%;
+  display:grid;place-items:center;background:rgba(255,255,255,.9);backdrop-filter:blur(8px);
+  color:#20242A;box-shadow:0 3px 12px rgba(24,34,45,.12);
+}
 .pin-info{padding:8px 3px 0}
 .pin-info h3{
   margin:0 0 5px;font-size:13px;font-weight:760;line-height:1.4;
@@ -185,6 +198,12 @@ a{color:inherit;text-decoration:none}
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-product">상품</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-award">시상</button>
   </nav>
+  <div class="search-wrap">
+    <label class="search-box" for="searchInput">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="searchInput" type="search" placeholder="제목, 태그, 부서 검색">
+    </label>
+  </div>
 
   <main class="scroller" id="scroller">
     <div class="unread-filter" id="unreadFilter"><span id="unreadFilterText"></span><button type="button" id="clearUnreadFilter">전체 보기</button></div>
@@ -237,6 +256,7 @@ const saved=new Set(JSON.parse(localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
 let posts=[], current=null;
 let unreadOnly=false;
+let searchQuery='';
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
 
@@ -258,6 +278,9 @@ function card(post){
       ${post.type==='pdf'?'<span class="type-badge">PDF</span>':''}
       ${mediaMarkup(post)}
       <button class="save ${isSaved?'on':''}" data-save="${post.id}">${isSaved?'저장됨':'저장'}</button>
+      <button class="card-share" data-share="${post.id}" aria-label="게시물 공유">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
+      </button>
     </div>
     <div class="pin-info">
       <h3>${escapeHtml(post.title)}</h3>
@@ -267,7 +290,8 @@ function card(post){
 }
 function render(){
   loadPosts();
-  const visiblePosts=unreadOnly?posts.filter(p=>isUnread(p)):posts;
+  const searchedPosts=posts.filter(matchesSearch);
+  const visiblePosts=unreadOnly?searchedPosts.filter(p=>isUnread(p)):searchedPosts;
   const groups={all:visiblePosts,product:visiblePosts.filter(p=>p.category==='상품'),award:visiblePosts.filter(p=>p.category==='시상')};
   Object.entries(groups).forEach(([key,list])=>{
     grids[key].innerHTML=list.map(card).join('');
@@ -286,6 +310,11 @@ function bindFeed(){
       localStorage.setItem('fpSaved',JSON.stringify([...saved]));
       document.querySelectorAll(`[data-save="${CSS.escape(id)}"]`).forEach(btn=>{btn.classList.toggle('on',on);btn.textContent=on?'저장됨':'저장'});
       toast(on?'자료를 저장했습니다':'저장을 취소했습니다');
+      return;
+    }
+    const shareBtn=e.target.closest('[data-share]');
+    if(shareBtn){
+      sharePost(shareBtn.dataset.share);
       return;
     }
     const pin=e.target.closest('.pin');
@@ -337,6 +366,12 @@ function setupTabs(){
   requestAnimationFrame(move);
   document.fonts?.ready.then(move);
 }
+function matchesSearch(post){
+  const q=searchQuery.trim().toLowerCase();
+  if(!q)return true;
+  return [post.title,post.author,post.category,post.desc,...(post.tags||[])]
+    .filter(Boolean).join(' ').toLowerCase().includes(q);
+}
 function isUnread(post){return !post.id.startsWith('seed-')&&!seen.has(post.id)}
 function unreadPosts(){return posts.filter(p=>isUnread(p))}
 function markSeen(id){
@@ -357,6 +392,16 @@ function updateUnreadUi(){
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let toastTimer;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1800)}
+async function sharePost(id){
+  const post=posts.find(p=>p.id===id);
+  const url=`${location.origin}${location.pathname}#post-${encodeURIComponent(id)}`;
+  try{
+    if(navigator.share&&post){await navigator.share({title:post.title,text:post.desc||post.title,url})}
+    else{await navigator.clipboard.writeText(url);toast('게시물 링크를 복사했습니다')}
+  }catch(e){
+    try{await navigator.clipboard.writeText(url);toast('게시물 링크를 복사했습니다')}catch(err){toast('공유를 준비했습니다')}
+  }
+}
 document.getElementById('scroller').addEventListener('scroll',e=>document.getElementById('app').classList.toggle('scrolled',e.currentTarget.scrollTop>6),{passive:true});
 document.getElementById('backBtn').addEventListener('click',closeDetail);
 document.getElementById('likeBtn').addEventListener('click',()=>{
@@ -371,7 +416,11 @@ document.getElementById('saveBtn').addEventListener('click',()=>{
   localStorage.setItem('fpSaved',JSON.stringify([...saved]));
   render();syncDetail();toast(saved.has(current.id)?'자료를 저장했습니다':'저장을 취소했습니다');
 });
-document.getElementById('shareBtn').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href);toast('링크를 복사했습니다')}catch(e){toast('링크 복사를 준비했습니다')}});
+document.getElementById('shareBtn').addEventListener('click',()=>{if(current)sharePost(current.id)});
+document.getElementById('searchInput').addEventListener('input',e=>{
+  searchQuery=e.target.value;
+  render();
+});
 document.getElementById('dCta').addEventListener('click',async e=>{if(e.target.id==='copyBtn'){try{await navigator.clipboard.writeText(location.href);toast('링크를 복사했습니다')}catch(err){toast('링크 복사를 준비했습니다')}}});
 document.getElementById('bellBtn').addEventListener('click',()=>{
   loadPosts();
@@ -389,6 +438,10 @@ document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
 window.addEventListener('storage',e=>{if(e.key===STORE_KEY||e.key===SEEN_KEY)render()});
 setupTabs();render();bindFeed();
+if(location.hash.startsWith('#post-')){
+  const id=decodeURIComponent(location.hash.replace('#post-',''));
+  setTimeout(()=>openDetail(id),300);
+}
 </script>
 </body>
 </html>

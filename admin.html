@@ -42,6 +42,10 @@ a{color:inherit;text-decoration:none}
 .list-head{display:flex;align-items:center;padding:5px 6px 12px}
 .list-head b{font-size:14px}
 .list-head button{margin-left:auto;background:#F4F6F8;color:var(--ink2);height:34px;border-radius:8px;padding:0 10px;font-size:12px;font-weight:800}
+.admin-search{padding:0 6px 10px}
+.admin-search label{display:flex;align-items:center;gap:8px;height:40px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink2)}
+.admin-search input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font-size:13px}
+.admin-search input::placeholder{color:var(--ink3)}
 .item{display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;padding:10px 6px;border-top:1px solid var(--line)}
 .item-media{width:74px;height:88px;border-radius:8px;overflow:hidden;background:#EEF2F5}
 .item-media img{width:100%;height:100%;object-fit:cover}
@@ -85,6 +89,12 @@ a{color:inherit;text-decoration:none}
 
     <section class="panel list">
       <div class="list-head"><b>등록한 자료</b><button id="clearBtn" type="button">전체 삭제</button></div>
+      <div class="admin-search">
+        <label for="adminSearch">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="adminSearch" type="search" placeholder="제목 또는 태그로 조회">
+        </label>
+      </div>
       <div id="postList"></div>
     </section>
   </div>
@@ -97,6 +107,7 @@ const form=document.getElementById('postForm');
 const fileInput=document.getElementById('file');
 const preview=document.getElementById('preview');
 const list=document.getElementById('postList');
+const adminSearch=document.getElementById('adminSearch');
 let selected=null;
 function getPosts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){return[]}}
 function setPosts(posts){localStorage.setItem(STORE_KEY,JSON.stringify(posts))}
@@ -142,13 +153,17 @@ document.getElementById('clearBtn').addEventListener('click',()=>{
 });
 function render(){
   const posts=getPosts();
+  const q=adminSearch.value.trim().toLowerCase();
+  const filtered=q?posts.filter(p=>[p.title,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q)):posts;
   if(!posts.length){list.innerHTML='<p class="empty">아직 등록한 자료가 없습니다.</p>';return}
-  list.innerHTML=posts.map(p=>`<article class="item">
+  if(!filtered.length){list.innerHTML='<p class="empty">조회된 자료가 없습니다.</p>';return}
+  list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
     <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)}</p></div>
     <button class="danger" data-del="${p.id}" type="button">삭제</button>
   </article>`).join('');
 }
+adminSearch.addEventListener('input',render);
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let timer;function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(timer);timer=setTimeout(()=>el.classList.remove('on'),1800)}
 render();
