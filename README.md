@@ -1,10 +1,11 @@
 # FP Lounge
 
-Static HTML page for Vercel deployment.
+Static photo/PDF lounge for Vercel deployment.
 
 ## Files
 
 - `index.html`: main page
+- `admin.html`: local administrator upload page
 - `vercel.json`: Vercel static hosting options
 
 ## Deploy
