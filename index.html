@@ -97,23 +97,30 @@ a{color:inherit;text-decoration:none}
 .unread-filter.show{display:flex}
 .unread-filter button{margin-left:auto;color:#fff;font-size:12px;font-weight:850}
 .auth-screen{
-  flex:1;display:flex;align-items:center;justify-content:center;padding:22px;background:var(--app);
+  flex:1;display:flex;align-items:center;justify-content:center;padding:24px 22px;background:var(--app);
 }
 .auth-screen[hidden]{display:none}
-.auth-card{width:100%;max-width:380px}
-.auth-kicker{margin:0 0 10px;color:var(--brand2);font-size:12px;font-weight:900}
-.auth-card h1{margin:0 0 8px;font-size:25px;line-height:1.24;font-weight:880}
-.auth-card > p:not(.auth-kicker){margin:0 0 22px;color:var(--ink2);font-size:13px;line-height:1.55}
-.auth-field{margin-bottom:12px}
-.auth-field label{display:block;margin-bottom:7px;color:var(--ink2);font-size:12px;font-weight:850}
-.auth-field input{width:100%;height:48px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:0 13px;outline:0}
+.auth-card{width:100%;max-width:360px}
+.access-notice{
+  margin-bottom:24px;padding:16px;border:1px solid #DCE7F5;border-radius:8px;background:#F7FBFE;
+  box-shadow:0 10px 28px rgba(25,42,58,.07);
+}
+.access-notice strong{display:block;margin-bottom:8px;color:#18324A;font-size:15px;font-weight:850;line-height:1.45;word-break:keep-all}
+.access-notice span{display:block;color:var(--ink2);font-size:12px;font-weight:650;line-height:1.6;word-break:keep-all}
+.auth-field{margin-bottom:16px}
+.auth-field label{display:block;margin-bottom:8px;color:var(--ink2);font-size:12px;font-weight:850}
+.auth-field input{
+  width:100%;height:52px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);
+  padding:0 14px;outline:0;font-size:20px;font-weight:850;text-align:center;letter-spacing:0;
+}
+.auth-field input:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(0,60,220,.1)}
 .auth-field input::placeholder{color:var(--ink3)}
 .password-box{position:relative}
 .password-box input{padding-right:48px}
 .password-toggle{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink2)}
 .password-toggle:hover{background:var(--soft);color:var(--brand2)}
-.auth-actions{display:flex;gap:8px;margin-top:18px}
-.auth-actions button{height:44px;border-radius:8px;font-size:13px;font-weight:850}
+.auth-actions{display:flex;gap:8px;margin-top:8px}
+.auth-actions button{height:48px;border-radius:8px;font-size:14px;font-weight:850}
 .auth-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
 .auth-actions .primary:disabled{opacity:.58;cursor:progress;box-shadow:none}
 .auth-secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
@@ -250,13 +257,13 @@ a{color:inherit;text-decoration:none}
 
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
-      <p class="auth-kicker">JB Bullet</p>
-      <h1>자료 열람</h1>
-      <p>관리자가 공유한 4자리 비밀번호를 입력하면 바로 자료를 확인할 수 있습니다.</p>
+      <div class="access-notice" role="note">
+        <strong>전법라운지는 전환법인 ARC를 위한 전용 공간입니다.</strong>
+        <span>권한 없는 접속, 자료 열람, 다운로드, 공유 또는 유출은 정보통신망 이용촉진 및 정보보호 등에 관한 법률, 개인정보 보호법, 형법 등에 따라 법적 책임이 발생할 수 있습니다.</span>
+      </div>
       <form id="accessForm">
-        <div class="auth-field"><label for="accessPasscode">접속 비밀번호</label><input id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="4자리 숫자" required></div>
-        <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">접속하기</button></div>
-        <span class="auth-help">비밀번호를 모르면 관리자에게 문의하세요.</span>
+        <div class="auth-field"><label for="accessPasscode">접속 비밀번호</label><input id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="4자리" required></div>
+        <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">입장</button></div>
       </form>
     </div>
   </section>
@@ -324,7 +331,7 @@ let comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
 let posts=[], current=null;
 let unreadOnly=false;
 let searchQuery='';
-let publicAccessToken=localStorage.getItem(ACCESS_KEY)||'';
+let publicAccessToken=sessionStorage.getItem(ACCESS_KEY)||'';
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
@@ -585,7 +592,7 @@ function isUnread(post){return isRemotePost(post)&&!seen.has(post.id)}
 function unreadPosts(){return posts.filter(p=>isUnread(p))}
 function clearPublicAccess(){
   publicAccessToken='';
-  localStorage.removeItem(ACCESS_KEY);
+  sessionStorage.removeItem(ACCESS_KEY);
   posts=[];
 }
 function markSeen(id){
@@ -680,14 +687,14 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
     const result=await response.json().catch(()=>({error:'접속 확인에 실패했습니다.'}));
     if(!response.ok){toast(result.error||'비밀번호를 확인해 주세요');return}
     publicAccessToken=result.token||'';
-    localStorage.setItem(ACCESS_KEY,publicAccessToken);
+    sessionStorage.setItem(ACCESS_KEY,publicAccessToken);
     document.getElementById('accessForm').reset();
     showFeed();
     await render();
     toast('접속되었습니다');
   }finally{
     button.disabled=false;
-    button.textContent='접속하기';
+    button.textContent='입장';
   }
 });
 document.getElementById('userChip').addEventListener('click',async()=>{
