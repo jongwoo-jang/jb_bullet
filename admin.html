@@ -290,7 +290,7 @@ async function getAdminPosts(){
     if(!error&&Array.isArray(data))return data.map(row=>({
       id:String(row.id),
       type:row.type,
-      src:row.media_url,
+      src:row.type==='pdf'&&row.drive_file_id?driveThumbnailUrl(row.drive_file_id):row.media_url,
       title:row.title,
       category:row.category,
       author:row.author,
@@ -307,6 +307,9 @@ function formatDate(value){
   if(Number.isNaN(d.getTime()))return '';
   return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
+function driveThumbnailUrl(fileId){
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w600`;
+}
 async function render(){
   const posts=await getAdminPosts();
   renderTagSuggestions(posts);
@@ -315,7 +318,7 @@ async function render(){
   if(!posts.length){list.innerHTML='<p class="empty">아직 등록한 자료가 없습니다.<br>첫 자료를 게시하면 목록에 표시됩니다.</p>';return}
   if(!filtered.length){list.innerHTML='<p class="empty">조회된 자료가 없습니다.</p>';return}
   list.innerHTML=filtered.map(p=>`<article class="item">
-    <div class="item-media">${p.type==='image'?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
+    <div class="item-media">${p.type==='image'||p.src?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
     <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p></div>
     <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
   </article>`).join('');

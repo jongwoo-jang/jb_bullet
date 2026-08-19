@@ -31,7 +31,7 @@ module.exports = async function handler(req, res) {
 
     const downloadUrl = driveFile.webContentLink || driveDownloadUrl(driveFile.id);
     const webViewUrl = driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`;
-    const mediaUrl = postType === 'image' ? driveThumbnailUrl(driveFile.id) : webViewUrl;
+    const mediaUrl = driveThumbnailUrl(driveFile.id);
 
     const post = await withDriveStage('database', () => insertPost({
       type: postType,

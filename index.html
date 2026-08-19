@@ -146,6 +146,10 @@ a{color:inherit;text-decoration:none}
 }
 @media(hover:hover){.pin:hover .media-card{transform:translateY(-2px);box-shadow:var(--shadow2)}}
 .thumb{display:block;width:100%;height:auto;aspect-ratio:var(--ratio,3/4);object-fit:cover;background:#E7EBEF}
+.pdf-preview{position:relative;aspect-ratio:var(--ratio,3/4);display:grid;place-items:center;background:#F2F5F8}
+.pdf-preview .thumb{width:100%;height:100%;aspect-ratio:auto;object-fit:contain;background:#fff}
+.pdf-fallback{width:100%;height:100%}
+.pdf-fallback .pdf-thumb{height:100%}
 .pdf-thumb{
   aspect-ratio:var(--ratio,3/4);display:flex;flex-direction:column;justify-content:space-between;
   padding:13px;background:linear-gradient(160deg,#E8F8FD 0%,#F7FAFC 72%);
@@ -372,6 +376,7 @@ async function loadPosts(){
   posts=custom;
 }
 function rowToPost(row){
+  const isPdf=row.type==='pdf';
   return {
     id:String(row.id),
     type:row.type||'image',
@@ -381,7 +386,7 @@ function rowToPost(row){
     category:row.category||'상품',
     tags:row.tags||[],
     ratio:row.ratio||'4/5',
-    src:row.media_url||'',
+    src:isPdf&&row.drive_file_id?driveThumbnailUrl(row.drive_file_id):row.media_url||'',
     downloadUrl:row.download_url||row.media_url||'',
     webViewUrl:row.web_view_url||row.media_url||'',
     driveFileId:row.drive_file_id||'',
@@ -393,9 +398,18 @@ function formatDate(value){
   if(Number.isNaN(d.getTime()))return '';
   return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
+function driveThumbnailUrl(fileId){
+  return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w1200`;
+}
+function pdfFallbackMarkup(post){
+  return `<div class="pdf-thumb" style="--ratio:${post.ratio||'3/4'}"><span class="pdf-badge">PDF</span><div class="pdf-title">${escapeHtml(post.title)}</div><div class="pdf-lines"><span></span><span></span><span></span></div></div>`;
+}
 function mediaMarkup(post,large=false){
   if(post.type==='pdf'){
-    return `<div class="pdf-thumb" style="--ratio:${post.ratio||'3/4'}"><span class="pdf-badge">PDF</span><div class="pdf-title">${escapeHtml(post.title)}</div><div class="pdf-lines"><span></span><span></span><span></span></div></div>`;
+    if(post.src){
+      return `<div class="pdf-preview" style="--ratio:${post.ratio||'3/4'}"><img class="thumb" src="${post.src}" alt="${escapeHtml(post.title)} 첫 페이지 미리보기" loading="${large?'eager':'lazy'}" referrerpolicy="no-referrer" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><div class="pdf-fallback" hidden>${pdfFallbackMarkup(post)}</div></div>`;
+    }
+    return pdfFallbackMarkup(post);
   }
   return `<img class="thumb" src="${post.src}" alt="${escapeHtml(post.title)}" style="--ratio:${post.ratio||'3/4'}" loading="${large?'eager':'lazy'}" referrerpolicy="no-referrer">`;
 }
