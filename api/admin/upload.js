@@ -1,10 +1,9 @@
 const { createClient } = require('@supabase/supabase-js');
 const Busboy = require('busboy');
-const { google } = require('googleapis');
 const { Readable } = require('stream');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
-const { getMissingEnv } = require('../_env');
+const { getDrive, getDriveAuthMode, getMissingDriveEnv } = require('../_google-drive');
 
 const MAX_FILE_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 100 * 1024 * 1024);
 const ALLOWED_MIME_PREFIXES = ['image/'];
@@ -58,12 +57,7 @@ module.exports = async function handler(req, res) {
 };
 
 function ensureServerConfig() {
-  const required = [
-    'GOOGLE_CLIENT_EMAIL',
-    'GOOGLE_PRIVATE_KEY',
-    'GOOGLE_DRIVE_FOLDER_ID'
-  ];
-  const missing = getMissingEnv(required);
+  const missing = getMissingDriveEnv();
   if (missing.length) throw new Error(`${missing.join(', ')} 환경변수가 필요합니다.`);
 }
 
@@ -108,7 +102,7 @@ function parseMultipart(req) {
 }
 
 async function uploadToDrive(file) {
-  const drive = google.drive({ version: 'v3', auth: getGoogleAuth() });
+  const drive = getDrive();
   const safeName = sanitizeFilename(file.filename);
   const result = await drive.files.create({
     requestBody: {
@@ -120,7 +114,8 @@ async function uploadToDrive(file) {
       mimeType: file.mimeType,
       body: Readable.from(file.buffer)
     },
-    fields: 'id,name,mimeType,webViewLink,webContentLink'
+    fields: 'id,name,mimeType,webViewLink,webContentLink',
+    supportsAllDrives: true
   });
   return result.data;
 }
@@ -136,9 +131,19 @@ async function withDriveStage(stage, action) {
 
 function getUploadErrorMessage(error) {
   if (error.driveStage === 'upload' && error.code === 404) {
+    if (getDriveAuthMode() === 'oauth') {
+      return 'Google Drive 폴더를 찾지 못했습니다. GOOGLE_DRIVE_FOLDER_ID 값과 OAuth로 연결한 Google 계정의 폴더 접근 권한을 확인해 주세요.';
+    }
     return 'Google Drive 폴더를 찾지 못했습니다. GOOGLE_DRIVE_FOLDER_ID 값과 서비스 계정 폴더 공유 권한을 확인해 주세요.';
   }
   if (error.driveStage === 'upload' && error.code === 403) {
+    const reason = getDriveReason(error);
+    if (reason === 'storageQuotaExceeded' || String(error.message || '').includes('Service Accounts do not have storage quota')) {
+      return '서비스 계정은 개인 Google Drive 용량으로 업로드할 수 없습니다. Google OAuth 방식으로 GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN을 설정해 주세요.';
+    }
+    if (getDriveAuthMode() === 'oauth') {
+      return 'Google Drive 업로드 권한이 없습니다. OAuth로 연결한 Google 계정이 Drive 폴더에 파일을 추가할 수 있는지 확인해 주세요.';
+    }
     return 'Google Drive 업로드 권한이 없습니다. 서비스 계정을 Drive 폴더에 편집자로 공유했는지 확인해 주세요.';
   }
   if (error.driveStage === 'share' && error.code === 403) {
@@ -151,28 +156,21 @@ function getUploadErrorMessage(error) {
 }
 
 async function makeDriveFilePublic(fileId) {
-  const drive = google.drive({ version: 'v3', auth: getGoogleAuth() });
+  const drive = getDrive();
   await drive.permissions.create({
     fileId,
-    requestBody: { role: 'reader', type: 'anyone' }
+    requestBody: { role: 'reader', type: 'anyone' },
+    supportsAllDrives: true
   });
 }
 
 async function safeDeleteDriveFile(fileId) {
   try {
-    const drive = google.drive({ version: 'v3', auth: getGoogleAuth() });
-    await drive.files.delete({ fileId });
+    const drive = getDrive();
+    await drive.files.delete({ fileId, supportsAllDrives: true });
   } catch (error) {
     console.error('Failed to clean up Drive file', error);
   }
-}
-
-function getGoogleAuth() {
-  return new google.auth.JWT({
-    email: process.env.GOOGLE_CLIENT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive']
-  });
 }
 
 async function insertPost(post) {
@@ -217,4 +215,8 @@ function driveThumbnailUrl(fileId) {
 
 function driveDownloadUrl(fileId) {
   return `https://drive.google.com/uc?export=download&id=${encodeURIComponent(fileId)}`;
+}
+
+function getDriveReason(error) {
+  return error && error.errors && error.errors[0] ? error.errors[0].reason : '';
 }

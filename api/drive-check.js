@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+const { getDrive, getDriveAuthMode, getMissingDriveEnv } = require('./_google-drive');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,21 +7,21 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const missing = ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY', 'GOOGLE_DRIVE_FOLDER_ID'].filter(
-      (key) => !String(process.env[key] || '').trim()
-    );
-    if (missing.length) return res.status(200).json({ ok: false, missing, folderAccessible: false });
+    const missing = getMissingDriveEnv();
+    if (missing.length) return res.status(200).json({ ok: false, authMode: getDriveAuthMode(), missing, folderAccessible: false });
 
-    const drive = google.drive({ version: 'v3', auth: getGoogleAuth() });
+    const drive = getDrive();
     const result = await drive.files.get({
       fileId: process.env.GOOGLE_DRIVE_FOLDER_ID,
-      fields: 'id,name,mimeType,capabilities/canAddChildren,capabilities/canShare'
+      fields: 'id,name,mimeType,capabilities/canAddChildren,capabilities/canShare',
+      supportsAllDrives: true
     });
 
     const isFolder = result.data.mimeType === 'application/vnd.google-apps.folder';
     const canAddChildren = Boolean(result.data.capabilities && result.data.capabilities.canAddChildren);
     return res.status(200).json({
       ok: isFolder && canAddChildren,
+      authMode: getDriveAuthMode(),
       folderAccessible: true,
       folderName: result.data.name || '',
       isFolder,
@@ -32,25 +32,30 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: false,
       folderAccessible: false,
-      error: getDriveHelpMessage(error)
+      authMode: getDriveAuthMode(),
+      error: getDriveHelpMessage(error),
+      reason: getDriveReason(error)
     });
   }
 };
 
-function getGoogleAuth() {
-  return new google.auth.JWT({
-    email: process.env.GOOGLE_CLIENT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive']
-  });
-}
-
 function getDriveHelpMessage(error) {
+  const authMode = getDriveAuthMode();
   if (error.code === 404) {
+    if (authMode === 'oauth') {
+      return 'GOOGLE_DRIVE_FOLDER_ID가 잘못됐거나, OAuth로 연결한 Google 계정이 해당 폴더에 접근할 수 없습니다.';
+    }
     return 'GOOGLE_DRIVE_FOLDER_ID가 잘못됐거나, 해당 폴더가 GOOGLE_CLIENT_EMAIL 서비스 계정에 편집자로 공유되지 않았습니다.';
   }
   if (error.code === 403) {
-    return 'Google Drive API 권한이 부족합니다. Drive API 사용 설정과 폴더 공유 권한을 확인해 주세요.';
+    if (authMode === 'oauth') {
+      return 'Google Drive API 권한이 부족합니다. OAuth 동의 범위와 Drive 폴더 권한을 확인해 주세요.';
+    }
+    return 'Google Drive API 권한이 부족합니다. Drive API 사용 설정과 서비스 계정 폴더 공유 권한을 확인해 주세요.';
   }
   return error.message || 'Google Drive 폴더 접근 확인에 실패했습니다.';
+}
+
+function getDriveReason(error) {
+  return error && error.errors && error.errors[0] ? error.errors[0].reason : '';
 }

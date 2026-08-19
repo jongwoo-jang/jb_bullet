@@ -1,8 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
-const { google } = require('googleapis');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
-const { getMissingEnv } = require('../_env');
+const { getDrive, getMissingDriveEnv } = require('../_google-drive');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -41,8 +40,7 @@ module.exports = async function handler(req, res) {
 };
 
 function ensureServerConfig() {
-  const required = ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'];
-  const missing = getMissingEnv(required);
+  const missing = getMissingDriveEnv();
   if (missing.length) throw new Error(`${missing.join(', ')} 환경변수가 필요합니다.`);
 }
 
@@ -64,18 +62,10 @@ function readJson(req) {
 }
 
 async function deleteDriveFile(fileId) {
-  const drive = google.drive({ version: 'v3', auth: getGoogleAuth() });
+  const drive = getDrive();
   try {
-    await drive.files.delete({ fileId });
+    await drive.files.delete({ fileId, supportsAllDrives: true });
   } catch (error) {
     if (error.code !== 404) throw error;
   }
-}
-
-function getGoogleAuth() {
-  return new google.auth.JWT({
-    email: process.env.GOOGLE_CLIENT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    scopes: ['https://www.googleapis.com/auth/drive']
-  });
 }
