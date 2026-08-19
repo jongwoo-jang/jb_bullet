@@ -48,12 +48,15 @@ a{color:inherit;text-decoration:none}
   .app{height:calc(100dvh - 48px);border-radius:24px}
 }
 .appbar{
-  flex:0 0 auto;display:flex;align-items:center;gap:8px;
+  flex:0 0 auto;display:flex;align-items:center;gap:4px;
   padding:calc(12px + env(safe-area-inset-top)) 14px 10px;
   background:rgba(255,255,255,.94);backdrop-filter:blur(16px);z-index:20;
   transition:box-shadow .24s var(--ease),background .24s var(--ease);
 }
 .app.scrolled .appbar{box-shadow:0 1px 0 var(--line)}
+.app.auth-view .appbar{justify-content:center;padding-bottom:12px}
+.app.auth-view .brand{margin-right:0}
+.app.auth-view .icon-btn{display:none}
 .brand{margin-right:auto;display:flex;align-items:center;min-width:0}
 .brand b{font-size:19px;font-weight:850;white-space:nowrap;letter-spacing:0}
 .brand b span{color:var(--brand2)}
@@ -92,30 +95,33 @@ a{color:inherit;text-decoration:none}
 .unread-filter.show{display:flex}
 .unread-filter button{margin-left:auto;color:#fff;font-size:12px;font-weight:850}
 .auth-screen{
-  flex:1;display:flex;align-items:center;justify-content:center;padding:24px 22px;background:var(--app);
+  flex:1;display:flex;align-items:flex-start;justify-content:center;padding:30px 22px 24px;background:var(--app);
 }
 .auth-screen[hidden]{display:none}
-.auth-card{width:100%;max-width:360px}
+.auth-card{width:100%;max-width:348px}
 .access-notice{
-  margin-bottom:24px;padding:16px;border:1px solid #DCE7F5;border-radius:8px;background:#F7FBFE;
-  box-shadow:0 10px 28px rgba(25,42,58,.07);
+  display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;margin-bottom:20px;padding:15px 16px;
+  border:1px solid #DCE7F5;border-radius:8px;background:#F7FBFE;box-shadow:0 10px 28px rgba(25,42,58,.07);
 }
-.access-notice strong{display:block;margin-bottom:8px;color:#18324A;font-size:15px;font-weight:850;line-height:1.45;word-break:keep-all}
-.access-notice span{display:block;color:var(--ink2);font-size:12px;font-weight:650;line-height:1.6;word-break:keep-all}
+.access-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#E8F8FD;color:var(--brand2)}
+.access-notice strong{display:block;margin-bottom:7px;color:#18324A;font-size:14px;font-weight:850;line-height:1.42;word-break:keep-all}
+.access-notice span{display:block;color:var(--ink2);font-size:11.5px;font-weight:650;line-height:1.58;word-break:keep-all}
 .auth-field{margin-bottom:16px}
 .auth-field label{display:block;margin-bottom:8px;color:var(--ink2);font-size:12px;font-weight:850}
-.auth-field input{
-  width:100%;height:52px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);
+.passcode-box{position:relative}
+.passcode-box svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#7A8591;pointer-events:none}
+.passcode-box input{
+  width:100%;height:54px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);
   padding:0 14px;outline:0;font-size:20px;font-weight:850;text-align:center;letter-spacing:0;
 }
-.auth-field input:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(0,60,220,.1)}
-.auth-field input::placeholder{color:var(--ink3)}
+.passcode-box input:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(0,60,220,.1)}
+.passcode-box input::placeholder{color:var(--ink3)}
 .password-box{position:relative}
 .password-box input{padding-right:48px}
 .password-toggle{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink2)}
 .password-toggle:hover{background:var(--soft);color:var(--brand2)}
 .auth-actions{display:flex;gap:8px;margin-top:8px}
-.auth-actions button{height:48px;border-radius:8px;font-size:14px;font-weight:850}
+.auth-actions button{height:50px;border-radius:8px;font-size:14px;font-weight:850}
 .auth-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
 .auth-actions .primary:disabled{opacity:.58;cursor:progress;box-shadow:none}
 .auth-secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
@@ -127,9 +133,9 @@ a{color:inherit;text-decoration:none}
   display:none;margin:56px 24px;color:var(--ink2);text-align:center;font-size:14px;line-height:1.5;
 }
 .empty.show{display:block}
-.masonry{column-count:2;column-gap:8px}
+.masonry{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 8px;align-items:start}
 .pin{
-  break-inside:avoid;width:100%;display:block;text-align:left;margin:0 0 16px;
+  width:100%;display:block;text-align:left;
   opacity:0;transform:translateY(14px);transition:opacity .42s var(--ease),transform .42s var(--ease);
 }
 .pin.in{opacity:1;transform:none}
@@ -153,7 +159,7 @@ a{color:inherit;text-decoration:none}
 .pdf-lines span:nth-child(1){width:92%}.pdf-lines span:nth-child(2){width:72%}.pdf-lines span:nth-child(3){width:48%}
 .type-badge{position:absolute;left:9px;top:9px;z-index:2}
 .top-pin{
-  position:absolute;right:8px;top:8px;z-index:2;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
+  position:absolute;right:8px;top:8px;z-index:2;width:34px;height:34px;display:grid;place-items:center;border-radius:50%;
   background:rgba(255,255,255,.92);backdrop-filter:blur(8px);color:#20242A;box-shadow:0 6px 16px rgba(24,34,45,.12);
   transition:background .2s,color .2s,transform .16s;
 }
@@ -166,9 +172,9 @@ a{color:inherit;text-decoration:none}
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 .pin-meta{display:flex;align-items:center;gap:7px;color:var(--ink2);font-size:11px;font-weight:650}
-.pin-actions{display:flex;align-items:center;gap:4px;margin-top:8px;min-height:44px}
+.pin-actions{display:flex;align-items:center;gap:2px;margin-top:6px;min-height:40px}
 .pin-actions button{
-  width:40px;height:40px;display:grid;place-items:center;border-radius:50%;color:#22272E;
+  width:38px;height:38px;display:grid;place-items:center;border-radius:50%;color:#22272E;
   background:transparent;transition:background .2s,color .2s,transform .16s;
 }
 .pin-actions button:hover{background:var(--brand-soft);color:var(--brand2)}
@@ -192,8 +198,8 @@ a{color:inherit;text-decoration:none}
 .hero-media{background:#E9EEF3;border-bottom:1px solid var(--line)}
 .hero-media img{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain;background:#111}
 .hero-media .pdf-thumb{margin:0;aspect-ratio:1/1;padding:28px}
-.actions{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
-.actions button,.actions a{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
+.actions{display:flex;align-items:center;gap:4px;padding:12px 16px 8px}
+.actions button,.actions a{width:42px;height:42px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
 .actions button:hover,.actions a:hover{background:var(--surface);color:var(--brand2)}
 .actions button:active,.actions a:active{transform:scale(.9)}
 .actions .bookmark{margin-left:auto}
@@ -221,7 +227,7 @@ a{color:inherit;text-decoration:none}
   transition:opacity .28s var(--ease),transform .28s var(--ease);
 }
 .toast.on{opacity:1;transform:translate(-50%,0)}
-@media(max-width:360px){.brand b{font-size:17px}.masonry{column-gap:7px}.scroller{padding-left:8px;padding-right:8px}.pin{margin-bottom:14px}}
+@media(max-width:360px){.brand b{font-size:17px}.masonry{column-gap:7px}.scroller{padding-left:8px;padding-right:8px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}.pin{opacity:1;transform:none}}
 </style>
 </head>
@@ -229,10 +235,10 @@ a{color:inherit;text-decoration:none}
 <div class="app" id="app">
   <header class="appbar">
     <div class="brand"><b>전환법인 <span>라운지</span></b></div>
-    <a class="icon-btn" id="adminLink" href="admin.html" aria-label="관리자" hidden>
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    <a class="icon-btn" id="adminLink" href="admin.html" aria-label="관리자 로그인" hidden>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="14.5" r="3.5"/><path d="M10.5 12 21 1.5"/><path d="m16 6 2.5 2.5"/><path d="m18.5 3.5 2 2"/></svg>
     </a>
-    <button class="icon-btn" id="bellBtn" aria-label="알림">
+    <button class="icon-btn" id="bellBtn" aria-label="알림" hidden>
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       <span class="notice-dot"></span>
     </button>
@@ -255,11 +261,22 @@ a{color:inherit;text-decoration:none}
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
       <div class="access-notice" role="note">
-        <strong>전법라운지는 전환법인 ARC를 위한 전용 공간입니다.</strong>
-        <span>권한 없는 접속, 자료 열람, 다운로드, 공유 또는 유출은 정보통신망 이용촉진 및 정보보호 등에 관한 법률, 개인정보 보호법, 형법 등에 따라 법적 책임이 발생할 수 있습니다.</span>
+        <span class="access-icon" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.7 3 8 7 10 4-2 7-5.3 7-10V6l-7-3Z"/><path d="M9.5 12.2 11.2 14 15 10"/></svg>
+        </span>
+        <div>
+          <strong>전법라운지는 전환법인 ARC 전용 공간입니다.</strong>
+          <span>권한 없는 접속, 자료 이용, 다운로드, 공유 또는 유출은 정보통신망 이용촉진 및 정보보호 등에 관한 법률, 개인정보 보호법, 형법 등에 따라 법적 책임이 발생할 수 있습니다.</span>
+        </div>
       </div>
       <form id="accessForm">
-        <div class="auth-field"><label for="accessPasscode">접속 비밀번호</label><input id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="4자리" required></div>
+        <div class="auth-field">
+          <label for="accessPasscode">접속 비밀번호</label>
+          <div class="passcode-box">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <input id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="4자리" required>
+          </div>
+        </div>
         <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">입장</button></div>
       </form>
     </div>
@@ -296,7 +313,7 @@ a{color:inherit;text-decoration:none}
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         </button>
         <button class="bookmark" id="pinBtn" aria-label="상단 고정" aria-pressed="false">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v4"/><path d="m8 4 8 8"/><path d="m7 13 4-4"/><path d="m13 3 8 8"/><path d="M3 21l6-6"/></svg>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6"/><path d="M8 9h8l2 6H6l2-6Z"/><path d="M12 15v6"/></svg>
         </button>
       </div>
       <p class="caption" id="dCaption"></p>
@@ -393,7 +410,7 @@ function card(post){
       ${post.type==='pdf'?'<span class="type-badge">PDF</span>':''}
       ${mediaMarkup(post)}
       <button class="top-pin ${isPinned?'on':''}" data-pin="${post.id}" aria-label="${isPinned?'상단 고정 해제':'상단 고정'}" aria-pressed="${isPinned?'true':'false'}" title="${isPinned?'상단 고정 해제':'상단 고정'}">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="${isPinned?'currentColor':'none'}" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v4"/><path d="m8 4 8 8"/><path d="m7 13 4-4"/><path d="m13 3 8 8"/><path d="M3 21l6-6"/></svg>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v6"/><path d="M8 9h8l2 6H6l2-6Z"/><path d="M12 15v6"/></svg>
       </button>
     </div>
     <div class="pin-info">
@@ -445,18 +462,22 @@ async function initAuth(){
 }
 function showAuth(){
   stopAutoLock();
+  document.getElementById('app').classList.add('auth-view');
   document.getElementById('authScreen').hidden=false;
   document.getElementById('tabs').hidden=true;
   document.getElementById('searchWrap').hidden=true;
   document.getElementById('scroller').hidden=true;
   document.getElementById('adminLink').hidden=true;
+  document.getElementById('bellBtn').hidden=true;
 }
 function showFeed(){
+  document.getElementById('app').classList.remove('auth-view');
   document.getElementById('authScreen').hidden=true;
   document.getElementById('tabs').hidden=false;
   document.getElementById('searchWrap').hidden=false;
   document.getElementById('scroller').hidden=false;
   document.getElementById('adminLink').hidden=false;
+  document.getElementById('bellBtn').hidden=false;
   resetAutoLock();
   requestAnimationFrame(moveTabIndicator);
 }
