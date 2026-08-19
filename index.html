@@ -72,7 +72,9 @@ a{color:inherit;text-decoration:none}
   transition:box-shadow .24s var(--ease),background .24s var(--ease);
 }
 .app.scrolled .appbar{box-shadow:0 1px 0 var(--line)}
-.app.auth-view .appbar{justify-content:center;padding-bottom:12px}
+.app.auth-view .appbar{display:none}
+.app.auth-view .auth-screen{padding-top:34px}
+.app.auth-view .auth-card{display:flex;flex-direction:column;min-height:calc(100dvh - 58px)}
 .app.auth-view .brand{margin-right:0}
 .app.auth-view .icon-btn{display:none}
 .brand{margin-right:auto;display:flex;align-items:center;min-width:0}
@@ -113,19 +115,48 @@ a{color:inherit;text-decoration:none}
 }
 .unread-filter.show{display:flex}
 .unread-filter button{margin-left:auto;color:#fff;font-size:13.2px;font-weight:850}
-.auth-screen{
-  flex:1;display:flex;align-items:flex-start;justify-content:center;padding:30px 22px 24px;background:var(--app);
-}
+.auth-screen{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:30px 22px 24px;background:var(--app)}
 .auth-screen[hidden]{display:none}
 .auth-card{width:100%;max-width:348px}
-.access-notice{
-  display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;margin-bottom:20px;padding:15px 16px;
-  border:1px solid #DCE7F5;border-radius:8px;background:#F7FBFE;box-shadow:0 10px 28px rgba(25,42,58,.07);
+#accessForm{display:flex;flex-direction:column;flex:1}
+.auth-head{margin:0 0 30px}
+.auth-head h1{margin:0;color:var(--ink);font-size:33px;font-weight:850;line-height:1.18;letter-spacing:0}
+.auth-head h1 span{color:var(--brand2)}
+.auth-head p{margin:14px 0 0;color:var(--ink3);font-size:15px;font-weight:600;line-height:1.62;word-break:keep-all}
+.auth-head p b{color:var(--ink2);font-weight:760}
+.access-pin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 12px}
+.access-cell{
+  aspect-ratio:1/1.08;border-radius:18px;background:#EBEDF3;display:grid;place-items:center;
+  transition:background .18s,box-shadow .18s,transform .22s var(--ease);
 }
-.access-icon{width:31px;height:31px;display:grid;place-items:center;border-radius:8px;background:#E8F8FD;color:var(--brand2)}
-.access-icon svg{width:19px;height:19px}
-.access-notice strong{display:block;margin-bottom:7px;color:#18324A;font-size:15.5px;font-weight:850;line-height:1.42;word-break:keep-all}
-.access-notice span{display:block;color:var(--ink2);font-size:12.7px;font-weight:650;line-height:1.58;word-break:keep-all}
+.access-cell::after{content:"";width:10px;height:10px;border-radius:50%;background:#fff;opacity:0;transform:scale(.4);transition:opacity .12s,transform .22s var(--ease)}
+.access-cell.active{background:#fff;box-shadow:0 0 0 2px var(--brand2),0 8px 18px -12px rgba(0,60,220,.55)}
+.access-cell.filled{background:var(--ink);transform:translateY(-2px)}
+.access-cell.filled::after{opacity:1;transform:scale(1)}
+.access-pin.err .access-cell{background:#FBDCDD;box-shadow:none;transform:none}
+.access-pin.err .access-cell.filled{background:#D94343}
+.access-pin.ok .access-cell{background:var(--spring-green);box-shadow:none}
+.access-code-input{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.access-message{min-height:22px;margin-bottom:12px;color:#D94343;font-size:13px;font-weight:800;line-height:1.5}
+.access-message.ok{color:var(--spring-green)}
+.access-notice{
+  margin-top:auto;margin-bottom:14px;padding:15px 17px 12px;border:0;border-radius:22px;background:#F3F4F8;box-shadow:none;
+}
+.access-req{display:inline-flex;align-items:center;height:24px;padding:0 8px;margin-bottom:10px;border-radius:7px;background:#E8F8FD;color:var(--brand2);font-size:11px;font-weight:850}
+.access-legal{margin:0;color:#A4ACB5;font-size:12.7px;font-weight:650;line-height:1.68;word-break:keep-all}
+.access-legal b{color:var(--ink2);font-weight:760}
+.access-divider{height:1px;background:#E3E6ED;margin:12px 0 2px}
+.access-agree{display:flex;align-items:center;gap:11px;min-height:44px;padding:8px 2px;cursor:pointer}
+.access-agree input{position:absolute;opacity:0;width:0;height:0}
+.access-check{
+  width:25px;height:25px;flex:0 0 auto;border-radius:8px;background:#fff;border:1.7px solid #D2D7E0;
+  display:grid;place-items:center;transition:background .16s,border-color .16s,transform .18s var(--ease);
+}
+.access-check svg{width:13px;height:13px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.5);transition:opacity .13s,transform .2s var(--ease)}
+.access-agree input:checked + .access-check{background:var(--brand2);border-color:var(--brand2)}
+.access-agree input:checked + .access-check svg{opacity:1;transform:scale(1)}
+.access-agree input:focus-visible + .access-check{box-shadow:0 0 0 3px rgba(0,60,220,.2)}
+.access-agree span:last-child{color:var(--ink);font-size:14.5px;font-weight:760}
 .auth-field{margin-bottom:16px}
 .auth-field label{display:block;margin-bottom:8px;color:var(--ink2);font-size:13.2px;font-weight:850}
 .passcode-box{position:relative}
@@ -140,10 +171,10 @@ a{color:inherit;text-decoration:none}
 .password-box input{padding-right:48px}
 .password-toggle{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink2)}
 .password-toggle:hover{background:var(--soft);color:var(--brand2)}
-.auth-actions{display:flex;gap:8px;margin-top:8px}
+.auth-actions{display:flex;gap:8px;margin-top:0;padding-bottom:18px}
 .auth-actions button{height:54px;border-radius:8px;font-size:15.5px;font-weight:850}
 .auth-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
-.auth-actions .primary:disabled{opacity:.58;cursor:progress;box-shadow:none}
+.auth-actions .primary:disabled{background:#E2E5EB;color:#A8AEBB;opacity:1;cursor:not-allowed;box-shadow:none}
 .auth-secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .auth-help{color:var(--ink3);font-size:12.7px;line-height:1.5}
 .text-btn{color:var(--brand2);font-size:13.2px;font-weight:850;white-space:nowrap}
@@ -287,22 +318,28 @@ a{color:inherit;text-decoration:none}
 
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
-      <div class="access-notice" role="note">
-        <span class="access-icon" aria-hidden="true">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.7 3 8 7 10 4-2 7-5.3 7-10V6l-7-3Z"/><path d="M9.5 12.2 11.2 14 15 10"/></svg>
-        </span>
-        <div>
-          <strong>전법라운지는 전환법인 ARC 전용 공간입니다.</strong>
-          <span>권한 없는 접속, 자료 이용, 다운로드, 공유 또는 유출은 정보통신망 이용촉진 및 정보보호 등에 관한 법률, 개인정보 보호법, 형법 등에 따라 법적 책임이 발생할 수 있습니다.</span>
-        </div>
+      <div class="auth-head">
+        <h1>전환법인<br><span>라운지</span></h1>
+        <p><b>삼성화재 전환법인 ARC 전용 공간입니다.</b><br>비밀번호 4자리를 입력해 주세요.</p>
       </div>
       <form id="accessForm">
-        <div class="auth-field">
-          <label for="accessPasscode">접속 비밀번호</label>
-          <div class="passcode-box">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-            <input id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="4자리" required>
-          </div>
+        <div class="access-pin" id="accessPin" aria-hidden="true">
+          <span class="access-cell"></span>
+          <span class="access-cell"></span>
+          <span class="access-cell"></span>
+          <span class="access-cell"></span>
+        </div>
+        <input class="access-code-input" id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" aria-label="접속 비밀번호 4자리" required>
+        <div class="access-message" id="accessMessage" aria-live="polite"></div>
+        <div class="access-notice" id="accessConsent" role="note">
+          <span class="access-req">필수 동의</span>
+          <p class="access-legal"><b>권한 없는 접속·자료 이용·다운로드·공유 또는 유출은</b> 정보통신망법 및 개인정보보호법에 의거 법적 처벌받을 수 있습니다.</p>
+          <div class="access-divider"></div>
+          <label class="access-agree">
+            <input type="checkbox" id="accessAgree">
+            <span class="access-check"><svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 7"/></svg></span>
+            <span>위 내용을 확인했습니다</span>
+          </label>
         </div>
         <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">입장</button></div>
       </form>
@@ -506,6 +543,8 @@ function showAuth(){
   document.getElementById('scroller').hidden=true;
   document.getElementById('adminLink').hidden=true;
   document.getElementById('bellBtn').hidden=true;
+  updateAccessUi();
+  setTimeout(()=>document.getElementById('accessPasscode').focus(),120);
 }
 function showFeed(){
   document.getElementById('app').classList.remove('auth-view');
@@ -734,6 +773,46 @@ function downloadPost(id){
   link.remove();
   toast('다운로드를 시작합니다');
 }
+function accessElements(){
+  return {
+    input:document.getElementById('accessPasscode'),
+    pin:document.getElementById('accessPin'),
+    cells:[...document.querySelectorAll('#accessPin .access-cell')],
+    agree:document.getElementById('accessAgree'),
+    message:document.getElementById('accessMessage'),
+    button:document.getElementById('accessBtn')
+  };
+}
+function setAccessMessage(text='',ok=false){
+  const {message}=accessElements();
+  message.textContent=text;
+  message.classList.toggle('ok',ok);
+}
+function updateAccessUi(){
+  const {input,pin,cells,agree,button}=accessElements();
+  const code=input.value.trim();
+  cells.forEach((cell,index)=>{
+    cell.classList.toggle('filled',index<code.length);
+    cell.classList.toggle('active',index===code.length&&document.activeElement===input);
+  });
+  const busy=button.dataset.busy==='true';
+  button.disabled=busy||code.length!==4||!agree.checked;
+  if(code.length<4&&!busy)setAccessMessage('비밀번호 4자리를 입력해 주세요');
+  else if(!agree.checked&&!busy)setAccessMessage('동의 후 입장할 수 있습니다');
+  else if(!busy&&!pin.classList.contains('err'))setAccessMessage('');
+}
+function showAccessError(text){
+  const {input,pin}=accessElements();
+  pin.classList.remove('ok');
+  pin.classList.add('err');
+  setAccessMessage(text);
+  setTimeout(()=>{
+    pin.classList.remove('err');
+    input.value='';
+    input.focus();
+    updateAccessUi();
+  },620);
+}
 document.getElementById('scroller').addEventListener('scroll',e=>document.getElementById('app').classList.toggle('scrolled',e.currentTarget.scrollTop>6),{passive:true});
 document.getElementById('backBtn').addEventListener('click',closeDetail);
 document.getElementById('likeBtn').addEventListener('click',()=>{
@@ -763,14 +842,22 @@ document.getElementById('commentForm').addEventListener('submit',e=>{
   input.value='';
   toast('댓글을 등록했습니다');
 });
+document.getElementById('accessPin').addEventListener('click',()=>document.getElementById('accessPasscode').focus());
+document.getElementById('accessPasscode').addEventListener('focus',updateAccessUi);
+document.getElementById('accessPasscode').addEventListener('blur',updateAccessUi);
 document.getElementById('accessPasscode').addEventListener('input',e=>{
   e.target.value=e.target.value.replace(/\D/g,'').slice(0,4);
+  document.getElementById('accessPin').classList.remove('err','ok');
+  updateAccessUi();
 });
+document.getElementById('accessAgree').addEventListener('change',updateAccessUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const button=document.getElementById('accessBtn');
-  const passcode=document.getElementById('accessPasscode').value.trim();
-  if(!/^\d{4}$/.test(passcode)){toast('4자리 숫자 비밀번호를 입력해 주세요');return}
+  const {input,pin,agree,button}=accessElements();
+  const passcode=input.value.trim();
+  if(!/^\d{4}$/.test(passcode)){input.focus();setAccessMessage('4자리 숫자 비밀번호를 입력해 주세요');return}
+  if(!agree.checked){setAccessMessage('동의 후 입장할 수 있습니다');return}
+  button.dataset.busy='true';
   button.disabled=true;
   button.textContent='확인 중';
   try{
@@ -780,16 +867,20 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
       body:JSON.stringify({passcode})
     });
     const result=await response.json().catch(()=>({error:'접속 확인에 실패했습니다.'}));
-    if(!response.ok){toast(result.error||'비밀번호를 확인해 주세요');return}
+    if(!response.ok){showAccessError(result.error||'비밀번호를 확인해 주세요');return}
     publicAccessToken=result.token||'';
     sessionStorage.setItem(ACCESS_KEY,publicAccessToken);
+    pin.classList.add('ok');
+    setAccessMessage('확인되었습니다',true);
     document.getElementById('accessForm').reset();
     showFeed();
     await render();
     toast('접속되었습니다');
   }finally{
+    delete button.dataset.busy;
     button.disabled=false;
     button.textContent='입장';
+    updateAccessUi();
   }
 });
 document.getElementById('bellBtn').addEventListener('click',async()=>{
