@@ -57,11 +57,6 @@ a{color:inherit;text-decoration:none}
 .brand{margin-right:auto;display:flex;align-items:center;min-width:0}
 .brand b{font-size:19px;font-weight:850;white-space:nowrap;letter-spacing:0}
 .brand b span{color:var(--brand2)}
-.user-chip{
-  max-width:118px;height:32px;padding:0 10px;border-radius:999px;background:var(--soft);
-  color:var(--ink2);font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.user-chip[hidden]{display:none}
 .icon-btn{
   position:relative;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;
   background:transparent;border:0;color:#252A30;
@@ -234,7 +229,6 @@ a{color:inherit;text-decoration:none}
 <div class="app" id="app">
   <header class="appbar">
     <div class="brand"><b>전환법인 <span>라운지</span></b></div>
-    <button class="user-chip" id="userChip" type="button" hidden></button>
     <a class="icon-btn" id="adminLink" href="admin.html" aria-label="관리자" hidden>
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </a>
@@ -327,6 +321,7 @@ const STORE_KEY='fpLoungePosts';
 const SEEN_KEY='fpSeenPosts';
 const COMMENT_KEY='fpPostComments';
 const ACCESS_KEY='fpPublicAccessToken';
+const AUTO_LOCK_MS=10*60*1000;
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const pinned=new Set(JSON.parse(localStorage.getItem('fpPinned')||localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
@@ -335,6 +330,8 @@ let posts=[], current=null;
 let unreadOnly=false;
 let searchQuery='';
 let publicAccessToken=sessionStorage.getItem(ACCESS_KEY)||'';
+let autoLockTimer=0;
+let hiddenAt=0;
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
@@ -447,11 +444,11 @@ async function initAuth(){
   }
 }
 function showAuth(){
+  stopAutoLock();
   document.getElementById('authScreen').hidden=false;
   document.getElementById('tabs').hidden=true;
   document.getElementById('searchWrap').hidden=true;
   document.getElementById('scroller').hidden=true;
-  document.getElementById('userChip').hidden=true;
   document.getElementById('adminLink').hidden=true;
 }
 function showFeed(){
@@ -460,9 +457,7 @@ function showFeed(){
   document.getElementById('searchWrap').hidden=false;
   document.getElementById('scroller').hidden=false;
   document.getElementById('adminLink').hidden=false;
-  const chip=document.getElementById('userChip');
-  chip.hidden=false;
-  chip.textContent='나가기';
+  resetAutoLock();
   requestAnimationFrame(moveTabIndicator);
 }
 function bindFeed(){
@@ -607,6 +602,38 @@ function clearPublicAccess(){
   sessionStorage.removeItem(ACCESS_KEY);
   posts=[];
 }
+function stopAutoLock(){
+  if(autoLockTimer)clearTimeout(autoLockTimer);
+  autoLockTimer=0;
+  hiddenAt=0;
+}
+function resetAutoLock(){
+  if(!publicAccessToken)return;
+  if(autoLockTimer)clearTimeout(autoLockTimer);
+  autoLockTimer=setTimeout(()=>lockPublicAccess(),AUTO_LOCK_MS);
+}
+function lockPublicAccess(){
+  if(!publicAccessToken)return;
+  clearPublicAccess();
+  showAuth();
+  closeDetail();
+  toast('10분 동안 활동이 없어 접속을 종료했습니다');
+}
+function handleVisibilityChange(){
+  if(document.hidden){
+    hiddenAt=Date.now();
+    return;
+  }
+  if(hiddenAt&&Date.now()-hiddenAt>=AUTO_LOCK_MS){
+    lockPublicAccess();
+    return;
+  }
+  hiddenAt=0;
+  resetAutoLock();
+}
+function handleWindowBlur(){
+  if(publicAccessToken&&!hiddenAt)hiddenAt=Date.now();
+}
 function markSeen(id){
   if(seen.has(id))return;
   seen.add(id);
@@ -707,11 +734,6 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
     button.textContent='입장';
   }
 });
-document.getElementById('userChip').addEventListener('click',async()=>{
-  clearPublicAccess();
-  showAuth();
-  toast('접속을 종료했습니다');
-});
 document.getElementById('bellBtn').addEventListener('click',async()=>{
   await loadPosts();
   const count=unreadPosts().length;
@@ -725,6 +747,12 @@ document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
   unreadOnly=false;
   render();
 });
+['pointerdown','keydown','touchstart','wheel'].forEach(eventName=>{
+  document.addEventListener(eventName,resetAutoLock,{passive:true});
+});
+document.addEventListener('visibilitychange',handleVisibilityChange);
+window.addEventListener('blur',handleWindowBlur);
+window.addEventListener('focus',handleVisibilityChange);
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
 window.addEventListener('storage',e=>{if(e.key===STORE_KEY||e.key===SEEN_KEY)render()});
 setupTabs();initAuth();
