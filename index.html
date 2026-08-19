@@ -124,7 +124,8 @@ a{color:inherit;text-decoration:none}
 .auth-head h1 span{color:var(--brand2)}
 .auth-head p{margin:14px 0 0;color:var(--ink3);font-size:15px;font-weight:600;line-height:1.62;word-break:keep-all}
 .auth-head p b{color:var(--ink2);font-weight:760}
-.access-pin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 12px}
+.access-entry{position:relative;margin:0 0 12px}
+.access-pin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0}
 .access-cell{
   aspect-ratio:1/1.08;border-radius:18px;background:#EBEDF3;display:grid;place-items:center;
   transition:background .18s,box-shadow .18s,transform .22s var(--ease);
@@ -136,7 +137,10 @@ a{color:inherit;text-decoration:none}
 .access-pin.err .access-cell{background:#FBDCDD;box-shadow:none;transform:none}
 .access-pin.err .access-cell.filled{background:#D94343}
 .access-pin.ok .access-cell{background:var(--spring-green);box-shadow:none}
-.access-code-input{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.access-code-input{
+  position:absolute;inset:0;width:100%;height:100%;border:0;outline:0;background:transparent;color:transparent;
+  caret-color:transparent;opacity:.02;font-size:16px;appearance:none;
+}
 .access-message{min-height:22px;margin-bottom:12px;color:#D94343;font-size:13px;font-weight:800;line-height:1.5}
 .access-message.ok{color:var(--spring-green)}
 .access-notice{
@@ -325,13 +329,15 @@ a{color:inherit;text-decoration:none}
         <p><b>삼성화재 전환법인 ARC 전용 공간입니다.</b><br>비밀번호 4자리를 입력해 주세요.</p>
       </div>
       <form id="accessForm">
-        <div class="access-pin" id="accessPin" aria-hidden="true">
-          <span class="access-cell"></span>
-          <span class="access-cell"></span>
-          <span class="access-cell"></span>
-          <span class="access-cell"></span>
+        <div class="access-entry">
+          <div class="access-pin" id="accessPin" aria-hidden="true">
+            <span class="access-cell"></span>
+            <span class="access-cell"></span>
+            <span class="access-cell"></span>
+            <span class="access-cell"></span>
+          </div>
+          <input class="access-code-input" id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="접속 비밀번호 4자리" required>
         </div>
-        <input class="access-code-input" id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" aria-label="접속 비밀번호 4자리" required>
         <div class="access-message" id="accessMessage" aria-live="polite"></div>
         <div class="access-notice" id="accessConsent" role="note">
           <span class="access-req">필수 동의</span>
