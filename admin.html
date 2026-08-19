@@ -13,15 +13,13 @@ body{background:var(--bg);color:var(--ink);font-family:"Pretendard",-apple-syste
 button,input,textarea,select{font:inherit}
 button{border:0;cursor:pointer}
 a{color:inherit;text-decoration:none}
-.wrap{width:min(980px,100%);margin:0 auto;padding:22px 16px 40px}
-.top{display:flex;align-items:center;gap:10px;margin-bottom:18px}
-.mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(145deg,var(--brand),var(--brand2));position:relative;box-shadow:0 8px 18px rgba(0,60,220,.18)}
-.mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.75);border-radius:5px}
+.wrap{width:min(980px,100%);margin:0 auto;padding:24px 16px 40px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:24px}
 .top h1{font-size:20px;margin:0;font-weight:850}
-.top a{margin-left:auto;height:38px;display:inline-flex;align-items:center;padding:0 12px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:800;color:var(--ink2)}
-.account{height:38px;display:inline-flex;align-items:center;padding:0 12px;border-radius:8px;background:#20242A;color:#fff;font-size:12px;font-weight:850}
+.top a{margin-left:auto;height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:8px;background:var(--surface);border:1px solid var(--line);font-size:13px;font-weight:800;color:var(--ink2)}
+.account{height:44px;display:inline-flex;align-items:center;padding:0 16px;border-radius:8px;background:#20242A;color:#fff;font-size:12px;font-weight:850}
 .account[hidden]{display:none}
-.layout{display:grid;grid-template-columns:minmax(0,390px) 1fr;gap:16px;align-items:start}
+.layout{display:grid;grid-template-columns:minmax(0,392px) 1fr;gap:24px;align-items:start}
 .layout[hidden]{display:none}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 .auth-panel{width:min(420px,100%);margin:72px auto 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
@@ -37,34 +35,37 @@ a{color:inherit;text-decoration:none}
 .auth-secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
 .text-btn{background:transparent;color:var(--brand2);font-size:12px;font-weight:850;white-space:nowrap}
 .form{padding:16px}
-.field{margin-bottom:13px}
-.field label{display:block;margin-bottom:7px;font-size:12px;font-weight:850;color:var(--ink2)}
-.field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:12px;outline:none}
+.field{margin-bottom:16px}
+.field label{display:block;margin-bottom:8px;font-size:12px;font-weight:850;color:var(--ink2)}
+.field input,.field textarea,.field select{width:100%;min-height:48px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:12px;outline:none}
 .field input::placeholder,.field textarea::placeholder{color:var(--ink3)}
 .field textarea{min-height:90px;resize:vertical;line-height:1.5}
-.drop{border:1px dashed #C9D2DB;border-radius:8px;background:#FBFCFD;padding:18px;text-align:center;color:var(--ink2)}
+.drop{border:1px dashed #C9D2DB;border-radius:8px;background:#FBFCFD;padding:24px 16px;text-align:center;color:var(--ink2)}
 .drop input{display:none}
 .drop b{display:block;font-size:14px;color:var(--ink);margin-bottom:5px}
 .preview{margin-top:12px;border-radius:8px;overflow:hidden;background:#EEF2F5;border:1px solid var(--line);display:none}
 .preview.show{display:block}
 .preview img{display:block;width:100%;max-height:360px;object-fit:contain;background:#111}
 .preview .pdf{aspect-ratio:4/3;display:grid;place-items:center;font-weight:850;color:var(--brand2);background:var(--soft)}
-.actions{display:flex;gap:8px;margin-top:16px}
-.primary,.ghost,.danger{height:44px;border-radius:8px;font-weight:850}
+.actions{display:flex;gap:8px;margin-top:24px}
+.primary,.ghost,.danger{min-height:48px;border-radius:8px;font-weight:850}
 .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
 .primary:disabled{opacity:.58;cursor:progress;box-shadow:none}
 .ghost{padding:0 14px;background:#F4F6F8;color:var(--ink2)}
 .danger{padding:0 12px;background:#EDF6FF;color:var(--brand2)}
 .hint{margin:9px 0 0;color:var(--ink3);font-size:11.5px;line-height:1.5}
-.list{padding:10px}
-.list-head{display:flex;align-items:center;padding:5px 6px 12px}
+.tag-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.tag-chip{height:32px;padding:0 12px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:12px;font-weight:800}
+.tag-chip:hover,.tag-chip.on{background:var(--soft);color:var(--brand2)}
+.list{padding:16px}
+.list-head{display:flex;align-items:center;padding:0 0 16px}
 .list-head b{font-size:14px}
-.list-head button{margin-left:auto;background:#F4F6F8;color:var(--ink2);height:34px;border-radius:8px;padding:0 10px;font-size:12px;font-weight:800}
-.admin-search{padding:0 6px 10px}
-.admin-search label{display:flex;align-items:center;gap:8px;height:40px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink2)}
+.list-head button{margin-left:auto;background:#F4F6F8;color:var(--ink2);min-height:40px;border-radius:8px;padding:0 12px;font-size:12px;font-weight:800}
+.admin-search{padding:0 0 16px}
+.admin-search label{display:flex;align-items:center;gap:8px;height:48px;padding:0 16px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink2)}
 .admin-search input{width:100%;border:0;outline:0;background:transparent;color:var(--ink);font-size:13px}
 .admin-search input::placeholder{color:var(--ink3)}
-.item{display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;padding:10px 6px;border-top:1px solid var(--line)}
+.item{display:grid;grid-template-columns:72px 1fr auto;gap:16px;align-items:center;padding:16px 0;border-top:1px solid var(--line)}
 .item-media{width:74px;height:88px;border-radius:8px;overflow:hidden;background:#EEF2F5}
 .item-media img{width:100%;height:100%;object-fit:cover}
 .item-media .pdf{width:100%;height:100%;display:grid;place-items:center;background:var(--soft);color:var(--brand2);font-size:12px;font-weight:900}
@@ -73,13 +74,12 @@ a{color:inherit;text-decoration:none}
 .empty{padding:48px 10px;text-align:center;color:var(--ink3);font-size:13px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);opacity:0;background:rgba(32,36,42,.96);color:#fff;border-radius:8px;padding:12px 16px;font-size:13px;font-weight:760;transition:.24s}
 .toast.on{opacity:1;transform:translate(-50%,0)}
-@media(max-width:760px){.layout{grid-template-columns:1fr}.top{position:sticky;top:0;z-index:5;background:rgba(238,243,247,.88);backdrop-filter:blur(14px);padding:12px 0;margin-top:-12px}}
+@media(max-width:760px){.layout{grid-template-columns:1fr;gap:16px}.top{position:sticky;top:0;z-index:5;background:rgba(238,243,247,.88);backdrop-filter:blur(14px);padding:12px 0;margin-top:-12px;margin-bottom:16px}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <span class="mark"></span>
     <h1>자료 관리자</h1>
     <button class="account" id="signOutBtn" type="button" hidden>로그아웃</button>
     <a href="index.html">피드 보기</a>
@@ -131,9 +131,9 @@ a{color:inherit;text-decoration:none}
           <div class="preview" id="preview"></div>
         </div>
         <div class="field"><label for="title">제목</label><input id="title" required placeholder="예: 8월 신상품 핵심 이미지"></div>
-        <div class="field"><label for="category">분류</label><select id="category"><option>상품</option><option>시상</option></select></div>
-        <div class="field"><label for="author">작성 부서</label><input id="author" value="관리자"></div>
-        <div class="field"><label for="tags">태그</label><input id="tags" placeholder="상품, 교육, 시상"></div>
+        <div class="field"><label for="category">분류</label><select id="category"><option>상품</option><option>시상</option><option>복합</option></select></div>
+        <div class="field"><label for="author">작성자</label><input id="author" value="관리자"></div>
+        <div class="field"><label for="tags">태그</label><input id="tags" placeholder="쉼표로 구분해 입력"><div class="tag-suggestions" id="tagSuggestions" aria-label="최근 태그"></div></div>
         <div class="field"><label for="desc">설명</label><textarea id="desc" placeholder="피드 상세 화면에 표시할 짧은 설명"></textarea></div>
         <div class="actions"><button class="primary" type="submit">게시하기</button><button class="ghost" type="reset">초기화</button></div>
       </form>
@@ -162,6 +162,7 @@ const fileInput=document.getElementById('file');
 const preview=document.getElementById('preview');
 const list=document.getElementById('postList');
 const adminSearch=document.getElementById('adminSearch');
+const tagSuggestions=document.getElementById('tagSuggestions');
 const authPanel=document.getElementById('authPanel');
 const authForm=document.getElementById('authForm');
 const signOutBtn=document.getElementById('signOutBtn');
@@ -287,9 +288,10 @@ function formatDate(value){
 }
 async function render(){
   const posts=await getAdminPosts();
+  renderTagSuggestions(posts);
   const q=adminSearch.value.trim().toLowerCase();
   const filtered=q?posts.filter(p=>[p.title,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q)):posts;
-  if(!posts.length){list.innerHTML='<p class="empty">아직 등록한 자료가 없습니다.</p>';return}
+  if(!posts.length){list.innerHTML='<p class="empty">아직 등록한 자료가 없습니다.<br>첫 자료를 게시하면 목록에 표시됩니다.</p>';return}
   if(!filtered.length){list.innerHTML='<p class="empty">조회된 자료가 없습니다.</p>';return}
   list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
@@ -297,6 +299,24 @@ async function render(){
     <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
   </article>`).join('');
 }
+function renderTagSuggestions(posts){
+  const recent=[];
+  posts.forEach(post=>(post.tags||[]).forEach(tag=>{
+    const clean=String(tag).trim();
+    if(clean&&!recent.includes(clean))recent.push(clean);
+  }));
+  tagSuggestions.innerHTML=recent.slice(0,12).map(tag=>`<button class="tag-chip" data-tag="${escapeHtml(tag)}" type="button">#${escapeHtml(tag)}</button>`).join('');
+}
+tagSuggestions.addEventListener('click',e=>{
+  const button=e.target.closest('[data-tag]');
+  if(!button)return;
+  const input=document.getElementById('tags');
+  const tags=input.value.split(',').map(v=>v.trim()).filter(Boolean);
+  const tag=button.dataset.tag;
+  if(!tags.includes(tag))tags.push(tag);
+  input.value=tags.join(', ');
+  input.focus();
+});
 adminSearch.addEventListener('input',render);
 authForm.addEventListener('submit',async e=>{
   e.preventDefault();

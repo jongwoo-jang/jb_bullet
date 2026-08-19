@@ -63,7 +63,7 @@ a{color:inherit;text-decoration:none}
 }
 .user-chip[hidden]{display:none}
 .icon-btn{
-  position:relative;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
+  position:relative;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;
   background:transparent;border:0;color:#252A30;
   transition:transform .16s var(--ease),background .2s,color .2s;
 }
@@ -75,16 +75,16 @@ a{color:inherit;text-decoration:none}
 }
 .icon-btn.has-unread .notice-dot{display:block}
 .tabs{
-  flex:0 0 auto;position:relative;display:flex;gap:18px;margin:0;padding:0 14px;
+  flex:0 0 auto;position:relative;display:flex;gap:24px;margin:0;padding:0 16px;
   background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);
 }
-.tab{position:relative;z-index:2;min-height:42px;padding:12px 0 10px;color:var(--ink2);font-size:14px;font-weight:780}
+.tab{position:relative;z-index:2;min-height:48px;padding:15px 0 13px;color:var(--ink2);font-size:14px;font-weight:780}
 .tab[aria-selected="true"]{color:var(--ink)}
-.tab-ind{position:absolute;left:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ink);transition:transform .32s var(--ease),width .32s var(--ease)}
-.search-wrap{padding:0 14px 12px;background:rgba(255,255,255,.94)}
+.tab-ind{position:absolute;left:16px;bottom:-1px;height:2px;border-radius:2px;background:var(--brand2);transition:transform .32s var(--ease),width .32s var(--ease)}
+.search-wrap{padding:0 16px 16px;background:rgba(255,255,255,.94)}
 .tabs[hidden],.search-wrap[hidden],.scroller[hidden]{display:none}
 .search-box{
-  display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border:1px solid var(--line);
+  display:flex;align-items:center;gap:8px;height:48px;padding:0 16px;border:1px solid var(--line);
   border-radius:999px;background:#F7F9FA;color:var(--ink2);
 }
 .search-box svg{flex:0 0 auto}
@@ -122,7 +122,7 @@ a{color:inherit;text-decoration:none}
 .scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 10px calc(24px + env(safe-area-inset-bottom));scrollbar-width:thin;scrollbar-color:#D9E0E6 transparent}
 .panel[hidden]{display:none}
 .empty{
-  display:none;margin:52px 20px;color:var(--ink2);text-align:center;font-size:13px;line-height:1.6;
+  display:none;margin:56px 24px;color:var(--ink2);text-align:center;font-size:14px;line-height:1.5;
 }
 .empty.show{display:block}
 .masonry{column-count:2;column-gap:8px}
@@ -161,9 +161,9 @@ a{color:inherit;text-decoration:none}
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 .pin-meta{display:flex;align-items:center;gap:7px;color:var(--ink2);font-size:11px;font-weight:650}
-.pin-actions{display:flex;align-items:center;gap:4px;margin-top:7px}
+.pin-actions{display:flex;align-items:center;gap:4px;margin-top:8px;min-height:44px}
 .pin-actions button{
-  width:28px;height:28px;display:grid;place-items:center;border-radius:50%;color:#22272E;
+  width:40px;height:40px;display:grid;place-items:center;border-radius:50%;color:#22272E;
   background:transparent;transition:background .2s,color .2s,transform .16s;
 }
 .pin-actions button:hover{background:var(--brand-soft);color:var(--brand2)}
@@ -187,8 +187,8 @@ a{color:inherit;text-decoration:none}
 .hero-media{background:#E9EEF3;border-bottom:1px solid var(--line)}
 .hero-media img{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain;background:#111}
 .hero-media .pdf-thumb{margin:0;aspect-ratio:1/1;padding:28px}
-.actions{display:flex;align-items:center;gap:4px;padding:12px 12px 6px}
-.actions button,.actions a{width:32px;height:32px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
+.actions{display:flex;align-items:center;gap:8px;padding:12px 16px 8px}
+.actions button,.actions a{width:44px;height:44px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
 .actions button:hover,.actions a:hover{background:var(--surface);color:var(--brand2)}
 .actions button:active,.actions a:active{transform:scale(.9)}
 .actions .bookmark{margin-left:auto}
@@ -239,11 +239,12 @@ a{color:inherit;text-decoration:none}
     <button class="tab" role="tab" aria-selected="true" aria-controls="p-all">전체</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-product">상품</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-award">시상</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-mixed">복합</button>
   </nav>
   <div class="search-wrap" id="searchWrap" hidden>
     <label class="search-box" for="searchInput">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="searchInput" type="search" placeholder="제목, 태그, 부서 검색">
+      <input id="searchInput" type="search" placeholder="제목, 태그, 작성자 검색">
     </label>
   </div>
 
@@ -284,9 +285,10 @@ a{color:inherit;text-decoration:none}
 
   <main class="scroller" id="scroller" hidden>
     <div class="unread-filter" id="unreadFilter"><span id="unreadFilterText"></span><button type="button" id="clearUnreadFilter">전체 보기</button></div>
-    <section class="panel" id="p-all" role="tabpanel"><div class="masonry" id="gridAll"></div><p class="empty" id="emptyAll">등록된 자료가 없습니다.</p></section>
+    <section class="panel" id="p-all" role="tabpanel"><div class="masonry" id="gridAll"></div><p class="empty" id="emptyAll">아직 등록된 자료가 없습니다.<br>새 자료가 등록되면 여기에 표시됩니다.</p></section>
     <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
     <section class="panel" id="p-award" role="tabpanel" hidden><div class="masonry" id="gridAward"></div><p class="empty" id="emptyAward">등록된 시상 자료가 없습니다.</p></section>
+    <section class="panel" id="p-mixed" role="tabpanel" hidden><div class="masonry" id="gridMixed"></div><p class="empty" id="emptyMixed">등록된 복합 자료가 없습니다.</p></section>
   </main>
 
   <section class="detail" id="detail" aria-hidden="true">
@@ -307,6 +309,9 @@ a{color:inherit;text-decoration:none}
         </button>
         <button id="shareBtn" aria-label="공유">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
+        </button>
+        <button id="downloadBtn" aria-label="다운로드">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         </button>
         <button class="bookmark" id="saveBtn" aria-label="저장" aria-pressed="false">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round"><path d="M6 3h12v18l-6-4.5L6 21z"/></svg>
@@ -335,14 +340,6 @@ a{color:inherit;text-decoration:none}
 const STORE_KEY='fpLoungePosts';
 const SEEN_KEY='fpSeenPosts';
 const COMMENT_KEY='fpPostComments';
-const DEFAULT_POSTS=[
-  {id:'seed-1',type:'image',title:'신담보 간병인지원 판매 포인트',author:'상품개발팀',date:'08.14',category:'상품',tags:['상품','간병인지원'],ratio:'3/4',src:'https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=900&q=80',desc:'현장에서 바로 꺼내 볼 수 있는 핵심 이미지 자료입니다.'},
-  {id:'seed-2',type:'image',title:'FP 상담 테이블 토크 스크립트',author:'상품교육팀',date:'08.13',category:'상품',tags:['상담','스크립트'],ratio:'4/5',src:'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80',desc:'고객 상담 흐름을 시각적으로 정리했습니다.'},
-  {id:'seed-3',type:'pdf',title:'8월 시상 기준 요약 PDF',author:'영업기획팀',date:'08.12',category:'시상',tags:['시상','기준'],ratio:'3/4',src:'',desc:'시상 기준과 지급 조건을 한 장으로 정리한 PDF 자료입니다.'},
-  {id:'seed-4',type:'image',title:'법인 CEO 플랜 제안 장표',author:'상품개발팀',date:'08.10',category:'상품',tags:['법인','CEO플랜'],ratio:'1/1',src:'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=900&q=80',desc:'법인 고객 제안 시 활용할 수 있는 시각 자료입니다.'},
-  {id:'seed-5',type:'image',title:'보장분석 리모델링 체크포인트',author:'상품개발팀',date:'08.08',category:'상품',tags:['보장분석','리모델링'],ratio:'2/3',src:'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80',desc:'보장분석 상담 전 확인할 체크 포인트입니다.'},
-  {id:'seed-6',type:'pdf',title:'전환계약 시상 캠페인 체크리스트',author:'영업기획팀',date:'08.05',category:'시상',tags:['시상','캠페인'],ratio:'4/5',src:'',desc:'시상 캠페인 적용 전 확인해야 할 항목을 정리했습니다.'}
-];
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const saved=new Set(JSON.parse(localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
@@ -353,8 +350,8 @@ let searchQuery='';
 let currentSession=null;
 let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
 let moveTabIndicator=()=>{};
-const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
-const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
+const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
+const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
 let SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
 let supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
   ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
@@ -365,13 +362,13 @@ async function loadPosts(){
   if(supabaseClient){
     const {data,error}=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
     if(!error&&Array.isArray(data)){
-      posts=[...data.map(rowToPost),...DEFAULT_POSTS];
+      posts=data.map(rowToPost);
       return;
     }
   }
   let custom=[];
   try{custom=JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){custom=[]}
-  posts=[...custom,...DEFAULT_POSTS];
+  posts=custom;
 }
 function rowToPost(row){
   return {
@@ -423,7 +420,10 @@ function card(post){
         <button data-share="${post.id}" aria-label="공유">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 3 10.5l7.5 3L14 21z"/></svg>
         </button>
-        ${commentCount?`<span class="count">댓글 ${commentCount}</span>`:''}
+        <button data-download="${post.id}" aria-label="다운로드">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        </button>
+        ${commentCount?`<span class="count">${commentCount}</span>`:''}
       </div>
     </div>
   </article>`;
@@ -432,7 +432,12 @@ async function render(){
   await loadPosts();
   const searchedPosts=posts.filter(matchesSearch);
   const visiblePosts=unreadOnly?searchedPosts.filter(p=>isUnread(p)):searchedPosts;
-  const groups={all:visiblePosts,product:visiblePosts.filter(p=>p.category==='상품'),award:visiblePosts.filter(p=>p.category==='시상')};
+  const groups={
+    all:visiblePosts,
+    product:visiblePosts.filter(p=>p.category==='상품'),
+    award:visiblePosts.filter(p=>p.category==='시상'),
+    mixed:visiblePosts.filter(p=>p.category==='복합')
+  };
   Object.entries(groups).forEach(([key,list])=>{
     grids[key].innerHTML=list.map(card).join('');
     empties[key].classList.toggle('show',list.length===0);
@@ -541,6 +546,11 @@ function bindFeed(){
       sharePost(shareBtn.dataset.share);
       return;
     }
+    const downloadBtn=e.target.closest('[data-download]');
+    if(downloadBtn){
+      downloadPost(downloadBtn.dataset.download);
+      return;
+    }
     const likeBtn=e.target.closest('[data-like]');
     if(likeBtn){
       toggleLike(likeBtn.dataset.like);
@@ -564,10 +574,7 @@ function openDetail(id,focusComment=false){
   document.getElementById('dMeta').textContent=`${current.author||'관리자'} · ${current.category||'자료'} · ${current.date||''}`;
   document.getElementById('dMedia').innerHTML=mediaMarkup(current,true);
   document.getElementById('dCaption').innerHTML=`<b>${escapeHtml(current.author||'관리자')}</b>${escapeHtml(current.desc||current.title)}<span class="tagline">${(current.tags||[]).map(t=>'#'+escapeHtml(t)).join(' ')}</span>`;
-  const downloadHref=current.downloadUrl||current.src;
-  document.getElementById('dCta').innerHTML=current.type==='pdf'&&downloadHref
-    ? `<a class="btn primary" href="${downloadHref}" target="_blank" rel="noopener">PDF 내려받기</a>`
-    : '';
+  document.getElementById('dCta').innerHTML='';
   renderComments();
   syncDetail();
   render();
@@ -596,7 +603,7 @@ function toggleLike(id){
 async function renderComments(){
   if(!current)return;
   let list=[];
-  if(supabaseClient&&!current.id.startsWith('seed-')){
+  if(supabaseClient&&isRemotePost(current)){
     const {data,error}=await supabaseClient.from('fp_comments').select('*').eq('post_id',current.id).order('created_at',{ascending:true});
     if(!error&&Array.isArray(data))list=data.map(c=>({author:c.author||'방문자',text:c.text||''}));
   }else{
@@ -609,7 +616,7 @@ async function renderComments(){
 }
 async function addComment(text){
   if(!current)return;
-  if(supabaseClient&&!current.id.startsWith('seed-')){
+  if(supabaseClient&&isRemotePost(current)){
     const author=currentSession&&currentSession.user&&currentSession.user.email?currentSession.user.email:'방문자';
     const {error}=await supabaseClient.from('fp_comments').insert({post_id:current.id,author,text});
     if(error){toast('댓글 저장에 실패했습니다');return}
@@ -625,7 +632,7 @@ async function addComment(text){
 }
 function setupTabs(){
   const tabs=[...document.querySelectorAll('.tab')], ind=document.getElementById('ind');
-  const move=()=>{const on=tabs.find(t=>t.getAttribute('aria-selected')==='true');ind.style.width=on.offsetWidth+'px';ind.style.transform=`translateX(${on.offsetLeft-14}px)`};
+  const move=()=>{const on=tabs.find(t=>t.getAttribute('aria-selected')==='true');ind.style.width=on.offsetWidth+'px';ind.style.transform=`translateX(${on.offsetLeft-16}px)`};
   moveTabIndicator=move;
   tabs.forEach(tab=>tab.addEventListener('click',()=>{
     tabs.forEach(t=>{
@@ -646,7 +653,8 @@ function matchesSearch(post){
   return [post.title,post.author,post.category,post.desc,...(post.tags||[])]
     .filter(Boolean).join(' ').toLowerCase().includes(q);
 }
-function isUnread(post){return !post.id.startsWith('seed-')&&!seen.has(post.id)}
+function isRemotePost(post){return post&&!String(post.id).startsWith('post-')}
+function isUnread(post){return isRemotePost(post)&&!seen.has(post.id)}
 function unreadPosts(){return posts.filter(p=>isUnread(p))}
 function markSeen(id){
   if(seen.has(id))return;
@@ -683,6 +691,20 @@ async function sharePost(id){
     try{await navigator.clipboard.writeText(url);toast('게시물 링크를 복사했습니다')}catch(err){toast('공유를 준비했습니다')}
   }
 }
+function downloadPost(id){
+  const post=posts.find(p=>p.id===id);
+  const href=post&&(post.downloadUrl||post.webViewUrl||post.src);
+  if(!href){toast('다운로드 링크가 없습니다');return}
+  const link=document.createElement('a');
+  link.href=href;
+  link.download=post.title||'download';
+  link.target='_blank';
+  link.rel='noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  toast('다운로드를 시작합니다');
+}
 document.getElementById('scroller').addEventListener('scroll',e=>document.getElementById('app').classList.toggle('scrolled',e.currentTarget.scrollTop>6),{passive:true});
 document.getElementById('backBtn').addEventListener('click',closeDetail);
 document.getElementById('likeBtn').addEventListener('click',()=>{
@@ -696,6 +718,7 @@ document.getElementById('saveBtn').addEventListener('click',()=>{
   render();syncDetail();toast(saved.has(current.id)?'자료를 저장했습니다':'저장을 취소했습니다');
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{if(current)sharePost(current.id)});
+document.getElementById('downloadBtn').addEventListener('click',()=>{if(current)downloadPost(current.id)});
 document.getElementById('focusCommentBtn').addEventListener('click',()=>{
   document.getElementById('commentInput').focus();
   document.getElementById('commentForm').scrollIntoView({behavior:'smooth',block:'center'});

@@ -187,7 +187,8 @@ function isAllowedMime(mimeType) {
 }
 
 function normalizeCategory(value) {
-  return value === '시상' ? '시상' : '상품';
+  if (value === '시상' || value === '복합') return value;
+  return '상품';
 }
 
 function parseTags(value) {
