@@ -251,34 +251,12 @@ a{color:inherit;text-decoration:none}
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
       <p class="auth-kicker">JB Bullet</p>
-      <h1>자료 열람 로그인</h1>
-      <p>관리자가 발급한 계정으로 로그인하면 상품과 시상 자료를 확인할 수 있습니다.</p>
-      <form id="authForm">
-        <div class="auth-field"><label for="authEmail">아이디</label><input id="authEmail" type="email" autocomplete="username" inputmode="email" placeholder="이메일 주소" required></div>
-        <div class="auth-field">
-          <label for="authPassword">비밀번호</label>
-          <div class="password-box">
-            <input id="authPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="6">
-            <button class="password-toggle" id="togglePassword" type="button" aria-label="비밀번호 보기" aria-pressed="false">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="auth-actions"><button class="primary" id="signInBtn" type="submit">로그인</button></div>
-        <div class="auth-secondary"><span class="auth-help">계정이 없으면 관리자에게 요청하세요.</span><button class="text-btn" id="resetPasswordBtn" type="button">비밀번호 재설정</button></div>
-      </form>
-      <form id="passwordResetForm" hidden>
-        <div class="auth-field">
-          <label for="newPassword">새 비밀번호</label>
-          <div class="password-box">
-            <input id="newPassword" type="password" autocomplete="new-password" placeholder="6자 이상 입력" required minlength="6">
-            <button class="password-toggle" id="toggleNewPassword" type="button" aria-label="새 비밀번호 보기" aria-pressed="false">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="auth-actions"><button class="primary" id="updatePasswordBtn" type="submit">새 비밀번호 저장</button></div>
-        <span class="auth-help">저장 후 바로 자료 화면으로 이동합니다.</span>
+      <h1>자료 열람</h1>
+      <p>관리자가 공유한 4자리 비밀번호를 입력하면 바로 자료를 확인할 수 있습니다.</p>
+      <form id="accessForm">
+        <div class="auth-field"><label for="accessPasscode">접속 비밀번호</label><input id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="4자리 숫자" required></div>
+        <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">접속하기</button></div>
+        <span class="auth-help">비밀번호를 모르면 관리자에게 문의하세요.</span>
       </form>
     </div>
   </section>
@@ -334,12 +312,11 @@ a{color:inherit;text-decoration:none}
   <div class="toast" id="toast"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="app-config.js"></script>
 <script>
 const STORE_KEY='fpLoungePosts';
 const SEEN_KEY='fpSeenPosts';
 const COMMENT_KEY='fpPostComments';
+const ACCESS_KEY='fpPublicAccessToken';
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const saved=new Set(JSON.parse(localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
@@ -347,22 +324,22 @@ let comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
 let posts=[], current=null;
 let unreadOnly=false;
 let searchQuery='';
-let currentSession=null;
-let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
+let publicAccessToken=localStorage.getItem(ACCESS_KEY)||'';
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
-let SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
-let supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
-  ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
-  : null;
-
 async function loadPosts(){
-  await configureSupabase();
-  if(supabaseClient){
-    const {data,error}=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
-    if(!error&&Array.isArray(data)){
-      posts=data.map(rowToPost);
+  if(publicAccessToken){
+    try{
+      const response=await fetch('/api/feed',{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
+      const result=await response.json().catch(()=>({error:'자료를 불러오지 못했습니다.'}));
+      if(response.status===401){clearPublicAccess();showAuth();toast(result.error||'다시 접속 비밀번호를 입력해 주세요');return}
+      if(!response.ok)throw new Error(result.error||'자료를 불러오지 못했습니다.');
+      posts=Array.isArray(result.posts)?result.posts.map(rowToPost):[];
+      return;
+    }catch(error){
+      posts=[];
+      toast(error.message||'자료를 불러오지 못했습니다');
       return;
     }
   }
@@ -446,55 +423,15 @@ async function render(){
   updateUnreadUi();
 }
 async function initAuth(){
-  await configureSupabase();
-  if(!supabaseClient){
-    showAuth();
-    toast('Supabase 공개 환경변수가 필요합니다');
-    bindFeed();
-    return;
-  }
-  const {data}=await supabaseClient.auth.getSession();
-  applySession(data.session);
-  supabaseClient.auth.onAuthStateChange((event,session)=>{
-    if(event==='PASSWORD_RECOVERY'){showPasswordReset(session);return}
-    applySession(session);
-  });
   bindFeed();
-}
-async function configureSupabase(){
-  if(supabaseClient||!window.supabase)return supabaseClient;
-  if(!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.publishableKey){
-    try{
-      const response=await fetch('/api/config',{cache:'no-store'});
-      if(response.ok){
-        const config=await response.json();
-        SUPABASE_CONFIG={
-          ...SUPABASE_CONFIG,
-          url:config.supabaseUrl||SUPABASE_CONFIG.url,
-          publishableKey:config.supabasePublishableKey||SUPABASE_CONFIG.publishableKey
-        };
-      }
-    }catch(error){}
-  }
-  if(SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey){
-    supabaseClient=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey);
-  }
-  return supabaseClient;
-}
-function applySession(session){
-  currentSession=session||null;
-  if(passwordRecoveryMode&&currentSession){showPasswordReset(currentSession);return}
-  if(currentSession){
-    showFeed(currentSession);
+  if(publicAccessToken){
+    showFeed();
     render();
   }else{
     showAuth();
   }
 }
 function showAuth(){
-  passwordRecoveryMode=false;
-  document.getElementById('authForm').hidden=false;
-  document.getElementById('passwordResetForm').hidden=true;
   document.getElementById('authScreen').hidden=false;
   document.getElementById('tabs').hidden=true;
   document.getElementById('searchWrap').hidden=true;
@@ -502,31 +439,15 @@ function showAuth(){
   document.getElementById('userChip').hidden=true;
   document.getElementById('adminLink').hidden=true;
 }
-function showPasswordReset(session){
-  passwordRecoveryMode=true;
-  currentSession=session||currentSession;
-  document.getElementById('authForm').hidden=true;
-  document.getElementById('passwordResetForm').hidden=false;
-  document.getElementById('authScreen').hidden=false;
-  document.getElementById('tabs').hidden=true;
-  document.getElementById('searchWrap').hidden=true;
-  document.getElementById('scroller').hidden=true;
-  document.getElementById('userChip').hidden=true;
-  document.getElementById('adminLink').hidden=true;
-  setTimeout(()=>document.getElementById('newPassword').focus(),80);
-}
-function showFeed(session){
-  passwordRecoveryMode=false;
-  document.getElementById('authForm').hidden=false;
-  document.getElementById('passwordResetForm').hidden=true;
+function showFeed(){
   document.getElementById('authScreen').hidden=true;
   document.getElementById('tabs').hidden=false;
   document.getElementById('searchWrap').hidden=false;
   document.getElementById('scroller').hidden=false;
   document.getElementById('adminLink').hidden=false;
   const chip=document.getElementById('userChip');
-  chip.hidden=!session;
-  chip.textContent=session&&session.user&&session.user.email?session.user.email:'';
+  chip.hidden=false;
+  chip.textContent='나가기';
   requestAnimationFrame(moveTabIndicator);
 }
 function bindFeed(){
@@ -603,9 +524,12 @@ function toggleLike(id){
 async function renderComments(){
   if(!current)return;
   let list=[];
-  if(supabaseClient&&isRemotePost(current)){
-    const {data,error}=await supabaseClient.from('fp_comments').select('*').eq('post_id',current.id).order('created_at',{ascending:true});
-    if(!error&&Array.isArray(data))list=data.map(c=>({author:c.author||'방문자',text:c.text||''}));
+  if(publicAccessToken&&isRemotePost(current)){
+    try{
+      const response=await fetch(`/api/comments?post_id=${encodeURIComponent(current.id)}`,{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
+      const result=await response.json().catch(()=>({comments:[]}));
+      if(response.ok&&Array.isArray(result.comments))list=result.comments.map(c=>({author:c.author||'방문자',text:c.text||''}));
+    }catch(error){}
   }else{
     comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
     list=comments[current.id]||[];
@@ -616,10 +540,13 @@ async function renderComments(){
 }
 async function addComment(text){
   if(!current)return;
-  if(supabaseClient&&isRemotePost(current)){
-    const author=currentSession&&currentSession.user&&currentSession.user.email?currentSession.user.email:'방문자';
-    const {error}=await supabaseClient.from('fp_comments').insert({post_id:current.id,author,text});
-    if(error){toast('댓글 저장에 실패했습니다');return}
+  if(publicAccessToken&&isRemotePost(current)){
+    const response=await fetch('/api/comments',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${publicAccessToken}`},
+      body:JSON.stringify({post_id:current.id,text})
+    });
+    if(!response.ok){toast('댓글 저장에 실패했습니다');return}
     await renderComments();
     render();
     return;
@@ -656,6 +583,11 @@ function matchesSearch(post){
 function isRemotePost(post){return post&&!String(post.id).startsWith('post-')}
 function isUnread(post){return isRemotePost(post)&&!seen.has(post.id)}
 function unreadPosts(){return posts.filter(p=>isUnread(p))}
+function clearPublicAccess(){
+  publicAccessToken='';
+  localStorage.removeItem(ACCESS_KEY);
+  posts=[];
+}
 function markSeen(id){
   if(seen.has(id))return;
   seen.add(id);
@@ -672,13 +604,6 @@ function updateUnreadUi(){
   filterText.textContent=count>0?`미확인 게시물 ${count}개를 보고 있습니다`:'미확인 게시물이 없습니다';
 }
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function getAuthErrorMessage(error){
-  const message=String(error&&error.message?error.message:'').toLowerCase();
-  if(message.includes('invalid login credentials'))return '아이디 또는 비밀번호를 확인해 주세요';
-  if(message.includes('email not confirmed'))return '이메일 인증 후 로그인해 주세요';
-  if(message.includes('rate limit'))return '요청이 많습니다. 잠시 후 다시 시도해 주세요';
-  return error&&error.message?error.message:'로그인 처리에 실패했습니다';
-}
 let toastTimer;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1800)}
 async function sharePost(id){
@@ -736,58 +661,39 @@ document.getElementById('commentForm').addEventListener('submit',e=>{
   input.value='';
   toast('댓글을 등록했습니다');
 });
-document.getElementById('authForm').addEventListener('submit',async e=>{
+document.getElementById('accessPasscode').addEventListener('input',e=>{
+  e.target.value=e.target.value.replace(/\D/g,'').slice(0,4);
+});
+document.getElementById('accessForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
-  const button=document.getElementById('signInBtn');
-  const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
+  const button=document.getElementById('accessBtn');
+  const passcode=document.getElementById('accessPasscode').value.trim();
+  if(!/^\d{4}$/.test(passcode)){toast('4자리 숫자 비밀번호를 입력해 주세요');return}
   button.disabled=true;
   button.textContent='확인 중';
-  const {error}=await supabaseClient.auth.signInWithPassword({email,password});
-  button.disabled=false;
-  button.textContent='로그인';
-  if(error){toast(getAuthErrorMessage(error));return}
-  toast('로그인되었습니다');
+  try{
+    const response=await fetch('/api/public/access',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({passcode})
+    });
+    const result=await response.json().catch(()=>({error:'접속 확인에 실패했습니다.'}));
+    if(!response.ok){toast(result.error||'비밀번호를 확인해 주세요');return}
+    publicAccessToken=result.token||'';
+    localStorage.setItem(ACCESS_KEY,publicAccessToken);
+    document.getElementById('accessForm').reset();
+    showFeed();
+    await render();
+    toast('접속되었습니다');
+  }finally{
+    button.disabled=false;
+    button.textContent='접속하기';
+  }
 });
-document.getElementById('togglePassword').addEventListener('click',()=>togglePasswordInput('authPassword','togglePassword','비밀번호'));
-document.getElementById('toggleNewPassword').addEventListener('click',()=>togglePasswordInput('newPassword','toggleNewPassword','새 비밀번호'));
-document.getElementById('resetPasswordBtn').addEventListener('click',async()=>{
-  if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
-  const email=document.getElementById('authEmail').value.trim();
-  if(!email){toast('아이디에 이메일 주소를 먼저 입력해 주세요');return}
-  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
-  if(error){toast(getAuthErrorMessage(error));return}
-  toast('비밀번호 재설정 메일을 보냈습니다');
-});
-document.getElementById('passwordResetForm').addEventListener('submit',async e=>{
-  e.preventDefault();
-  if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
-  const button=document.getElementById('updatePasswordBtn');
-  const password=document.getElementById('newPassword').value;
-  if(password.length<6){toast('비밀번호는 6자 이상 입력해 주세요');return}
-  button.disabled=true;
-  button.textContent='저장 중';
-  const {error}=await supabaseClient.auth.updateUser({password});
-  button.disabled=false;
-  button.textContent='새 비밀번호 저장';
-  if(error){toast(getAuthErrorMessage(error));return}
-  document.getElementById('passwordResetForm').reset();
-  passwordRecoveryMode=false;
-  toast('비밀번호를 변경했습니다');
-  const {data}=await supabaseClient.auth.getSession();
-  applySession(data.session);
-});
-function togglePasswordInput(inputId,buttonId,label){
-  const input=document.getElementById(inputId);
-  const button=document.getElementById(buttonId);
-  const visible=input.type==='text';
-  input.type=visible?'password':'text';
-  button.setAttribute('aria-pressed',String(!visible));
-  button.setAttribute('aria-label',visible?`${label} 보기`:`${label} 숨기기`);
-}
 document.getElementById('userChip').addEventListener('click',async()=>{
-  if(supabaseClient)await supabaseClient.auth.signOut();
+  clearPublicAccess();
+  showAuth();
+  toast('접속을 종료했습니다');
 });
 document.getElementById('bellBtn').addEventListener('click',async()=>{
   await loadPosts();

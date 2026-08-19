@@ -4,7 +4,7 @@
   "private": true,
   "description": "Static media lounge with Vercel API uploads to Google Drive and Supabase metadata.",
   "scripts": {
-    "check": "node --check api/_google-drive.js && node --check api/drive-check.js && node --check api/admin/upload.js && node --check api/admin/delete.js"
+    "check": "node --check api/_google-drive.js && node --check api/_public-access.js && node --check api/feed.js && node --check api/comments.js && node --check api/public/access.js && node --check api/admin/passcode.js && node --check api/drive-check.js && node --check api/admin/upload.js && node --check api/admin/delete.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",
