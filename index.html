@@ -48,7 +48,7 @@ a{color:inherit;text-decoration:none}
   .app{height:calc(100dvh - 48px);border-radius:24px}
 }
 .appbar{
-  flex:0 0 auto;display:flex;align-items:center;gap:4px;
+  flex:0 0 auto;display:flex;align-items:center;gap:0;
   padding:calc(12px + env(safe-area-inset-top)) 14px 10px;
   background:rgba(255,255,255,.94);backdrop-filter:blur(16px);z-index:20;
   transition:box-shadow .24s var(--ease),background .24s var(--ease);
@@ -61,14 +61,14 @@ a{color:inherit;text-decoration:none}
 .brand b{font-size:19px;font-weight:850;white-space:nowrap;letter-spacing:0}
 .brand b span{color:var(--brand2)}
 .icon-btn{
-  position:relative;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;
+  position:relative;width:40px;height:40px;display:grid;place-items:center;border-radius:50%;
   background:transparent;border:0;color:#252A30;
   transition:transform .16s var(--ease),background .2s,color .2s;
 }
 .icon-btn:hover{background:var(--soft);color:var(--brand2)}
 .icon-btn:active{transform:scale(.92)}
 .notice-dot{
-  position:absolute;right:7px;top:7px;width:8px;height:8px;border-radius:50%;
+  position:absolute;right:6px;top:6px;width:8px;height:8px;border-radius:50%;
   background:var(--spring-orange);box-shadow:0 0 0 2px var(--surface);display:none;
 }
 .icon-btn.has-unread .notice-dot{display:block}
@@ -176,9 +176,9 @@ a{color:inherit;text-decoration:none}
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
 }
 .pin-meta{display:flex;align-items:center;gap:7px;color:var(--ink2);font-size:11px;font-weight:650}
-.pin-actions{display:flex;align-items:center;gap:2px;margin-top:6px;min-height:40px}
+.pin-actions{display:flex;align-items:center;gap:0;margin-top:6px;min-height:36px}
 .pin-actions button{
-  width:38px;height:38px;display:grid;place-items:center;border-radius:50%;color:#22272E;
+  width:34px;height:36px;display:grid;place-items:center;border-radius:50%;color:#22272E;
   background:transparent;transition:background .2s,color .2s,transform .16s;
 }
 .pin-actions button:hover{background:var(--brand-soft);color:var(--brand2)}
@@ -202,8 +202,8 @@ a{color:inherit;text-decoration:none}
 .hero-media{background:#E9EEF3;border-bottom:1px solid var(--line)}
 .hero-media img{display:block;width:100%;height:auto;max-height:62vh;object-fit:contain;background:#111}
 .hero-media .pdf-thumb{margin:0;aspect-ratio:1/1;padding:28px}
-.actions{display:flex;align-items:center;gap:4px;padding:12px 16px 8px}
-.actions button,.actions a{width:42px;height:42px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
+.actions{display:flex;align-items:center;gap:0;padding:12px 16px 8px}
+.actions button,.actions a{width:38px;height:40px;display:grid;place-items:center;border-radius:50%;color:var(--ink);transition:background .2s,color .2s,transform .16s}
 .actions button:hover,.actions a:hover{background:var(--surface);color:var(--brand2)}
 .actions button:active,.actions a:active{transform:scale(.9)}
 .actions .bookmark{margin-left:auto}
