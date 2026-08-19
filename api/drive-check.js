@@ -15,14 +15,18 @@ module.exports = async function handler(req, res) {
     const drive = google.drive({ version: 'v3', auth: getGoogleAuth() });
     const result = await drive.files.get({
       fileId: process.env.GOOGLE_DRIVE_FOLDER_ID,
-      fields: 'id,name,mimeType'
+      fields: 'id,name,mimeType,capabilities/canAddChildren,capabilities/canShare'
     });
 
+    const isFolder = result.data.mimeType === 'application/vnd.google-apps.folder';
+    const canAddChildren = Boolean(result.data.capabilities && result.data.capabilities.canAddChildren);
     return res.status(200).json({
-      ok: result.data.mimeType === 'application/vnd.google-apps.folder',
+      ok: isFolder && canAddChildren,
       folderAccessible: true,
       folderName: result.data.name || '',
-      isFolder: result.data.mimeType === 'application/vnd.google-apps.folder'
+      isFolder,
+      canAddChildren,
+      canShare: Boolean(result.data.capabilities && result.data.capabilities.canShare)
     });
   } catch (error) {
     return res.status(200).json({

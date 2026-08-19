@@ -26,15 +26,15 @@ module.exports = async function handler(req, res) {
     if (!isAllowedMime(file.mimeType)) return res.status(400).json({ error: '이미지 또는 PDF만 업로드할 수 있습니다.' });
 
     const postType = file.mimeType === 'application/pdf' ? 'pdf' : 'image';
-    const driveFile = await uploadToDrive(file);
+    const driveFile = await withDriveStage('upload', () => uploadToDrive(file));
     uploadedDriveFileId = driveFile.id;
-    await makeDriveFilePublic(driveFile.id);
+    await withDriveStage('share', () => makeDriveFilePublic(driveFile.id));
 
     const downloadUrl = driveFile.webContentLink || driveDownloadUrl(driveFile.id);
     const webViewUrl = driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`;
     const mediaUrl = postType === 'image' ? driveThumbnailUrl(driveFile.id) : webViewUrl;
 
-    const post = await insertPost({
+    const post = await withDriveStage('database', () => insertPost({
       type: postType,
       title: firstField(fields.title) || file.filename,
       category: normalizeCategory(firstField(fields.category)),
@@ -47,7 +47,7 @@ module.exports = async function handler(req, res) {
       drive_file_id: driveFile.id,
       storage_provider: 'google_drive',
       ratio: firstField(fields.ratio) || (postType === 'pdf' ? '3/4' : '4/5')
-    });
+    }));
 
     return res.status(201).json({ post });
   } catch (error) {
@@ -125,12 +125,27 @@ async function uploadToDrive(file) {
   return result.data;
 }
 
+async function withDriveStage(stage, action) {
+  try {
+    return await action();
+  } catch (error) {
+    error.driveStage = stage;
+    throw error;
+  }
+}
+
 function getUploadErrorMessage(error) {
-  if (error.code === 404 && String(error.message || '').includes('File not found')) {
+  if (error.driveStage === 'upload' && error.code === 404) {
     return 'Google Drive 폴더를 찾지 못했습니다. GOOGLE_DRIVE_FOLDER_ID 값과 서비스 계정 폴더 공유 권한을 확인해 주세요.';
   }
-  if (error.code === 403) {
+  if (error.driveStage === 'upload' && error.code === 403) {
     return 'Google Drive 업로드 권한이 없습니다. 서비스 계정을 Drive 폴더에 편집자로 공유했는지 확인해 주세요.';
+  }
+  if (error.driveStage === 'share' && error.code === 403) {
+    return '파일 업로드는 되었지만 공개 링크 권한 설정이 차단되었습니다. Google Drive 폴더의 링크 공유 설정을 확인해 주세요.';
+  }
+  if (error.driveStage === 'database') {
+    return `Supabase 게시물 저장에 실패했습니다: ${error.message}`;
   }
   return error.message || '업로드에 실패했습니다.';
 }
