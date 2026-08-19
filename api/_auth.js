@@ -1,10 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeSupabaseUrl } = require('./_supabase-url');
+const { getMissingEnv } = require('./_env');
 
 function getSupabaseAdmin() {
   const url = normalizeSupabaseUrl(process.env.SUPABASE_URL);
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.');
+  const missing = getMissingEnv(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+  if (missing.length) throw new Error(`${missing.join(', ')} 환경변수가 필요합니다.`);
   return createClient(url, key, { auth: { persistSession: false } });
 }
 

@@ -4,6 +4,7 @@ const { google } = require('googleapis');
 const { Readable } = require('stream');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
+const { getMissingEnv } = require('../_env');
 
 const MAX_FILE_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 100 * 1024 * 1024);
 const ALLOWED_MIME_PREFIXES = ['image/'];
@@ -58,13 +59,11 @@ module.exports = async function handler(req, res) {
 
 function ensureServerConfig() {
   const required = [
-    'SUPABASE_URL',
-    'SUPABASE_SERVICE_ROLE_KEY',
     'GOOGLE_CLIENT_EMAIL',
     'GOOGLE_PRIVATE_KEY',
     'GOOGLE_DRIVE_FOLDER_ID'
   ];
-  const missing = required.filter((key) => !process.env[key]);
+  const missing = getMissingEnv(required);
   if (missing.length) throw new Error(`${missing.join(', ')} 환경변수가 필요합니다.`);
 }
 

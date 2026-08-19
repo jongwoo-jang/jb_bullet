@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { google } = require('googleapis');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
+const { getMissingEnv } = require('../_env');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -40,8 +41,8 @@ module.exports = async function handler(req, res) {
 };
 
 function ensureServerConfig() {
-  const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'];
-  const missing = required.filter((key) => !process.env[key]);
+  const required = ['GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'];
+  const missing = getMissingEnv(required);
   if (missing.length) throw new Error(`${missing.join(', ')} 환경변수가 필요합니다.`);
 }
 
