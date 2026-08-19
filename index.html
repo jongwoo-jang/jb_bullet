@@ -100,17 +100,25 @@ a{color:inherit;text-decoration:none}
   flex:1;display:flex;align-items:center;justify-content:center;padding:22px;background:var(--app);
 }
 .auth-screen[hidden]{display:none}
-.auth-card{width:100%;max-width:360px}
+.auth-card{width:100%;max-width:380px}
+.auth-kicker{margin:0 0 10px;color:var(--brand2);font-size:12px;font-weight:900}
 .auth-card h1{margin:0 0 8px;font-size:25px;line-height:1.24;font-weight:880}
-.auth-card p{margin:0 0 20px;color:var(--ink2);font-size:13px;line-height:1.55}
+.auth-card > p:not(.auth-kicker){margin:0 0 22px;color:var(--ink2);font-size:13px;line-height:1.55}
 .auth-field{margin-bottom:12px}
 .auth-field label{display:block;margin-bottom:7px;color:var(--ink2);font-size:12px;font-weight:850}
-.auth-field input{width:100%;height:46px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:0 13px;outline:0}
-.auth-actions{display:flex;gap:8px;margin-top:16px}
+.auth-field input{width:100%;height:48px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:0 13px;outline:0}
+.auth-field input::placeholder{color:var(--ink3)}
+.password-box{position:relative}
+.password-box input{padding-right:48px}
+.password-toggle{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink2)}
+.password-toggle:hover{background:var(--soft);color:var(--brand2)}
+.auth-actions{display:flex;gap:8px;margin-top:18px}
 .auth-actions button{height:44px;border-radius:8px;font-size:13px;font-weight:850}
 .auth-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
-.auth-actions .ghost{padding:0 14px;background:#F4F6F8;color:var(--ink2)}
-.auth-help{display:block;margin-top:10px;color:var(--ink3);font-size:11.5px;line-height:1.5}
+.auth-actions .primary:disabled{opacity:.58;cursor:progress;box-shadow:none}
+.auth-secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.auth-help{color:var(--ink3);font-size:11.5px;line-height:1.5}
+.text-btn{color:var(--brand2);font-size:12px;font-weight:850;white-space:nowrap}
 .scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 10px calc(24px + env(safe-area-inset-bottom));scrollbar-width:thin;scrollbar-color:#D9E0E6 transparent}
 .panel[hidden]{display:none}
 .empty{
@@ -241,13 +249,35 @@ a{color:inherit;text-decoration:none}
 
   <section class="auth-screen" id="authScreen">
     <div class="auth-card">
-      <h1>라운지 로그인</h1>
-      <p>전환법인 FP 자료를 보려면 이메일 계정으로 로그인해 주세요.</p>
+      <p class="auth-kicker">JB Bullet</p>
+      <h1>자료 열람 로그인</h1>
+      <p>관리자가 발급한 계정으로 로그인하면 상품과 시상 자료를 확인할 수 있습니다.</p>
       <form id="authForm">
-        <div class="auth-field"><label for="authEmail">이메일</label><input id="authEmail" type="email" autocomplete="email" required></div>
-        <div class="auth-field"><label for="authPassword">비밀번호</label><input id="authPassword" type="password" autocomplete="current-password" required minlength="6"></div>
-        <div class="auth-actions"><button class="primary" type="submit">로그인</button><button class="ghost" id="signUpBtn" type="button">가입</button></div>
-        <span class="auth-help">처음 가입한 계정은 이메일 확인 후 로그인할 수 있습니다.</span>
+        <div class="auth-field"><label for="authEmail">아이디</label><input id="authEmail" type="email" autocomplete="username" inputmode="email" placeholder="이메일 주소" required></div>
+        <div class="auth-field">
+          <label for="authPassword">비밀번호</label>
+          <div class="password-box">
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="6">
+            <button class="password-toggle" id="togglePassword" type="button" aria-label="비밀번호 보기" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="auth-actions"><button class="primary" id="signInBtn" type="submit">로그인</button></div>
+        <div class="auth-secondary"><span class="auth-help">계정이 없으면 관리자에게 요청하세요.</span><button class="text-btn" id="resetPasswordBtn" type="button">비밀번호 재설정</button></div>
+      </form>
+      <form id="passwordResetForm" hidden>
+        <div class="auth-field">
+          <label for="newPassword">새 비밀번호</label>
+          <div class="password-box">
+            <input id="newPassword" type="password" autocomplete="new-password" placeholder="6자 이상 입력" required minlength="6">
+            <button class="password-toggle" id="toggleNewPassword" type="button" aria-label="새 비밀번호 보기" aria-pressed="false">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="auth-actions"><button class="primary" id="updatePasswordBtn" type="submit">새 비밀번호 저장</button></div>
+        <span class="auth-help">저장 후 바로 자료 화면으로 이동합니다.</span>
       </form>
     </div>
   </section>
@@ -321,6 +351,7 @@ let posts=[], current=null;
 let unreadOnly=false;
 let searchQuery='';
 let currentSession=null;
+let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
@@ -419,7 +450,10 @@ async function initAuth(){
   }
   const {data}=await supabaseClient.auth.getSession();
   applySession(data.session);
-  supabaseClient.auth.onAuthStateChange((event,session)=>applySession(session));
+  supabaseClient.auth.onAuthStateChange((event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){showPasswordReset(session);return}
+    applySession(session);
+  });
   bindFeed();
 }
 async function configureSupabase(){
@@ -444,6 +478,7 @@ async function configureSupabase(){
 }
 function applySession(session){
   currentSession=session||null;
+  if(passwordRecoveryMode&&currentSession){showPasswordReset(currentSession);return}
   if(currentSession){
     showFeed(currentSession);
     render();
@@ -452,6 +487,9 @@ function applySession(session){
   }
 }
 function showAuth(){
+  passwordRecoveryMode=false;
+  document.getElementById('authForm').hidden=false;
+  document.getElementById('passwordResetForm').hidden=true;
   document.getElementById('authScreen').hidden=false;
   document.getElementById('tabs').hidden=true;
   document.getElementById('searchWrap').hidden=true;
@@ -459,7 +497,23 @@ function showAuth(){
   document.getElementById('userChip').hidden=true;
   document.getElementById('adminLink').hidden=true;
 }
+function showPasswordReset(session){
+  passwordRecoveryMode=true;
+  currentSession=session||currentSession;
+  document.getElementById('authForm').hidden=true;
+  document.getElementById('passwordResetForm').hidden=false;
+  document.getElementById('authScreen').hidden=false;
+  document.getElementById('tabs').hidden=true;
+  document.getElementById('searchWrap').hidden=true;
+  document.getElementById('scroller').hidden=true;
+  document.getElementById('userChip').hidden=true;
+  document.getElementById('adminLink').hidden=true;
+  setTimeout(()=>document.getElementById('newPassword').focus(),80);
+}
 function showFeed(session){
+  passwordRecoveryMode=false;
+  document.getElementById('authForm').hidden=false;
+  document.getElementById('passwordResetForm').hidden=true;
   document.getElementById('authScreen').hidden=true;
   document.getElementById('tabs').hidden=false;
   document.getElementById('searchWrap').hidden=false;
@@ -610,6 +664,13 @@ function updateUnreadUi(){
   filterText.textContent=count>0?`미확인 게시물 ${count}개를 보고 있습니다`:'미확인 게시물이 없습니다';
 }
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function getAuthErrorMessage(error){
+  const message=String(error&&error.message?error.message:'').toLowerCase();
+  if(message.includes('invalid login credentials'))return '아이디 또는 비밀번호를 확인해 주세요';
+  if(message.includes('email not confirmed'))return '이메일 인증 후 로그인해 주세요';
+  if(message.includes('rate limit'))return '요청이 많습니다. 잠시 후 다시 시도해 주세요';
+  return error&&error.message?error.message:'로그인 처리에 실패했습니다';
+}
 let toastTimer;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1800)}
 async function sharePost(id){
@@ -655,21 +716,53 @@ document.getElementById('commentForm').addEventListener('submit',e=>{
 document.getElementById('authForm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
+  const button=document.getElementById('signInBtn');
   const email=document.getElementById('authEmail').value.trim();
   const password=document.getElementById('authPassword').value;
+  button.disabled=true;
+  button.textContent='확인 중';
   const {error}=await supabaseClient.auth.signInWithPassword({email,password});
-  if(error){toast(error.message||'로그인에 실패했습니다');return}
-  toast('로그인했습니다');
+  button.disabled=false;
+  button.textContent='로그인';
+  if(error){toast(getAuthErrorMessage(error));return}
+  toast('로그인되었습니다');
 });
-document.getElementById('signUpBtn').addEventListener('click',async()=>{
+document.getElementById('togglePassword').addEventListener('click',()=>togglePasswordInput('authPassword','togglePassword','비밀번호'));
+document.getElementById('toggleNewPassword').addEventListener('click',()=>togglePasswordInput('newPassword','toggleNewPassword','새 비밀번호'));
+document.getElementById('resetPasswordBtn').addEventListener('click',async()=>{
   if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
   const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
-  if(!email||password.length<6){toast('이메일과 6자 이상 비밀번호를 입력해 주세요');return}
-  const {error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
-  if(error){toast(error.message||'가입에 실패했습니다');return}
-  toast('가입 메일을 확인해 주세요');
+  if(!email){toast('아이디에 이메일 주소를 먼저 입력해 주세요');return}
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});
+  if(error){toast(getAuthErrorMessage(error));return}
+  toast('비밀번호 재설정 메일을 보냈습니다');
 });
+document.getElementById('passwordResetForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
+  const button=document.getElementById('updatePasswordBtn');
+  const password=document.getElementById('newPassword').value;
+  if(password.length<6){toast('비밀번호는 6자 이상 입력해 주세요');return}
+  button.disabled=true;
+  button.textContent='저장 중';
+  const {error}=await supabaseClient.auth.updateUser({password});
+  button.disabled=false;
+  button.textContent='새 비밀번호 저장';
+  if(error){toast(getAuthErrorMessage(error));return}
+  document.getElementById('passwordResetForm').reset();
+  passwordRecoveryMode=false;
+  toast('비밀번호를 변경했습니다');
+  const {data}=await supabaseClient.auth.getSession();
+  applySession(data.session);
+});
+function togglePasswordInput(inputId,buttonId,label){
+  const input=document.getElementById(inputId);
+  const button=document.getElementById(buttonId);
+  const visible=input.type==='text';
+  input.type=visible?'password':'text';
+  button.setAttribute('aria-pressed',String(!visible));
+  button.setAttribute('aria-label',visible?`${label} 보기`:`${label} 숨기기`);
+}
 document.getElementById('userChip').addEventListener('click',async()=>{
   if(supabaseClient)await supabaseClient.auth.signOut();
 });

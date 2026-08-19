@@ -26,13 +26,21 @@ a{color:inherit;text-decoration:none}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 .auth-panel{width:min(420px,100%);margin:72px auto 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 .auth-panel[hidden]{display:none}
+.auth-kicker{margin:0 0 10px;color:var(--brand2);font-size:12px;font-weight:900}
 .auth-panel h2{margin:0 0 8px;font-size:22px;line-height:1.25}
-.auth-panel p{margin:0 0 18px;color:var(--ink2);font-size:13px;line-height:1.55}
+.auth-panel > p:not(.auth-kicker){margin:0 0 18px;color:var(--ink2);font-size:13px;line-height:1.55}
 .auth-actions{display:flex;gap:8px;margin-top:16px}
+.password-box{position:relative}
+.password-box input{padding-right:48px}
+.password-toggle{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;border-radius:8px;background:transparent;color:var(--ink2)}
+.password-toggle:hover{background:var(--soft);color:var(--brand2)}
+.auth-secondary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px}
+.text-btn{background:transparent;color:var(--brand2);font-size:12px;font-weight:850;white-space:nowrap}
 .form{padding:16px}
 .field{margin-bottom:13px}
 .field label{display:block;margin-bottom:7px;font-size:12px;font-weight:850;color:var(--ink2)}
 .field input,.field textarea,.field select{width:100%;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:12px;outline:none}
+.field input::placeholder,.field textarea::placeholder{color:var(--ink3)}
 .field textarea{min-height:90px;resize:vertical;line-height:1.5}
 .drop{border:1px dashed #C9D2DB;border-radius:8px;background:#FBFCFD;padding:18px;text-align:center;color:var(--ink2)}
 .drop input{display:none}
@@ -78,13 +86,35 @@ a{color:inherit;text-decoration:none}
   </header>
 
   <section class="auth-panel" id="authPanel">
+    <p class="auth-kicker">JB Bullet Admin</p>
     <h2>관리자 로그인</h2>
-    <p>관리자 권한이 있는 이메일 계정으로 로그인하면 사진과 PDF를 Google Drive에 업로드할 수 있습니다.</p>
+    <p>등록된 관리자 계정으로 로그인하면 자료를 업로드하고 게시물을 관리할 수 있습니다.</p>
     <form id="authForm">
-      <div class="field"><label for="authEmail">이메일</label><input id="authEmail" type="email" autocomplete="email" required></div>
-      <div class="field"><label for="authPassword">비밀번호</label><input id="authPassword" type="password" autocomplete="current-password" required minlength="6"></div>
-      <div class="auth-actions"><button class="primary" id="signInBtn" type="submit">로그인</button><button class="ghost" id="signUpBtn" type="button">가입</button></div>
-      <p class="hint">가입 후 이메일 확인이 필요할 수 있으며, 관리자 이메일 목록에 등록된 계정만 업로드할 수 있습니다.</p>
+      <div class="field"><label for="authEmail">아이디</label><input id="authEmail" type="email" autocomplete="username" inputmode="email" placeholder="관리자 이메일 주소" required></div>
+      <div class="field">
+        <label for="authPassword">비밀번호</label>
+        <div class="password-box">
+          <input id="authPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="6">
+          <button class="password-toggle" id="togglePassword" type="button" aria-label="비밀번호 보기" aria-pressed="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="auth-actions"><button class="primary" id="signInBtn" type="submit">로그인</button></div>
+      <div class="auth-secondary"><span class="hint">등록된 관리자 계정만 접근할 수 있습니다.</span><button class="text-btn" id="resetPasswordBtn" type="button">비밀번호 재설정</button></div>
+    </form>
+    <form id="passwordResetForm" hidden>
+      <div class="field">
+        <label for="newPassword">새 비밀번호</label>
+        <div class="password-box">
+          <input id="newPassword" type="password" autocomplete="new-password" placeholder="6자 이상 입력" required minlength="6">
+          <button class="password-toggle" id="toggleNewPassword" type="button" aria-label="새 비밀번호 보기" aria-pressed="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="auth-actions"><button class="primary" id="updatePasswordBtn" type="submit">새 비밀번호 저장</button></div>
+      <p class="hint">저장 후 관리자 화면으로 이동합니다.</p>
     </form>
   </section>
 
@@ -134,12 +164,12 @@ const list=document.getElementById('postList');
 const adminSearch=document.getElementById('adminSearch');
 const authPanel=document.getElementById('authPanel');
 const authForm=document.getElementById('authForm');
-const signUpBtn=document.getElementById('signUpBtn');
 const signOutBtn=document.getElementById('signOutBtn');
 const adminLayout=document.getElementById('adminLayout');
 const submitButton=form.querySelector('button[type="submit"]');
 let selected=null;
 let currentSession=null;
+let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
 let SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
 let supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
   ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
@@ -272,22 +302,55 @@ authForm.addEventListener('submit',async e=>{
   e.preventDefault();
   await configureSupabase();
   if(!supabaseClient){toast('Vercel에 Supabase 공개 환경변수를 넣어주세요');return}
+  const button=document.getElementById('signInBtn');
   const email=document.getElementById('authEmail').value.trim();
   const password=document.getElementById('authPassword').value;
+  button.disabled=true;
+  button.textContent='확인 중';
   const {error}=await supabaseClient.auth.signInWithPassword({email,password});
-  if(error){toast(error.message||'로그인에 실패했습니다');return}
-  toast('로그인했습니다');
+  button.disabled=false;
+  button.textContent='로그인';
+  if(error){toast(getAuthErrorMessage(error));return}
+  toast('로그인되었습니다');
 });
-signUpBtn.addEventListener('click',async()=>{
+document.getElementById('togglePassword').addEventListener('click',()=>togglePasswordInput('authPassword','togglePassword','비밀번호'));
+document.getElementById('toggleNewPassword').addEventListener('click',()=>togglePasswordInput('newPassword','toggleNewPassword','새 비밀번호'));
+document.getElementById('resetPasswordBtn').addEventListener('click',async()=>{
   await configureSupabase();
   if(!supabaseClient){toast('Vercel에 Supabase 공개 환경변수를 넣어주세요');return}
   const email=document.getElementById('authEmail').value.trim();
-  const password=document.getElementById('authPassword').value;
-  if(!email||password.length<6){toast('이메일과 6자 이상 비밀번호를 입력해 주세요');return}
-  const {error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+'/admin.html'}});
-  if(error){toast(error.message||'가입에 실패했습니다');return}
-  toast('가입 메일을 확인해 주세요');
+  if(!email){toast('아이디에 이메일 주소를 먼저 입력해 주세요');return}
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/admin.html'});
+  if(error){toast(getAuthErrorMessage(error));return}
+  toast('비밀번호 재설정 메일을 보냈습니다');
 });
+document.getElementById('passwordResetForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  await configureSupabase();
+  if(!supabaseClient){toast('Vercel에 Supabase 공개 환경변수를 넣어주세요');return}
+  const button=document.getElementById('updatePasswordBtn');
+  const password=document.getElementById('newPassword').value;
+  if(password.length<6){toast('비밀번호는 6자 이상 입력해 주세요');return}
+  button.disabled=true;
+  button.textContent='저장 중';
+  const {error}=await supabaseClient.auth.updateUser({password});
+  button.disabled=false;
+  button.textContent='새 비밀번호 저장';
+  if(error){toast(getAuthErrorMessage(error));return}
+  document.getElementById('passwordResetForm').reset();
+  passwordRecoveryMode=false;
+  toast('비밀번호를 변경했습니다');
+  const {data}=await supabaseClient.auth.getSession();
+  applySession(data.session);
+});
+function togglePasswordInput(inputId,buttonId,label){
+  const input=document.getElementById(inputId);
+  const button=document.getElementById(buttonId);
+  const visible=input.type==='text';
+  input.type=visible?'password':'text';
+  button.setAttribute('aria-pressed',String(!visible));
+  button.setAttribute('aria-label',visible?`${label} 보기`:`${label} 숨기기`);
+}
 signOutBtn.addEventListener('click',async()=>{
   if(supabaseClient)await supabaseClient.auth.signOut();
 });
@@ -297,7 +360,10 @@ async function initAuth(){
   if(!supabaseClient){authPanel.hidden=false;adminLayout.hidden=true;toast('Supabase 공개 환경변수가 필요합니다');return}
   const {data}=await supabaseClient.auth.getSession();
   applySession(data.session);
-  supabaseClient.auth.onAuthStateChange((event,session)=>applySession(session));
+  supabaseClient.auth.onAuthStateChange((event,session)=>{
+    if(event==='PASSWORD_RECOVERY'){showPasswordReset(session);return}
+    applySession(session);
+  });
 }
 async function configureSupabase(){
   if(supabaseClient||!window.supabase)return supabaseClient;
@@ -321,12 +387,32 @@ async function configureSupabase(){
 }
 function applySession(session){
   currentSession=session||null;
+  if(passwordRecoveryMode&&currentSession){showPasswordReset(currentSession);return}
+  authForm.hidden=false;
+  document.getElementById('passwordResetForm').hidden=true;
   authPanel.hidden=!!currentSession;
   adminLayout.hidden=!currentSession;
   signOutBtn.hidden=!currentSession;
   if(currentSession)render();
 }
+function showPasswordReset(session){
+  passwordRecoveryMode=true;
+  currentSession=session||currentSession;
+  authPanel.hidden=false;
+  authForm.hidden=true;
+  document.getElementById('passwordResetForm').hidden=false;
+  adminLayout.hidden=true;
+  signOutBtn.hidden=true;
+  setTimeout(()=>document.getElementById('newPassword').focus(),80);
+}
 function escapeHtml(value=''){return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function getAuthErrorMessage(error){
+  const message=String(error&&error.message?error.message:'').toLowerCase();
+  if(message.includes('invalid login credentials'))return '아이디 또는 비밀번호를 확인해 주세요';
+  if(message.includes('email not confirmed'))return '이메일 인증 후 로그인해 주세요';
+  if(message.includes('rate limit'))return '요청이 많습니다. 잠시 후 다시 시도해 주세요';
+  return error&&error.message?error.message:'로그인 처리에 실패했습니다';
+}
 let timer;function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(timer);timer=setTimeout(()=>el.classList.remove('on'),1800)}
 initAuth();
 </script>

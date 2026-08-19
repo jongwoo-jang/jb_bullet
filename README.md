@@ -23,10 +23,12 @@ Import this repository in Vercel and use the default static site settings.
 1. Create a Supabase project.
 2. Run `supabase-schema.sql` in the Supabase SQL editor.
 3. Enable Supabase Auth email login and set the site URL to `https://jb-bullet.vercel.app`.
-4. Add the project URL and publishable key to Vercel env vars so the public feed can log in and read posts.
-5. Enable the Google Drive API in Google Cloud.
-6. For a personal Google Drive folder, use Google OAuth credentials so uploads use your Google account storage quota.
-7. Add these Vercel Environment Variables for Production, Preview, and Development:
+4. Create viewer and admin users in Supabase Authentication. Users sign in with their email address as the ID.
+5. Add admin user emails to `ADMIN_EMAILS`; only those accounts can use `/admin`.
+6. Add the project URL and publishable key to Vercel env vars so the public feed can log in and read posts.
+7. Enable the Google Drive API in Google Cloud.
+8. For a personal Google Drive folder, use Google OAuth credentials so uploads use your Google account storage quota.
+9. Add these Vercel Environment Variables for Production, Preview, and Development:
 
 ```text
 SUPABASE_URL
@@ -48,7 +50,9 @@ The app prefers `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_
 
 `ADMIN_EMAILS` is a comma-separated allowlist, for example `admin@example.com,manager@example.com`.
 
-8. Deploy to Vercel, sign in with a Supabase user whose email is listed in `ADMIN_EMAILS`, and upload posts from `/admin`.
+10. Deploy to Vercel, sign in with a Supabase user whose email is listed in `ADMIN_EMAILS`, and upload posts from `/admin`.
+
+The public login screen does not expose self-signup. Create accounts from Supabase Authentication and send each user their email ID and temporary password. Users can request a password reset from the login screen.
 
 After deployment, open `/api/env-check` to confirm the required variables are present and `/api/drive-check` to confirm the Drive folder is writable. The `authMode` value should be `oauth` for personal Google Drive uploads.
 
