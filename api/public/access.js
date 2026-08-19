@@ -18,6 +18,13 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({ token: createAccessToken() });
   } catch (error) {
     console.error(error);
+    if (isMissingSettingsTable(error)) {
+      return res.status(500).json({ error: '관리자가 접속 비밀번호 설정을 완료해야 합니다.' });
+    }
     return res.status(500).json({ error: error.message || '접속 확인에 실패했습니다.' });
   }
 };
+
+function isMissingSettingsTable(error) {
+  return String(error && error.message ? error.message : '').includes("public.fp_settings");
+}

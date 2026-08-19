@@ -19,6 +19,9 @@ async function getStatus(res) {
     return res.status(200).json({ configured: Boolean(hash) });
   } catch (error) {
     console.error(error);
+    if (isMissingSettingsTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
     return res.status(500).json({ error: error.message || '접속 비밀번호 상태를 확인하지 못했습니다.' });
   }
 }
@@ -31,6 +34,13 @@ async function updatePasscode(req, res) {
     return res.status(200).json({ ok: true, configured: true });
   } catch (error) {
     console.error(error);
+    if (isMissingSettingsTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
     return res.status(500).json({ error: error.message || '접속 비밀번호를 저장하지 못했습니다.' });
   }
+}
+
+function isMissingSettingsTable(error) {
+  return String(error && error.message ? error.message : '').includes("public.fp_settings");
 }
