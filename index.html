@@ -139,14 +139,6 @@ a{color:inherit;text-decoration:none}
 .access-code-input{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 .access-message{min-height:22px;margin-bottom:12px;color:#D94343;font-size:13px;font-weight:800;line-height:1.5}
 .access-message.ok{color:var(--spring-green)}
-.access-keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 14px}
-.access-key{
-  height:49px;border-radius:14px;background:#F3F4F8;color:var(--ink);font-size:21px;font-weight:850;
-  display:grid;place-items:center;transition:transform .12s var(--ease),background .14s,color .14s;
-}
-.access-key:active{transform:scale(.96);background:#E8F8FD;color:var(--brand2)}
-.access-key.empty{visibility:hidden}
-.access-key svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .access-notice{
   margin-top:auto;margin-bottom:14px;padding:15px 17px 12px;border:0;border-radius:22px;background:#F3F4F8;box-shadow:none;
 }
@@ -199,7 +191,7 @@ a{color:inherit;text-decoration:none}
 }
 .pin.in{opacity:1;transform:none}
 .media-card{
-  position:relative;overflow:hidden;border-radius:10px;background:#F1F3F5;
+  position:relative;overflow:hidden;border-radius:10px;background:#F1F3F5;aspect-ratio:1/1;
   border:0;box-shadow:none;
   transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s;
 }
@@ -207,6 +199,8 @@ a{color:inherit;text-decoration:none}
 .thumb{display:block;width:100%;height:auto;aspect-ratio:var(--ratio,3/4);object-fit:cover;background:#E7EBEF}
 .pdf-preview{position:relative;aspect-ratio:var(--ratio,3/4);display:grid;place-items:center;background:#F2F5F8}
 .pdf-preview .thumb{width:100%;height:100%;aspect-ratio:auto;object-fit:contain;background:#fff}
+.media-card>.thumb,.media-card>.pdf-preview,.media-card .pdf-thumb{width:100%;height:100%;aspect-ratio:1/1}
+.media-card>.thumb,.media-card .pdf-preview .thumb{object-fit:cover}
 .pdf-fallback{width:100%;height:100%}
 .pdf-fallback .pdf-thumb{height:100%}
 .pdf-thumb{
@@ -339,22 +333,6 @@ a{color:inherit;text-decoration:none}
         </div>
         <input class="access-code-input" id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" aria-label="접속 비밀번호 4자리" required>
         <div class="access-message" id="accessMessage" aria-live="polite"></div>
-        <div class="access-keypad" id="accessKeypad" aria-label="비밀번호 숫자 입력">
-          <button type="button" class="access-key" data-digit="1">1</button>
-          <button type="button" class="access-key" data-digit="2">2</button>
-          <button type="button" class="access-key" data-digit="3">3</button>
-          <button type="button" class="access-key" data-digit="4">4</button>
-          <button type="button" class="access-key" data-digit="5">5</button>
-          <button type="button" class="access-key" data-digit="6">6</button>
-          <button type="button" class="access-key" data-digit="7">7</button>
-          <button type="button" class="access-key" data-digit="8">8</button>
-          <button type="button" class="access-key" data-digit="9">9</button>
-          <span class="access-key empty" aria-hidden="true"></span>
-          <button type="button" class="access-key" data-digit="0">0</button>
-          <button type="button" class="access-key" data-backspace aria-label="지우기">
-            <svg viewBox="0 0 24 24"><path d="M21 4H8l-6 8 6 8h13V4Z"/><path d="m12 9 6 6M18 9l-6 6"/></svg>
-          </button>
-        </div>
         <div class="access-notice" id="accessConsent" role="note">
           <span class="access-req">필수 동의</span>
           <p class="access-legal"><b>권한 없는 접속·자료 이용·다운로드·공유 또는 유출은</b> 정보통신망법 및 개인정보보호법에 의거 법적 처벌받을 수 있습니다.</p>
@@ -888,12 +866,6 @@ document.getElementById('accessPasscode').addEventListener('focus',updateAccessU
 document.getElementById('accessPasscode').addEventListener('blur',updateAccessUi);
 document.getElementById('accessPasscode').addEventListener('input',e=>{
   setAccessCode(e.target.value);
-});
-document.getElementById('accessKeypad').addEventListener('click',e=>{
-  const digit=e.target.closest('[data-digit]');
-  const backspace=e.target.closest('[data-backspace]');
-  if(digit)appendAccessDigit(digit.dataset.digit);
-  if(backspace)backspaceAccessDigit();
 });
 document.getElementById('accessAgree').addEventListener('change',updateAccessUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
