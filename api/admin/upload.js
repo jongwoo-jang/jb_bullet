@@ -53,7 +53,7 @@ module.exports = async function handler(req, res) {
   } catch (error) {
     console.error(error);
     if (uploadedDriveFileId) await safeDeleteDriveFile(uploadedDriveFileId);
-    return res.status(500).json({ error: error.message || '업로드에 실패했습니다.' });
+    return res.status(500).json({ error: getUploadErrorMessage(error) });
   }
 };
 
@@ -123,6 +123,16 @@ async function uploadToDrive(file) {
     fields: 'id,name,mimeType,webViewLink,webContentLink'
   });
   return result.data;
+}
+
+function getUploadErrorMessage(error) {
+  if (error.code === 404 && String(error.message || '').includes('File not found')) {
+    return 'Google Drive 폴더를 찾지 못했습니다. GOOGLE_DRIVE_FOLDER_ID 값과 서비스 계정 폴더 공유 권한을 확인해 주세요.';
+  }
+  if (error.code === 403) {
+    return 'Google Drive 업로드 권한이 없습니다. 서비스 계정을 Drive 폴더에 편집자로 공유했는지 확인해 주세요.';
+  }
+  return error.message || '업로드에 실패했습니다.';
 }
 
 async function makeDriveFilePublic(fileId) {
