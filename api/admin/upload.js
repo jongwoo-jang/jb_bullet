@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const Busboy = require('busboy');
 const { google } = require('googleapis');
 const { Readable } = require('stream');
+const { requireAdmin } = require('../_auth');
 
 const MAX_FILE_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 100 * 1024 * 1024);
 const ALLOWED_MIME_PREFIXES = ['image/'];
@@ -13,11 +14,10 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const authError = assertAdmin(req);
-  if (authError) return res.status(authError.status).json({ error: authError.message });
-
   let uploadedDriveFileId = null;
   try {
+    const admin = await requireAdmin(req);
+    if (admin.error) return res.status(admin.error.status).json({ error: admin.error.message });
     ensureServerConfig();
     const { fields, file } = await parseMultipart(req);
     if (!file) return res.status(400).json({ error: '파일이 없습니다.' });
@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
       type: postType,
       title: firstField(fields.title) || file.filename,
       category: normalizeCategory(firstField(fields.category)),
-      author: firstField(fields.author) || '관리자',
+      author: firstField(fields.author) || admin.user.email || '관리자',
       tags: parseTags(firstField(fields.tags)),
       description: firstField(fields.description),
       media_url: mediaUrl,
@@ -54,15 +54,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message || '업로드에 실패했습니다.' });
   }
 };
-
-function assertAdmin(req) {
-  const expected = process.env.ADMIN_UPLOAD_TOKEN;
-  if (!expected) return { status: 500, message: 'ADMIN_UPLOAD_TOKEN이 설정되지 않았습니다.' };
-
-  const received = req.headers['x-admin-token'];
-  if (!received || received !== expected) return { status: 401, message: '관리자 토큰이 올바르지 않습니다.' };
-  return null;
-}
 
 function ensureServerConfig() {
   const required = [

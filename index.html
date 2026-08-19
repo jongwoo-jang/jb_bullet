@@ -57,6 +57,11 @@ a{color:inherit;text-decoration:none}
 .brand{margin-right:auto;display:flex;align-items:center;min-width:0}
 .brand b{font-size:19px;font-weight:850;white-space:nowrap;letter-spacing:0}
 .brand b span{color:var(--brand2)}
+.user-chip{
+  max-width:118px;height:32px;padding:0 10px;border-radius:999px;background:var(--soft);
+  color:var(--ink2);font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.user-chip[hidden]{display:none}
 .icon-btn{
   position:relative;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
   background:transparent;border:0;color:#252A30;
@@ -77,6 +82,7 @@ a{color:inherit;text-decoration:none}
 .tab[aria-selected="true"]{color:var(--ink)}
 .tab-ind{position:absolute;left:14px;bottom:-1px;height:2px;border-radius:2px;background:var(--ink);transition:transform .32s var(--ease),width .32s var(--ease)}
 .search-wrap{padding:0 14px 12px;background:rgba(255,255,255,.94)}
+.tabs[hidden],.search-wrap[hidden],.scroller[hidden]{display:none}
 .search-box{
   display:flex;align-items:center;gap:8px;height:42px;padding:0 12px;border:1px solid var(--line);
   border-radius:999px;background:#F7F9FA;color:var(--ink2);
@@ -90,6 +96,21 @@ a{color:inherit;text-decoration:none}
 }
 .unread-filter.show{display:flex}
 .unread-filter button{margin-left:auto;color:#fff;font-size:12px;font-weight:850}
+.auth-screen{
+  flex:1;display:flex;align-items:center;justify-content:center;padding:22px;background:var(--app);
+}
+.auth-screen[hidden]{display:none}
+.auth-card{width:100%;max-width:360px}
+.auth-card h1{margin:0 0 8px;font-size:25px;line-height:1.24;font-weight:880}
+.auth-card p{margin:0 0 20px;color:var(--ink2);font-size:13px;line-height:1.55}
+.auth-field{margin-bottom:12px}
+.auth-field label{display:block;margin-bottom:7px;color:var(--ink2);font-size:12px;font-weight:850}
+.auth-field input{width:100%;height:46px;border:1px solid var(--line);border-radius:8px;background:#FBFCFD;color:var(--ink);padding:0 13px;outline:0}
+.auth-actions{display:flex;gap:8px;margin-top:16px}
+.auth-actions button{height:44px;border-radius:8px;font-size:13px;font-weight:850}
+.auth-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
+.auth-actions .ghost{padding:0 14px;background:#F4F6F8;color:var(--ink2)}
+.auth-help{display:block;margin-top:10px;color:var(--ink3);font-size:11.5px;line-height:1.5}
 .scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:14px 10px calc(24px + env(safe-area-inset-bottom));scrollbar-width:thin;scrollbar-color:#D9E0E6 transparent}
 .panel[hidden]{display:none}
 .empty{
@@ -195,7 +216,8 @@ a{color:inherit;text-decoration:none}
 <div class="app" id="app">
   <header class="appbar">
     <div class="brand"><b>전환법인 <span>라운지</span></b></div>
-    <a class="icon-btn" href="admin.html" aria-label="관리자">
+    <button class="user-chip" id="userChip" type="button" hidden></button>
+    <a class="icon-btn" id="adminLink" href="admin.html" aria-label="관리자" hidden>
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
     </a>
     <button class="icon-btn" id="bellBtn" aria-label="알림">
@@ -204,20 +226,33 @@ a{color:inherit;text-decoration:none}
     </button>
   </header>
 
-  <nav class="tabs" role="tablist" id="tabs">
+  <nav class="tabs" role="tablist" id="tabs" hidden>
     <span class="tab-ind" id="ind"></span>
     <button class="tab" role="tab" aria-selected="true" aria-controls="p-all">전체</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-product">상품</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-award">시상</button>
   </nav>
-  <div class="search-wrap">
+  <div class="search-wrap" id="searchWrap" hidden>
     <label class="search-box" for="searchInput">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="searchInput" type="search" placeholder="제목, 태그, 부서 검색">
     </label>
   </div>
 
-  <main class="scroller" id="scroller">
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <h1>라운지 로그인</h1>
+      <p>전환법인 FP 자료를 보려면 이메일 계정으로 로그인해 주세요.</p>
+      <form id="authForm">
+        <div class="auth-field"><label for="authEmail">이메일</label><input id="authEmail" type="email" autocomplete="email" required></div>
+        <div class="auth-field"><label for="authPassword">비밀번호</label><input id="authPassword" type="password" autocomplete="current-password" required minlength="6"></div>
+        <div class="auth-actions"><button class="primary" type="submit">로그인</button><button class="ghost" id="signUpBtn" type="button">가입</button></div>
+        <span class="auth-help">처음 가입한 계정은 이메일 확인 후 로그인할 수 있습니다.</span>
+      </form>
+    </div>
+  </section>
+
+  <main class="scroller" id="scroller" hidden>
     <div class="unread-filter" id="unreadFilter"><span id="unreadFilterText"></span><button type="button" id="clearUnreadFilter">전체 보기</button></div>
     <section class="panel" id="p-all" role="tabpanel"><div class="masonry" id="gridAll"></div><p class="empty" id="emptyAll">등록된 자료가 없습니다.</p></section>
     <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
@@ -285,14 +320,17 @@ let comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
 let posts=[], current=null;
 let unreadOnly=false;
 let searchQuery='';
+let currentSession=null;
+let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward')};
 const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward')};
-const SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
-const supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
+let SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
+let supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
   ? window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey)
   : null;
 
 async function loadPosts(){
+  await configureSupabase();
   if(supabaseClient){
     const {data,error}=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
     if(!error&&Array.isArray(data)){
@@ -370,6 +408,67 @@ async function render(){
     reveal(grids[key].querySelectorAll('.pin'));
   });
   updateUnreadUi();
+}
+async function initAuth(){
+  await configureSupabase();
+  if(!supabaseClient){
+    showAuth();
+    toast('Supabase 공개 환경변수가 필요합니다');
+    bindFeed();
+    return;
+  }
+  const {data}=await supabaseClient.auth.getSession();
+  applySession(data.session);
+  supabaseClient.auth.onAuthStateChange((event,session)=>applySession(session));
+  bindFeed();
+}
+async function configureSupabase(){
+  if(supabaseClient||!window.supabase)return supabaseClient;
+  if(!SUPABASE_CONFIG.url||!SUPABASE_CONFIG.publishableKey){
+    try{
+      const response=await fetch('/api/config',{cache:'no-store'});
+      if(response.ok){
+        const config=await response.json();
+        SUPABASE_CONFIG={
+          ...SUPABASE_CONFIG,
+          url:config.supabaseUrl||SUPABASE_CONFIG.url,
+          publishableKey:config.supabasePublishableKey||SUPABASE_CONFIG.publishableKey
+        };
+      }
+    }catch(error){}
+  }
+  if(SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey){
+    supabaseClient=window.supabase.createClient(SUPABASE_CONFIG.url,SUPABASE_CONFIG.publishableKey);
+  }
+  return supabaseClient;
+}
+function applySession(session){
+  currentSession=session||null;
+  if(currentSession){
+    showFeed(currentSession);
+    render();
+  }else{
+    showAuth();
+  }
+}
+function showAuth(){
+  document.getElementById('authScreen').hidden=false;
+  document.getElementById('tabs').hidden=true;
+  document.getElementById('searchWrap').hidden=true;
+  document.getElementById('scroller').hidden=true;
+  document.getElementById('userChip').hidden=true;
+  document.getElementById('adminLink').hidden=true;
+}
+function showFeed(session){
+  document.getElementById('authScreen').hidden=true;
+  document.getElementById('tabs').hidden=false;
+  document.getElementById('searchWrap').hidden=false;
+  document.getElementById('scroller').hidden=false;
+  document.getElementById('adminLink').hidden=false;
+  const chip=document.getElementById('userChip');
+  chip.hidden=!session;
+  chip.textContent=session&&session.user&&session.user.email?session.user.email:'';
+  requestAnimationFrame(moveTabIndicator);
 }
 function bindFeed(){
   document.querySelector('.scroller').addEventListener('click',e=>{
@@ -457,7 +556,8 @@ async function renderComments(){
 async function addComment(text){
   if(!current)return;
   if(supabaseClient&&!current.id.startsWith('seed-')){
-    const {error}=await supabaseClient.from('fp_comments').insert({post_id:current.id,author:'방문자',text});
+    const author=currentSession&&currentSession.user&&currentSession.user.email?currentSession.user.email:'방문자';
+    const {error}=await supabaseClient.from('fp_comments').insert({post_id:current.id,author,text});
     if(error){toast('댓글 저장에 실패했습니다');return}
     await renderComments();
     render();
@@ -472,6 +572,7 @@ async function addComment(text){
 function setupTabs(){
   const tabs=[...document.querySelectorAll('.tab')], ind=document.getElementById('ind');
   const move=()=>{const on=tabs.find(t=>t.getAttribute('aria-selected')==='true');ind.style.width=on.offsetWidth+'px';ind.style.transform=`translateX(${on.offsetLeft-14}px)`};
+  moveTabIndicator=move;
   tabs.forEach(tab=>tab.addEventListener('click',()=>{
     tabs.forEach(t=>{
       const active=t===tab;
@@ -551,6 +652,27 @@ document.getElementById('commentForm').addEventListener('submit',e=>{
   input.value='';
   toast('댓글을 등록했습니다');
 });
+document.getElementById('authForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+  if(error){toast(error.message||'로그인에 실패했습니다');return}
+  toast('로그인했습니다');
+});
+document.getElementById('signUpBtn').addEventListener('click',async()=>{
+  if(!supabaseClient){toast('Supabase 공개 설정이 필요합니다');return}
+  const email=document.getElementById('authEmail').value.trim();
+  const password=document.getElementById('authPassword').value;
+  if(!email||password.length<6){toast('이메일과 6자 이상 비밀번호를 입력해 주세요');return}
+  const {error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
+  if(error){toast(error.message||'가입에 실패했습니다');return}
+  toast('가입 메일을 확인해 주세요');
+});
+document.getElementById('userChip').addEventListener('click',async()=>{
+  if(supabaseClient)await supabaseClient.auth.signOut();
+});
 document.getElementById('bellBtn').addEventListener('click',async()=>{
   await loadPosts();
   const count=unreadPosts().length;
@@ -566,7 +688,7 @@ document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail()});
 window.addEventListener('storage',e=>{if(e.key===STORE_KEY||e.key===SEEN_KEY)render()});
-setupTabs();render();bindFeed();
+setupTabs();initAuth();
 if(location.hash.startsWith('#post-')){
   const id=decodeURIComponent(location.hash.replace('#post-',''));
   setTimeout(()=>openDetail(id),300);

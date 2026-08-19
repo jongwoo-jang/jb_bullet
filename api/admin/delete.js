@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const { google } = require('googleapis');
+const { requireAdmin } = require('../_auth');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,10 +8,9 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const authError = assertAdmin(req);
-  if (authError) return res.status(authError.status).json({ error: authError.message });
-
   try {
+    const admin = await requireAdmin(req);
+    if (admin.error) return res.status(admin.error.status).json({ error: admin.error.message });
     ensureServerConfig();
     const body = await readJson(req);
     if (!body.id) return res.status(400).json({ error: '게시물 ID가 필요합니다.' });
@@ -37,15 +37,6 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message || '삭제에 실패했습니다.' });
   }
 };
-
-function assertAdmin(req) {
-  const expected = process.env.ADMIN_UPLOAD_TOKEN;
-  if (!expected) return { status: 500, message: 'ADMIN_UPLOAD_TOKEN이 설정되지 않았습니다.' };
-
-  const received = req.headers['x-admin-token'];
-  if (!received || received !== expected) return { status: 401, message: '관리자 토큰이 올바르지 않습니다.' };
-  return null;
-}
 
 function ensureServerConfig() {
   const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GOOGLE_CLIENT_EMAIL', 'GOOGLE_PRIVATE_KEY'];
