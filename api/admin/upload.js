@@ -3,6 +3,7 @@ const Busboy = require('busboy');
 const { google } = require('googleapis');
 const { Readable } = require('stream');
 const { requireAdmin } = require('../_auth');
+const { normalizeSupabaseUrl } = require('../_supabase-url');
 
 const MAX_FILE_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 100 * 1024 * 1024);
 const ALLOWED_MIME_PREFIXES = ['image/'];
@@ -151,7 +152,7 @@ function getGoogleAuth() {
 }
 
 async function insertPost(post) {
-  const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  const supabase = createClient(normalizeSupabaseUrl(process.env.SUPABASE_URL), process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false }
   });
   const { data, error } = await supabase.from('fp_posts').insert(post).select('*').single();

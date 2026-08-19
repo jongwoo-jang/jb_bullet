@@ -1,6 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { google } = require('googleapis');
 const { requireAdmin } = require('../_auth');
+const { normalizeSupabaseUrl } = require('../_supabase-url');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,7 +16,7 @@ module.exports = async function handler(req, res) {
     const body = await readJson(req);
     if (!body.id) return res.status(400).json({ error: '게시물 ID가 필요합니다.' });
 
-    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+    const supabase = createClient(normalizeSupabaseUrl(process.env.SUPABASE_URL), process.env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false }
     });
     const { data: post, error: lookupError } = await supabase
