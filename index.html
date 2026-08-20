@@ -378,12 +378,11 @@ a{color:inherit;text-decoration:none}
     <div class="auth-card" id="signupCard" hidden>
       <div class="auth-head">
         <h1>회원가입</h1>
-        <p><b>관리자가 등록한 소속지점과 코드번호가 일치해야 가입할 수 있습니다.</b></p>
+        <p><b>관리자가 등록한 코드번호로 가입할 수 있습니다.</b></p>
       </div>
       <form id="signupForm">
         <div class="member-fields">
           <div class="member-field"><label for="signupDisplayName">실명</label><input id="signupDisplayName" type="text" autocomplete="name" required></div>
-          <div class="member-field"><label for="signupBranch">소속지점</label><select id="signupBranch" autocomplete="organization" required><option value=""></option></select></div>
           <div class="member-field"><label for="signupCodeNumber">코드번호</label><input id="signupCodeNumber" type="text" inputmode="text" autocomplete="username" required></div>
           <div class="member-field"><label for="signupPassword">비밀번호</label><input id="signupPassword" type="password" autocomplete="new-password" required minlength="6"></div>
           <div class="member-field"><label for="signupPasswordConfirm">비밀번호 확인</label><input id="signupPasswordConfirm" type="password" autocomplete="new-password" required minlength="6"></div>
@@ -410,7 +409,6 @@ a{color:inherit;text-decoration:none}
       <form id="resetForm">
         <div class="member-fields">
           <div class="member-field"><label for="resetDisplayName">실명</label><input id="resetDisplayName" type="text" autocomplete="name" required></div>
-          <div class="member-field"><label for="resetBranch">소속지점</label><select id="resetBranch" autocomplete="organization" required><option value=""></option></select></div>
           <div class="member-field"><label for="resetCodeNumber">코드번호</label><input id="resetCodeNumber" type="text" inputmode="text" autocomplete="username" required></div>
           <div class="member-field"><label for="resetPassword">새 비밀번호</label><input id="resetPassword" type="password" autocomplete="new-password" required minlength="6"></div>
           <div class="member-field"><label for="resetPasswordConfirm">새 비밀번호 확인</label><input id="resetPasswordConfirm" type="password" autocomplete="new-password" required minlength="6"></div>
@@ -499,8 +497,6 @@ let adminTapTimer=0;
 let detailHistoryActive=false;
 let appHistoryReady=false;
 let applyingHistory=false;
-let branchOptions=[];
-let branchOptionsLoading=null;
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),notice:document.getElementById('gridNotice'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),notice:document.getElementById('emptyNotice'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
@@ -567,34 +563,6 @@ function displayAuthorName(value){
   const id=String(value||'').split('@')[0].toLowerCase();
   const names={lemuel05:'장종우',jaguar06:'정환석'};
   return names[id]||id||'관리자';
-}
-function branchSelects(){
-  return [document.getElementById('signupBranch'),document.getElementById('resetBranch')].filter(Boolean);
-}
-function populateBranchSelects(){
-  branchSelects().forEach(select=>{
-    const selected=select.value;
-    select.innerHTML='<option value=""></option>'+branchOptions.map(branch=>`<option value="${escapeHtml(branch)}">${escapeHtml(branch)}</option>`).join('');
-    if(selected&&branchOptions.includes(selected))select.value=selected;
-  });
-}
-async function loadBranchOptions(){
-  if(branchOptions.length){populateBranchSelects();return branchOptions}
-  if(branchOptionsLoading)return branchOptionsLoading;
-  branchOptionsLoading=(async()=>{
-    const response=await fetch('/api/public/access?mode=branches',{cache:'no-store'});
-    const result=await response.json().catch(()=>({error:'소속지점 목록을 불러오지 못했습니다.'}));
-    if(!response.ok)throw new Error(result.error||'소속지점 목록을 불러오지 못했습니다.');
-    branchOptions=Array.isArray(result.branches)?result.branches.filter(Boolean):[];
-    populateBranchSelects();
-    return branchOptions;
-  })().finally(()=>{branchOptionsLoading=null});
-  return branchOptionsLoading;
-}
-function ensureBranchOptions(setMessage){
-  loadBranchOptions().then(branches=>{
-    if(!branches.length)setMessage('관리자에게 소속지점 목록 등록을 요청해 주세요');
-  }).catch(()=>setMessage('소속지점 목록을 불러오지 못했습니다'));
 }
 function normalizeAttachment(item={},fallbackTitle=''){
   const driveFileId=item.drive_file_id||item.driveFileId||'';
@@ -1052,7 +1020,6 @@ function accessElements(){
 function signupElements(){
   return {
     displayName:document.getElementById('signupDisplayName'),
-    branch:document.getElementById('signupBranch'),
     codeNumber:document.getElementById('signupCodeNumber'),
     password:document.getElementById('signupPassword'),
     confirm:document.getElementById('signupPasswordConfirm'),
@@ -1064,7 +1031,6 @@ function signupElements(){
 function resetElements(){
   return {
     displayName:document.getElementById('resetDisplayName'),
-    branch:document.getElementById('resetBranch'),
     codeNumber:document.getElementById('resetCodeNumber'),
     password:document.getElementById('resetPassword'),
     confirm:document.getElementById('resetPasswordConfirm'),
@@ -1095,11 +1061,11 @@ function updateAccessUi(){
   if(!busy)setAccessMessage('');
 }
 function updateSignupUi(){
-  const {displayName,branch,codeNumber,password,confirm,agree,button}=signupElements();
+  const {displayName,codeNumber,password,confirm,agree,button}=signupElements();
   const hasPassword=password.value.length>0;
   const hasConfirm=confirm.value.length>0;
   const passwordReady=password.value.length>=6&&confirm.value.length>=6&&password.value===confirm.value;
-  const filled=displayName.value.trim()&&branch.value.trim()&&codeNumber.value.trim()&&passwordReady;
+  const filled=displayName.value.trim()&&codeNumber.value.trim()&&passwordReady;
   const busy=button.dataset.busy==='true';
   button.disabled=busy||!filled||!agree.checked;
   if(hasPassword&&password.value.length<6&&!busy)setSignupMessage('비밀번호는 6자리 이상 입력해 주세요');
@@ -1108,11 +1074,11 @@ function updateSignupUi(){
   else if(!busy)setSignupMessage('');
 }
 function updateResetUi(){
-  const {displayName,branch,codeNumber,password,confirm,button}=resetElements();
+  const {displayName,codeNumber,password,confirm,button}=resetElements();
   const hasPassword=password.value.length>0;
   const hasConfirm=confirm.value.length>0;
   const passwordReady=password.value.length>=6&&confirm.value.length>=6&&password.value===confirm.value;
-  const filled=displayName.value.trim()&&branch.value.trim()&&codeNumber.value.trim()&&passwordReady;
+  const filled=displayName.value.trim()&&codeNumber.value.trim()&&passwordReady;
   const busy=button.dataset.busy==='true';
   button.disabled=busy||!filled;
   if(hasPassword&&password.value.length<6&&!busy)setResetMessage('비밀번호는 6자리 이상 입력해 주세요');
@@ -1159,7 +1125,6 @@ function showSignup(){
   setAccessMessage('');
   setResetMessage('');
   updateSignupUi();
-  ensureBranchOptions(setSignupMessage);
   setTimeout(()=>document.getElementById('signupDisplayName').focus(),80);
 }
 function showReset(){
@@ -1170,7 +1135,6 @@ function showReset(){
   setAccessMessage('');
   setSignupMessage('');
   updateResetUi();
-  ensureBranchOptions(setResetMessage);
   setTimeout(()=>document.getElementById('resetDisplayName').focus(),80);
 }
 function showLogin(){
@@ -1229,11 +1193,11 @@ document.getElementById('resetBackToLoginBtn').addEventListener('click',showLogi
 ['memberCodeNumber','memberPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateAccessUi);
 });
-['signupDisplayName','signupBranch','signupCodeNumber','signupPassword','signupPasswordConfirm'].forEach(id=>{
+['signupDisplayName','signupCodeNumber','signupPassword','signupPasswordConfirm'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateSignupUi);
   document.getElementById(id).addEventListener('change',updateSignupUi);
 });
-['resetDisplayName','resetBranch','resetCodeNumber','resetPassword','resetPasswordConfirm'].forEach(id=>{
+['resetDisplayName','resetCodeNumber','resetPassword','resetPasswordConfirm'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateResetUi);
   document.getElementById(id).addEventListener('change',updateResetUi);
 });
@@ -1273,8 +1237,8 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
 });
 document.getElementById('signupForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const {displayName,branch,codeNumber,password,confirm,agree,button}=signupElements();
-  if(!displayName.value.trim()||!branch.value.trim()||!codeNumber.value.trim()){displayName.focus();setSignupMessage('');return}
+  const {displayName,codeNumber,password,confirm,agree,button}=signupElements();
+  if(!displayName.value.trim()||!codeNumber.value.trim()){displayName.focus();setSignupMessage('');return}
   if(password.value.length<6){password.focus();setSignupMessage('비밀번호는 6자리 이상 입력해 주세요');return}
   if(password.value!==confirm.value){confirm.focus();setSignupMessage('비밀번호가 일치하지 않습니다');return}
   if(!agree.checked){setSignupMessage('동의 확인 후 가입할 수 있습니다');return}
@@ -1288,13 +1252,12 @@ document.getElementById('signupForm').addEventListener('submit',async e=>{
       body:JSON.stringify({
         mode:'signup',
         displayName:displayName.value,
-        branch:branch.value,
         codeNumber:codeNumber.value,
         password:password.value
       })
     });
     const result=await response.json().catch(()=>({error:'회원가입에 실패했습니다.'}));
-    if(!response.ok){showSignupError(result.error||'소속지점 또는 코드번호를 확인해 주세요');return}
+    if(!response.ok){showSignupError(result.error||'코드번호 또는 실명을 확인해 주세요');return}
     const login=accessElements();
     login.codeNumber.value=codeNumber.value;
     login.password.value='';
@@ -1311,8 +1274,8 @@ document.getElementById('signupForm').addEventListener('submit',async e=>{
 });
 document.getElementById('resetForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const {displayName,branch,codeNumber,password,confirm,button}=resetElements();
-  if(!displayName.value.trim()||!branch.value.trim()||!codeNumber.value.trim()){displayName.focus();setResetMessage('');return}
+  const {displayName,codeNumber,password,confirm,button}=resetElements();
+  if(!displayName.value.trim()||!codeNumber.value.trim()){displayName.focus();setResetMessage('');return}
   if(password.value.length<6){password.focus();setResetMessage('비밀번호는 6자리 이상 입력해 주세요');return}
   if(password.value!==confirm.value){confirm.focus();setResetMessage('비밀번호가 일치하지 않습니다');return}
   button.dataset.busy='true';
@@ -1325,7 +1288,6 @@ document.getElementById('resetForm').addEventListener('submit',async e=>{
       body:JSON.stringify({
         mode:'reset',
         displayName:displayName.value,
-        branch:branch.value,
         codeNumber:codeNumber.value,
         password:password.value
       })

@@ -4,6 +4,7 @@ const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-ac
 const UPSERT_CHUNK_SIZE = 1000;
 const LOOKUP_CHUNK_SIZE = 1000;
 const DELETE_CHUNK_SIZE = 500;
+const DEFAULT_BRANCH = '전환법인';
 
 module.exports = async function handler(req, res) {
   const admin = await requireAdmin(req);
@@ -66,7 +67,7 @@ async function updatePasscode(req, res) {
     const body = await readJson(req);
     const rows = Array.isArray(body.codes) ? body.codes.map(normalizeCodeRow).filter(Boolean) : [];
     const codes = [...new Map(rows.map((row) => [row.code_number, row])).values()];
-    if (!codes.length) return res.status(400).json({ error: '업로드할 소속지점/코드번호 목록이 없습니다.' });
+    if (!codes.length) return res.status(400).json({ error: '업로드할 코드번호 목록이 없습니다.' });
 
     const supabase = getSupabaseAdmin();
     const incoming = new Set(codes.map((row) => row.code_number));
@@ -82,8 +83,7 @@ async function updatePasscode(req, res) {
       added: newCodes.length,
       skipped: codes.length - newCodes.length,
       removed,
-      submitted: codes.length,
-      branchCount: new Set(codes.map((row) => row.branch)).size
+      submitted: codes.length
     });
   } catch (error) {
     console.error(error);
@@ -183,12 +183,11 @@ async function deleteRemovedMemberCodes(supabase, codeNumbers) {
 }
 
 function normalizeCodeRow(row) {
-  const branch = String(row.branch || '').trim().replace(/\s+/g, ' ');
   const codeNumber = String(row.codeNumber || row.code_number || '').trim().replace(/\s+/g, '').toUpperCase();
   const displayName = String(row.displayName || row.display_name || '').trim().replace(/\s+/g, ' ').slice(0, 30);
-  if (!branch || !codeNumber) return null;
+  if (!codeNumber) return null;
   return {
-    branch,
+    branch: DEFAULT_BRANCH,
     code_number: codeNumber,
     display_name: displayName || null,
     is_active: true,

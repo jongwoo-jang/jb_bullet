@@ -1,16 +1,15 @@
 const crypto = require('crypto');
 const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
 
-const BRANCH_PAGE_SIZE = 1000;
+const DEFAULT_BRANCH = '전환법인';
 
 module.exports = async function handler(req, res) {
   try {
-    if (req.method !== 'GET' && req.method !== 'POST') {
-      res.setHeader('Allow', 'GET, POST');
+    if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
       return res.status(405).json({ error: 'Method not allowed' });
     }
     const supabase = getSupabaseAdmin();
-    if (req.method === 'GET') return listBranches(req, supabase, res);
     const body = await readJson(req);
     if (body.mode === 'signup') return signup(body, supabase, res);
     if (body.mode === 'reset') return resetPassword(body, supabase, res);
@@ -24,48 +23,12 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function listBranches(req, supabase, res) {
-  const searchParams = new URL(req.url || '', 'http://localhost').searchParams;
-  const action = String(
-    (req.query && (req.query.mode || req.query.action)) ||
-    searchParams.get('mode') ||
-    searchParams.get('action') ||
-    ''
-  ).trim();
-  if (action !== 'branches') {
-    return res.status(400).json({ error: '요청을 확인해 주세요.' });
-  }
-
-  const seen = new Set();
-  const branches = [];
-  for (let start = 0; ; start += BRANCH_PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from('fp_member_codes')
-      .select('branch')
-      .eq('is_active', true)
-      .order('branch', { ascending: true })
-      .range(start, start + BRANCH_PAGE_SIZE - 1);
-    if (error) throw new Error(error.message);
-    (Array.isArray(data) ? data : []).forEach(row => {
-      const branch = normalizeBranch(row && row.branch);
-      const key = branch.toLowerCase();
-      if (!branch || seen.has(key)) return;
-      seen.add(key);
-      branches.push(branch);
-    });
-    if (!data || data.length < BRANCH_PAGE_SIZE) break;
-  }
-
-  res.setHeader('Cache-Control', 'no-store');
-  return res.status(200).json({ branches });
-}
-
 async function signup(body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
-  const branch = normalizeBranch(body.branch);
+  const branch = DEFAULT_BRANCH;
   const displayName = normalizeDisplayName(body.displayName);
   const password = String(body.password || '');
-  if (!codeNumber || !branch || !displayName) {
+  if (!codeNumber || !displayName) {
     return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
   }
   if (!isValidPassword(password)) {
@@ -73,8 +36,12 @@ async function signup(body, supabase, res) {
   }
 
   const code = await getActiveMemberCode(supabase, codeNumber);
-  if (!code || normalizeBranch(code.branch) !== branch) {
-    return res.status(403).json({ error: '등록된 소속지점과 코드번호가 일치하지 않습니다.' });
+  const codeName = normalizeDisplayName(code && code.display_name);
+  if (!code) {
+    return res.status(403).json({ error: '등록된 코드번호를 확인해 주세요.' });
+  }
+  if (codeName && codeName !== displayName) {
+    return res.status(403).json({ error: '실명과 코드번호를 확인해 주세요.' });
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -86,7 +53,7 @@ async function signup(body, supabase, res) {
   if (existing) return res.status(409).json({ error: '이미 가입된 코드번호입니다. 로그인해 주세요.' });
 
   const { salt, hash } = hashPassword(password);
-  const verifiedName = normalizeDisplayName(code.display_name) || displayName;
+  const verifiedName = codeName || displayName;
   const memberRow = {
     code_number: codeNumber,
     branch,
@@ -117,14 +84,14 @@ async function login(body, supabase, res) {
   const member = await getMemberByCode(supabase, codeNumber);
   const { data: activeCode, error: codeError } = await supabase
     .from('fp_member_codes')
-    .select('branch, is_active')
+    .select('is_active')
     .eq('code_number', codeNumber)
     .eq('is_active', true)
     .maybeSingle();
   if (codeError) throw new Error(codeError.message);
-  const branch = normalizeBranch(member && member.branch);
+  const branch = normalizeBranch(member && member.branch) || DEFAULT_BRANCH;
   const displayName = normalizeDisplayName(member && member.display_name);
-  if (!member || !activeCode || normalizeBranch(activeCode.branch) !== branch || !verifyPassword(password, member.password_salt, member.password_hash)) {
+  if (!member || !activeCode || !verifyPassword(password, member.password_salt, member.password_hash)) {
     return res.status(401).json({ error: '코드번호 또는 비밀번호를 확인해 주세요.' });
   }
 
@@ -136,10 +103,10 @@ async function login(body, supabase, res) {
 
 async function resetPassword(body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
-  const branch = normalizeBranch(body.branch);
+  const branch = DEFAULT_BRANCH;
   const displayName = normalizeDisplayName(body.displayName);
   const password = String(body.password || '');
-  if (!codeNumber || !branch || !displayName) {
+  if (!codeNumber || !displayName) {
     return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
   }
   if (!isValidPassword(password)) {
@@ -147,19 +114,18 @@ async function resetPassword(body, supabase, res) {
   }
 
   const code = await getActiveMemberCode(supabase, codeNumber);
-  if (!code || normalizeBranch(code.branch) !== branch) {
-    return res.status(403).json({ error: '등록된 소속지점과 코드번호가 일치하지 않습니다.' });
+  if (!code) {
+    return res.status(403).json({ error: '등록된 코드번호를 확인해 주세요.' });
   }
 
   const member = await getMemberByCode(supabase, codeNumber);
-  const memberBranch = normalizeBranch(member && member.branch);
   const memberName = normalizeDisplayName(member && member.display_name);
   const codeName = normalizeDisplayName(code.display_name);
-  if (!member || memberBranch !== branch) {
+  if (!member) {
     return res.status(404).json({ error: '가입된 회원 정보를 찾을 수 없습니다. 먼저 회원가입을 진행해 주세요.' });
   }
   if ((memberName && memberName !== '회원' && memberName !== displayName) || (codeName && codeName !== displayName)) {
-    return res.status(403).json({ error: '실명, 소속지점, 코드번호를 확인해 주세요.' });
+    return res.status(403).json({ error: '실명과 코드번호를 확인해 주세요.' });
   }
 
   const { salt, hash } = hashPassword(password);

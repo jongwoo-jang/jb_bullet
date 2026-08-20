@@ -59,6 +59,8 @@ create table if not exists public.fp_members (
 alter table public.fp_comments add column if not exists author_code_number text;
 alter table public.fp_member_codes add column if not exists display_name text;
 alter table public.fp_members add column if not exists display_name text not null default '회원';
+alter table public.fp_member_codes alter column branch set default '전환법인';
+alter table public.fp_members alter column branch set default '전환법인';
 
 alter table public.fp_posts enable row level security;
 alter table public.fp_comments enable row level security;

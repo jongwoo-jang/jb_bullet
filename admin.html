@@ -259,14 +259,14 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="panel settings-panel admin-panel" data-admin-panel="members" hidden>
-      <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 소속지점, B열은 코드번호, C열은 실명으로 저장합니다.</span></div></div>
+      <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 코드번호, B열은 실명으로 저장합니다.</span></div></div>
       <form class="passcode-form" id="memberCodeForm">
         <div class="field"><label for="memberCodeCsv">CSV 파일</label><input id="memberCodeCsv" type="file" accept=".csv,text/csv" required></div>
         <button class="primary" id="saveMemberCodesBtn" type="submit">업로드</button>
         <button class="ghost" id="clearMemberCodesBtn" type="button">업로드 데이터 삭제</button>
         <span class="passcode-status" id="memberCodeStatus">상태 확인 중</span>
       </form>
-      <p class="hint">첫 행이 제목이면 자동으로 제외합니다. 예: A열 소속지점, B열 코드번호, C열 실명 선택</p>
+      <p class="hint">첫 행이 제목이면 자동으로 제외합니다. 예: A열 코드번호, B열 실명 선택</p>
     </section>
   </div>
 </div>
@@ -611,16 +611,12 @@ function renderTagSuggestions(posts){
 function parseMemberCodeCsv(text){
   const rows=parseCsvRows(text);
   const codes=[];
-  let currentBranch='';
   rows.forEach((row,index)=>{
-    const rawBranch=String(row[0]||'').trim();
-    const codeNumber=String(row[1]||'').trim();
-    const displayName=String(row[2]||'').trim();
-    if(index===0&&/소속|지점|branch/i.test(rawBranch)&&/코드|code/i.test(codeNumber))return;
-    if(rawBranch)currentBranch=rawBranch;
-    const branch=rawBranch||currentBranch;
-    if(!branch||!codeNumber)return;
-    codes.push({branch,codeNumber,displayName});
+    const codeNumber=String(row[0]||'').trim();
+    const displayName=String(row[1]||'').trim();
+    if(index===0&&/코드|code/i.test(codeNumber))return;
+    if(!codeNumber)return;
+    codes.push({codeNumber,displayName});
   });
   return codes;
 }
@@ -696,12 +692,11 @@ memberCodeForm.addEventListener('submit',async e=>{
     const codes=parseMemberCodeCsv(await readCsvFile(file));
     if(!codes.length){
       memberCodeStatus.textContent='CSV 확인 필요';
-      toast('CSV에서 소속지점/코드번호를 찾지 못했습니다');
+      toast('CSV에서 코드번호를 찾지 못했습니다');
       return;
     }
-    const branchCount=new Set(codes.map(code=>code.branch)).size;
     saveMemberCodesBtn.textContent='전송 중';
-    memberCodeStatus.textContent=`코드 ${codes.length}개 · 지점 ${branchCount}개 전송 중`;
+    memberCodeStatus.textContent=`코드 ${codes.length}개 전송 중`;
     const response=await fetch('/api/admin/passcode',{
       method:'POST',
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
@@ -713,9 +708,8 @@ memberCodeForm.addEventListener('submit',async e=>{
     const added=Number(result.added||result.count||0);
     const skipped=Number(result.skipped||0);
     const removed=Number(result.removed||0);
-    const savedBranchCount=Number(result.branchCount||branchCount||0);
-    memberCodeStatus.textContent=`지점 ${savedBranchCount}개 · 신규 ${added}개 · 기존 ${skipped}개 · 삭제 ${removed}개`;
-    toast(`지점 ${savedBranchCount}개 · 코드 ${codes.length}개 반영`);
+    memberCodeStatus.textContent=`신규 ${added}개 · 기존 ${skipped}개 · 삭제 ${removed}개`;
+    toast(`코드 ${codes.length}개 반영`);
   }catch(error){
     memberCodeStatus.textContent='업로드 실패';
     toast(error.message||'회원가입 코드 업로드에 실패했습니다');
