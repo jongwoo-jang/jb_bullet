@@ -107,6 +107,14 @@ a{color:inherit;text-decoration:none}
 .item-media .pdf{width:100%;height:100%;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand2);font-size:12px;font-weight:900}
 .item h3{font-size:14.5px;line-height:1.35;margin:0 0 6px;font-weight:850;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .item p{margin:0;color:var(--ink2);font-size:12px;font-weight:650;line-height:1.45}
+.comment-panel{grid-column:1/-1;padding:18px}
+.comment-list{display:grid;gap:10px}
+.comment-item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--line)}
+.comment-item:first-child{border-top:0}
+.comment-item h3{margin:0 0 6px;font-size:14.5px;font-weight:850;line-height:1.35;color:var(--ink)}
+.comment-item p{margin:0;color:var(--ink2);font-size:13.5px;line-height:1.55;word-break:break-word}
+.comment-meta{display:flex;flex-wrap:wrap;gap:5px 8px;margin-top:8px;color:var(--ink3);font-size:12px;font-weight:760}
+.comment-meta span{display:inline-flex;align-items:center}
 .empty{padding:48px 10px;text-align:center;color:var(--ink3);font-size:14px;line-height:1.5}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);opacity:0;background:rgba(32,36,42,.96);color:#fff;border-radius:10px;padding:12px 16px;font-size:13px;font-weight:760;transition:.24s}
 .toast.on{opacity:1;transform:translate(-50%,0)}
@@ -120,6 +128,7 @@ a{color:inherit;text-decoration:none}
   .auth-panel{margin-top:42px}
   .item{grid-template-columns:70px 1fr auto;gap:11px}
   .item-media{width:70px;height:70px}
+  .comment-item{grid-template-columns:1fr;gap:9px}.comment-item .danger{justify-self:start}
   .danger{min-width:46px;padding:0 10px}
 }
 @media(max-width:380px){
@@ -204,6 +213,17 @@ a{color:inherit;text-decoration:none}
       <div id="postList"></div>
     </section>
 
+    <section class="panel comment-panel">
+      <div class="list-head"><b>댓글 관리</b><button id="refreshCommentsBtn" type="button">새로고침</button></div>
+      <div class="admin-search">
+        <label for="commentSearch">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="commentSearch" type="search" placeholder="댓글, 작성자, 게시물 제목으로 조회">
+        </label>
+      </div>
+      <div class="comment-list" id="commentAdminList"></div>
+    </section>
+
     <section class="panel settings-panel">
       <div class="section-head"><div><b>일반 사용자 접속 비밀번호</b><span>이메일 로그인 없이 4자리 비밀번호로 피드에 접속합니다.</span></div></div>
       <form class="passcode-form" id="passcodeForm">
@@ -225,6 +245,9 @@ const fileInput=document.getElementById('file');
 const preview=document.getElementById('preview');
 const list=document.getElementById('postList');
 const adminSearch=document.getElementById('adminSearch');
+const commentAdminList=document.getElementById('commentAdminList');
+const commentSearch=document.getElementById('commentSearch');
+const refreshCommentsBtn=document.getElementById('refreshCommentsBtn');
 const tagSuggestions=document.getElementById('tagSuggestions');
 const authPanel=document.getElementById('authPanel');
 const authForm=document.getElementById('authForm');
@@ -238,6 +261,7 @@ const submitButton=form.querySelector('button[type="submit"]');
 const DRIVE_CHUNK_BYTES=2.5*1024*1024;
 let selected=[];
 let currentSession=null;
+let adminComments=[];
 let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
 let SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
 let supabaseClient=SUPABASE_CONFIG.url&&SUPABASE_CONFIG.publishableKey&&window.supabase
@@ -382,6 +406,10 @@ list.addEventListener('click',e=>{
   const btn=e.target.closest('[data-del]');if(!btn)return;
   deletePost(btn.dataset.del,btn.dataset.path);
 });
+commentAdminList.addEventListener('click',e=>{
+  const btn=e.target.closest('[data-comment-del]');if(!btn)return;
+  deleteComment(btn.dataset.commentDel);
+});
 document.getElementById('clearBtn').addEventListener('click',()=>{
   if(supabaseClient){toast('전체 삭제는 안전을 위해 비활성화했습니다');return}
   if(!getPosts().length){toast('삭제할 자료가 없습니다');return}
@@ -402,6 +430,69 @@ async function deletePost(id,path){
     setPosts(getPosts().filter(p=>p.id!==id));
   }
   render();toast('자료를 삭제했습니다');
+}
+async function getAdminComments(){
+  if(!supabaseClient)return [];
+  const token=getAccessToken();
+  if(!token)return [];
+  const result=await apiJson('/api/admin/comments',{
+    method:'GET',
+    headers:{Authorization:`Bearer ${token}`},
+    cache:'no-store'
+  });
+  if(!result.ok)throw new Error(result.error||'댓글을 불러오지 못했습니다');
+  return Array.isArray(result.comments)?result.comments:[];
+}
+async function renderAdminComments(posts=[]){
+  if(!commentAdminList)return;
+  if(!supabaseClient){
+    commentAdminList.innerHTML='<p class="empty">댓글 관리는 Supabase 연결 후 사용할 수 있습니다.</p>';
+    return;
+  }
+  try{
+    adminComments=await getAdminComments();
+  }catch(error){
+    commentAdminList.innerHTML=`<p class="empty">${escapeHtml(error.message||'댓글을 불러오지 못했습니다.')}</p>`;
+    return;
+  }
+  const titleById=new Map(posts.map(post=>[String(post.id),post.title]));
+  const q=commentSearch.value.trim().toLowerCase();
+  const filtered=q?adminComments.filter(comment=>{
+    const postTitle=comment.post_title||titleById.get(String(comment.post_id))||'';
+    return [comment.author,comment.text,postTitle].filter(Boolean).join(' ').toLowerCase().includes(q);
+  }):adminComments;
+  if(!adminComments.length){
+    commentAdminList.innerHTML='<p class="empty">등록된 댓글이 없습니다.</p>';
+    return;
+  }
+  if(!filtered.length){
+    commentAdminList.innerHTML='<p class="empty">조회된 댓글이 없습니다.</p>';
+    return;
+  }
+  commentAdminList.innerHTML=filtered.map(comment=>{
+    const postTitle=comment.post_title||titleById.get(String(comment.post_id))||'삭제된 게시물';
+    return `<article class="comment-item">
+      <div>
+        <h3>${escapeHtml(postTitle)}</h3>
+        <p>${escapeHtml(comment.text)}</p>
+        <div class="comment-meta"><span>${escapeHtml(comment.author||'방문자')}</span><span>${escapeHtml(formatDateTime(comment.created_at))}</span></div>
+      </div>
+      <button class="danger" data-comment-del="${comment.id}" type="button">삭제</button>
+    </article>`;
+  }).join('');
+}
+async function deleteComment(id){
+  if(!confirm('이 댓글을 삭제할까요?'))return;
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  const result=await apiJson('/api/admin/comments',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+    body:JSON.stringify({id})
+  });
+  if(!result.ok){toast(result.error||'댓글 삭제에 실패했습니다');return}
+  await renderAdminComments(await getAdminPosts());
+  toast('댓글을 삭제했습니다');
 }
 async function getAdminPosts(){
   await configureSupabase();
@@ -428,12 +519,20 @@ function formatDate(value){
   if(Number.isNaN(d.getTime()))return '';
   return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 }
+function formatDateTime(value){
+  const d=value?new Date(value):new Date();
+  if(Number.isNaN(d.getTime()))return '';
+  const date=`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+  const time=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return `${date} ${time}`;
+}
 function driveThumbnailUrl(fileId){
   return `https://drive.google.com/thumbnail?id=${encodeURIComponent(fileId)}&sz=w600`;
 }
 async function render(){
   const posts=await getAdminPosts();
   renderTagSuggestions(posts);
+  await renderAdminComments(posts);
   const q=adminSearch.value.trim().toLowerCase();
   const filtered=q?posts.filter(p=>[p.title,...(p.tags||[])].filter(Boolean).join(' ').toLowerCase().includes(q)):posts;
   if(!posts.length){list.innerHTML='<p class="empty">아직 등록한 자료가 없습니다.<br>첫 자료를 게시하면 목록에 표시됩니다.</p>';return}
@@ -463,6 +562,8 @@ tagSuggestions.addEventListener('click',e=>{
   input.focus();
 });
 adminSearch.addEventListener('input',render);
+commentSearch.addEventListener('input',()=>renderAdminComments());
+refreshCommentsBtn.addEventListener('click',()=>renderAdminComments());
 publicPasscode.addEventListener('input',e=>{
   e.target.value=e.target.value.replace(/\D/g,'').slice(0,4);
 });
