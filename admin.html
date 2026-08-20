@@ -610,15 +610,19 @@ function renderTagSuggestions(posts){
 }
 function parseMemberCodeCsv(text){
   const rows=parseCsvRows(text);
-  return rows.map(row=>({
-    branch:String(row[0]||'').trim(),
-    codeNumber:String(row[1]||'').trim(),
-    displayName:String(row[2]||'').trim()
-  })).filter((row,index)=>{
-    if(!row.branch||!row.codeNumber)return false;
-    if(index===0&&/소속|지점|branch/i.test(row.branch)&&/코드|code/i.test(row.codeNumber))return false;
-    return true;
+  const codes=[];
+  let currentBranch='';
+  rows.forEach((row,index)=>{
+    const rawBranch=String(row[0]||'').trim();
+    const codeNumber=String(row[1]||'').trim();
+    const displayName=String(row[2]||'').trim();
+    if(index===0&&/소속|지점|branch/i.test(rawBranch)&&/코드|code/i.test(codeNumber))return;
+    if(rawBranch)currentBranch=rawBranch;
+    const branch=rawBranch||currentBranch;
+    if(!branch||!codeNumber)return;
+    codes.push({branch,codeNumber,displayName});
   });
+  return codes;
 }
 async function readCsvFile(file){
   const utf8=await readTextFile(file,'utf-8');
@@ -637,11 +641,12 @@ function parseCsvRows(text){
   const rows=[];
   let row=[],cell='',quote=false;
   const value=String(text||'').replace(/^\uFEFF/,'');
+  const delimiter=detectDelimiter(value);
   for(let i=0;i<value.length;i++){
     const ch=value[i],next=value[i+1];
     if(ch==='"'){
       if(quote&&next==='"'){cell+='"';i++}else quote=!quote;
-    }else if(ch===','&&!quote){
+    }else if(ch===delimiter&&!quote){
       row.push(cell.trim());cell='';
     }else if((ch==='\n'||ch==='\r')&&!quote){
       if(ch==='\r'&&next==='\n')i++;
@@ -655,6 +660,15 @@ function parseCsvRows(text){
   row.push(cell.trim());
   if(row.some(Boolean))rows.push(row);
   return rows;
+}
+function detectDelimiter(value){
+  const sample=String(value||'').split(/\r?\n/).slice(0,8).join('\n');
+  const tabCount=(sample.match(/\t/g)||[]).length;
+  const commaCount=(sample.match(/,/g)||[]).length;
+  const semicolonCount=(sample.match(/;/g)||[]).length;
+  if(tabCount>commaCount&&tabCount>=semicolonCount)return '\t';
+  if(semicolonCount>commaCount)return ';';
+  return ',';
 }
 tagSuggestions.addEventListener('click',e=>{
   const button=e.target.closest('[data-tag]');
@@ -685,8 +699,9 @@ memberCodeForm.addEventListener('submit',async e=>{
       toast('CSV에서 소속지점/코드번호를 찾지 못했습니다');
       return;
     }
+    const branchCount=new Set(codes.map(code=>code.branch)).size;
     saveMemberCodesBtn.textContent='전송 중';
-    memberCodeStatus.textContent=`코드 ${codes.length}개 전송 중`;
+    memberCodeStatus.textContent=`코드 ${codes.length}개 · 지점 ${branchCount}개 전송 중`;
     const response=await fetch('/api/admin/passcode',{
       method:'POST',
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
@@ -698,8 +713,9 @@ memberCodeForm.addEventListener('submit',async e=>{
     const added=Number(result.added||result.count||0);
     const skipped=Number(result.skipped||0);
     const removed=Number(result.removed||0);
-    memberCodeStatus.textContent=`신규 ${added}개 추가 · 기존 ${skipped}개 유지 · 삭제 ${removed}개`;
-    toast(`추가 ${added}개 · 삭제 ${removed}개 반영`);
+    const savedBranchCount=Number(result.branchCount||branchCount||0);
+    memberCodeStatus.textContent=`지점 ${savedBranchCount}개 · 신규 ${added}개 · 기존 ${skipped}개 · 삭제 ${removed}개`;
+    toast(`지점 ${savedBranchCount}개 · 코드 ${codes.length}개 반영`);
   }catch(error){
     memberCodeStatus.textContent='업로드 실패';
     toast(error.message||'회원가입 코드 업로드에 실패했습니다');

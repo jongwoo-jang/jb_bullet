@@ -82,7 +82,8 @@ async function updatePasscode(req, res) {
       added: newCodes.length,
       skipped: codes.length - newCodes.length,
       removed,
-      submitted: codes.length
+      submitted: codes.length,
+      branchCount: new Set(codes.map((row) => row.branch)).size
     });
   } catch (error) {
     console.error(error);
