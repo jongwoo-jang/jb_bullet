@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
   if (access.error) return res.status(access.error.status).json({ error: access.error.message });
 
   if (req.method === 'GET') return listComments(req, res);
-  if (req.method === 'POST') return createComment(req, res);
+  if (req.method === 'POST') return createComment(req, res, access.payload);
 
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'Method not allowed' });
@@ -45,7 +45,7 @@ async function listComments(req, res) {
   }
 }
 
-async function createComment(req, res) {
+async function createComment(req, res, member) {
   try {
     const body = await readJson(req);
     const postId = body.post_id;
@@ -54,9 +54,10 @@ async function createComment(req, res) {
     if (!text) return res.status(400).json({ error: '댓글 내용을 입력해 주세요.' });
 
     const supabase = getSupabaseAdmin();
+    const author = await resolveCommentAuthor(supabase, member);
     const { data, error } = await supabase
       .from('fp_comments')
-      .insert({ post_id: postId, author: '방문자', text })
+      .insert({ post_id: postId, author, text })
       .select('*')
       .single();
     if (error) throw new Error(error.message);
@@ -66,6 +67,33 @@ async function createComment(req, res) {
     console.error(error);
     return res.status(500).json({ error: error.message || '댓글 저장에 실패했습니다.' });
   }
+}
+
+async function resolveCommentAuthor(supabase, member = {}) {
+  const tokenName = normalizeDisplayName(member.displayName);
+  if (tokenName) return tokenName;
+  const codeNumber = normalizeCodeNumber(member.codeNumber);
+  if (!codeNumber) return '회원';
+  const { data, error } = await supabase
+    .from('fp_members')
+    .select('display_name')
+    .eq('code_number', codeNumber)
+    .maybeSingle();
+  if (isMissingDisplayNameColumn(error)) return '회원';
+  if (error) throw new Error(error.message);
+  return normalizeDisplayName(data && data.display_name) || '회원';
+}
+
+function normalizeCodeNumber(value) {
+  return String(value || '').trim().replace(/\s+/g, '').toUpperCase();
+}
+
+function normalizeDisplayName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+}
+
+function isMissingDisplayNameColumn(error) {
+  return Boolean(error && String(error.message || '').includes('display_name'));
 }
 
 async function listAdminComments(supabase, res) {

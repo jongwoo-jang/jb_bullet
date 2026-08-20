@@ -53,10 +53,18 @@ async function updatePasscode(req, res) {
       .neq('code_number', '');
     if (deactivateError) throw new Error(deactivateError.message);
 
-    const { error } = await supabase
+    let { error } = await supabase
       .from('fp_member_codes')
       .upsert(codes, { onConflict: 'code_number' });
+    if (isMissingDisplayNameColumn(error)) {
+      const fallbackCodes = codes.map(({ display_name, ...row }) => row);
+      const retry = await supabase
+        .from('fp_member_codes')
+        .upsert(fallbackCodes, { onConflict: 'code_number' });
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
+    await updateExistingMemberNames(supabase, codes);
     return res.status(200).json({ ok: true, configured: true, count: codes.length });
   } catch (error) {
     console.error(error);
@@ -67,13 +75,27 @@ async function updatePasscode(req, res) {
   }
 }
 
+async function updateExistingMemberNames(supabase, codes) {
+  const namedCodes = codes.filter((row) => row.display_name);
+  for (const row of namedCodes) {
+    const { error } = await supabase
+      .from('fp_members')
+      .update({ display_name: row.display_name })
+      .eq('code_number', row.code_number);
+    if (isMissingDisplayNameColumn(error)) return;
+    if (error) throw new Error(error.message);
+  }
+}
+
 function normalizeCodeRow(row) {
   const branch = String(row.branch || '').trim().replace(/\s+/g, ' ');
   const codeNumber = String(row.codeNumber || row.code_number || '').trim().replace(/\s+/g, '').toUpperCase();
+  const displayName = String(row.displayName || row.display_name || '').trim().replace(/\s+/g, ' ').slice(0, 30);
   if (!branch || !codeNumber) return null;
   return {
     branch,
     code_number: codeNumber,
+    display_name: displayName || null,
     is_active: true,
     created_at: new Date().toISOString()
   };
@@ -82,4 +104,8 @@ function normalizeCodeRow(row) {
 function isMissingMemberTable(error) {
   const message = String(error && error.message ? error.message : '');
   return message.includes('public.fp_member_codes') || message.includes('public.fp_members');
+}
+
+function isMissingDisplayNameColumn(error) {
+  return Boolean(error && String(error.message || '').includes('display_name'));
 }

@@ -295,6 +295,8 @@ a{color:inherit;text-decoration:none}
 .actions button:active,.actions a:active{transform:scale(.9)}
 .actions .bookmark{margin-left:auto}
 .actions .on{color:var(--brand2)}
+.detail-stats{display:flex;flex-wrap:wrap;gap:7px;padding:0 16px 10px;color:var(--ink2);font-size:12.6px;font-weight:780}
+.detail-stats span{display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:999px;background:#F4F6F8}
 .caption{padding:0 16px 16px;margin:0;font-size:14.9px;line-height:1.6;color:#343A42}
 .caption b{font-weight:800;margin-right:6px}
 .tagline{display:block;margin-top:8px;color:#4C86A2;font-size:13.2px;font-weight:650}
@@ -371,6 +373,7 @@ a{color:inherit;text-decoration:none}
       </div>
       <form id="signupForm">
         <div class="member-fields">
+          <div class="member-field"><label for="signupDisplayName">실명</label><input id="signupDisplayName" type="text" autocomplete="name" placeholder="댓글에 표시될 이름" required></div>
           <div class="member-field"><label for="signupBranch">소속지점</label><input id="signupBranch" type="text" autocomplete="organization" placeholder="CSV A열과 동일하게 입력" required></div>
           <div class="member-field"><label for="signupCodeNumber">코드번호</label><input id="signupCodeNumber" type="text" inputmode="text" autocomplete="username" placeholder="CSV B열 코드번호" required></div>
           <div class="member-field"><label for="signupPassword">비밀번호</label><input id="signupPassword" type="password" autocomplete="new-password" placeholder="4자 이상 입력" required minlength="4"></div>
@@ -427,6 +430,7 @@ a{color:inherit;text-decoration:none}
           <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.2 20.25 8.1 14.35l1.55 1.55-5.9 5.9H2.2v-1.55Z"/><path fill="currentColor" fill-rule="evenodd" d="M15.1 1.7 22.3 8.9l-6.02 4.02c.46 2.5-.2 4.83-2.04 6.67L4.4 9.75c1.86-1.86 4.2-2.52 6.7-2.04L15.1 1.7Zm.48 4.09-2.77 4.15-.68-.18c-1.46-.39-2.82-.28-4.02.35l5.86 5.86c.62-1.2.74-2.56.34-4.02l-.18-.68 4.15-2.77-2.7-2.71Z" clip-rule="evenodd"/></svg>
         </button>
       </div>
+      <div class="detail-stats" id="detailStats" aria-label="게시물 활동"></div>
       <p class="caption" id="dCaption"></p>
       <div class="cta-row" id="dCta"></div>
       <section class="comments">
@@ -449,11 +453,13 @@ const STORE_KEY='fpLoungePosts';
 const SEEN_KEY='fpSeenPosts';
 const COMMENT_KEY='fpPostComments';
 const ACCESS_KEY='fpPublicAccessToken';
+const SHARE_KEY='fpShareCounts';
 const AUTO_LOCK_MS=10*60*1000;
 const ADMIN_TAP_WINDOW_MS=1100;
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const pinned=new Set(JSON.parse(localStorage.getItem('fpPinned')||localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
+let shareCounts=JSON.parse(localStorage.getItem(SHARE_KEY)||'{}');
 let comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
 let posts=[], current=null;
 let unreadOnly=false;
@@ -723,6 +729,18 @@ function syncDetail(){
   document.getElementById('pinBtn').classList.toggle('on',pinned.has(current.id));
   document.getElementById('pinBtn').setAttribute('aria-pressed',pinned.has(current.id));
   document.getElementById('pinBtn').setAttribute('aria-label',pinned.has(current.id)?'상단 고정 해제':'상단 고정');
+  updateDetailStats();
+}
+function updateDetailStats(commentCount){
+  if(!current)return;
+  const localComments=comments[current.id]||[];
+  const count=Number.isFinite(commentCount)?commentCount:localComments.length;
+  document.getElementById('detailStats').innerHTML=[
+    ['좋아요',liked.has(current.id)?1:0],
+    ['댓글',count],
+    ['공유',Number(shareCounts[current.id]||0)],
+    ['저장',pinned.has(current.id)?1:0]
+  ].map(([label,value])=>`<span>${label} ${value}</span>`).join('');
 }
 function toggleLike(id){
   liked.has(id)?liked.delete(id):liked.add(id);
@@ -753,6 +771,7 @@ async function renderComments(){
   document.getElementById('commentCount').textContent=list.length;
   document.getElementById('commentEmpty').style.display=list.length?'none':'block';
   document.getElementById('commentList').innerHTML=list.map(c=>`<div class="comment"><b>${escapeHtml(c.author)}</b>${escapeHtml(c.text)}</div>`).join('');
+  updateDetailStats(list.length);
 }
 async function addComment(text){
   if(!current)return;
@@ -857,11 +876,17 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
 async function sharePost(id){
   const post=posts.find(p=>p.id===id);
   const url=`${location.origin}${location.pathname}#post-${encodeURIComponent(id)}`;
+  let shared=false;
   try{
-    if(navigator.share&&post){await navigator.share({title:post.title,text:post.desc||post.title,url})}
-    else{await navigator.clipboard.writeText(url);toast('게시물 링크를 복사했습니다')}
+    if(navigator.share&&post){await navigator.share({title:post.title,text:post.desc||post.title,url});shared=true}
+    else{await navigator.clipboard.writeText(url);shared=true;toast('게시물 링크를 복사했습니다')}
   }catch(e){
-    try{await navigator.clipboard.writeText(url);toast('게시물 링크를 복사했습니다')}catch(err){toast('공유를 준비했습니다')}
+    try{await navigator.clipboard.writeText(url);shared=true;toast('게시물 링크를 복사했습니다')}catch(err){toast('공유를 준비했습니다')}
+  }
+  if(shared){
+    shareCounts[id]=Number(shareCounts[id]||0)+1;
+    localStorage.setItem(SHARE_KEY,JSON.stringify(shareCounts));
+    if(current&&current.id===id)updateDetailStats();
   }
 }
 function downloadPost(id){
@@ -893,6 +918,7 @@ function accessElements(){
 }
 function signupElements(){
   return {
+    displayName:document.getElementById('signupDisplayName'),
     branch:document.getElementById('signupBranch'),
     codeNumber:document.getElementById('signupCodeNumber'),
     password:document.getElementById('signupPassword'),
@@ -920,11 +946,11 @@ function updateAccessUi(){
   else if(!busy)setAccessMessage('');
 }
 function updateSignupUi(){
-  const {branch,codeNumber,password,agree,button}=signupElements();
-  const filled=branch.value.trim()&&codeNumber.value.trim()&&password.value.length>=4;
+  const {displayName,branch,codeNumber,password,agree,button}=signupElements();
+  const filled=displayName.value.trim()&&branch.value.trim()&&codeNumber.value.trim()&&password.value.length>=4;
   const busy=button.dataset.busy==='true';
   button.disabled=busy||!filled||!agree.checked;
-  if(!filled&&!busy)setSignupMessage('소속지점, 코드번호, 비밀번호를 입력해 주세요');
+  if(!filled&&!busy)setSignupMessage('실명, 소속지점, 코드번호, 비밀번호를 입력해 주세요');
   else if(!agree.checked&&!busy)setSignupMessage('필수 동의 후 가입할 수 있습니다');
   else if(!busy)setSignupMessage('');
 }
@@ -1007,7 +1033,7 @@ document.getElementById('backToLoginBtn').addEventListener('click',showLogin);
 ['memberCodeNumber','memberPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateAccessUi);
 });
-['signupBranch','signupCodeNumber','signupPassword'].forEach(id=>{
+['signupDisplayName','signupBranch','signupCodeNumber','signupPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateSignupUi);
 });
 document.getElementById('accessAgree').addEventListener('change',updateSignupUi);
@@ -1046,8 +1072,8 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
 });
 document.getElementById('signupForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const {branch,codeNumber,password,agree,button}=signupElements();
-  if(!branch.value.trim()||!codeNumber.value.trim()||password.value.length<4){branch.focus();setSignupMessage('소속지점, 코드번호, 비밀번호를 입력해 주세요');return}
+  const {displayName,branch,codeNumber,password,agree,button}=signupElements();
+  if(!displayName.value.trim()||!branch.value.trim()||!codeNumber.value.trim()||password.value.length<4){displayName.focus();setSignupMessage('실명, 소속지점, 코드번호, 비밀번호를 입력해 주세요');return}
   if(!agree.checked){setSignupMessage('필수 동의 후 가입할 수 있습니다');return}
   button.dataset.busy='true';
   button.disabled=true;
@@ -1058,6 +1084,7 @@ document.getElementById('signupForm').addEventListener('submit',async e=>{
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         mode:'signup',
+        displayName:displayName.value,
         branch:branch.value,
         codeNumber:codeNumber.value,
         password:password.value

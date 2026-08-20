@@ -245,13 +245,13 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="panel settings-panel admin-panel" data-admin-panel="members" hidden>
-      <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 소속지점, B열은 코드번호로 저장합니다.</span></div></div>
+      <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 소속지점, B열은 코드번호, C열은 실명으로 저장합니다.</span></div></div>
       <form class="passcode-form" id="memberCodeForm">
         <div class="field"><label for="memberCodeCsv">CSV 파일</label><input id="memberCodeCsv" type="file" accept=".csv,text/csv" required></div>
         <button class="primary" id="saveMemberCodesBtn" type="submit">업로드</button>
         <span class="passcode-status" id="memberCodeStatus">상태 확인 중</span>
       </form>
-      <p class="hint">첫 행이 제목이면 자동으로 제외합니다. 예: A열 소속지점, B열 코드번호</p>
+      <p class="hint">첫 행이 제목이면 자동으로 제외합니다. 예: A열 소속지점, B열 코드번호, C열 실명 선택</p>
     </section>
   </div>
 </div>
@@ -587,7 +587,8 @@ function parseMemberCodeCsv(text){
   const rows=parseCsvRows(text);
   return rows.map(row=>({
     branch:String(row[0]||'').trim(),
-    codeNumber:String(row[1]||'').trim()
+    codeNumber:String(row[1]||'').trim(),
+    displayName:String(row[2]||'').trim()
   })).filter((row,index)=>{
     if(!row.branch||!row.codeNumber)return false;
     if(index===0&&/소속|지점|branch/i.test(row.branch)&&/코드|code/i.test(row.codeNumber))return false;

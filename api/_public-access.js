@@ -27,7 +27,8 @@ function verifyAccessToken(token) {
   try {
     if (!timingSafeEqual(sign(body), signature)) return false;
     const payload = JSON.parse(Buffer.from(fromBase64Url(body), 'base64').toString('utf8'));
-    return payload.typ === 'public' && Number(payload.exp || 0) > Math.floor(Date.now() / 1000);
+    if (payload.typ !== 'public' || Number(payload.exp || 0) <= Math.floor(Date.now() / 1000)) return false;
+    return payload;
   } catch (error) {
     return false;
   }
@@ -40,10 +41,11 @@ function getBearerToken(req) {
 }
 
 function requirePublicAccess(req) {
-  if (!verifyAccessToken(getBearerToken(req))) {
+  const payload = verifyAccessToken(getBearerToken(req));
+  if (!payload) {
     return { error: { status: 401, message: '다시 로그인해 주세요.' } };
   }
-  return { ok: true };
+  return { ok: true, payload };
 }
 
 function sign(value) {

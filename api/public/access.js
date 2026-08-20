@@ -24,18 +24,13 @@ module.exports = async function handler(req, res) {
 async function signup(body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
   const branch = normalizeBranch(body.branch);
+  const displayName = normalizeDisplayName(body.displayName);
   const password = String(body.password || '');
-  if (!codeNumber || !branch || !isValidPassword(password)) {
-    return res.status(400).json({ error: '코드번호, 소속지점, 비밀번호를 모두 입력해 주세요.' });
+  if (!codeNumber || !branch || !displayName || !isValidPassword(password)) {
+    return res.status(400).json({ error: '실명, 코드번호, 소속지점, 비밀번호를 모두 입력해 주세요.' });
   }
 
-  const { data: code, error: codeError } = await supabase
-    .from('fp_member_codes')
-    .select('code_number, branch, is_active')
-    .eq('code_number', codeNumber)
-    .eq('is_active', true)
-    .maybeSingle();
-  if (codeError) throw new Error(codeError.message);
+  const code = await getActiveMemberCode(supabase, codeNumber);
   if (!code || normalizeBranch(code.branch) !== branch) {
     return res.status(403).json({ error: '등록된 소속지점과 코드번호가 일치하지 않습니다.' });
   }
@@ -49,16 +44,25 @@ async function signup(body, supabase, res) {
   if (existing) return res.status(409).json({ error: '이미 가입된 코드번호입니다. 로그인해 주세요.' });
 
   const { salt, hash } = hashPassword(password);
-  const { error: insertError } = await supabase.from('fp_members').insert({
+  const verifiedName = normalizeDisplayName(code.display_name) || displayName;
+  const memberRow = {
     code_number: codeNumber,
     branch,
+    display_name: verifiedName,
     password_hash: hash,
     password_salt: salt
-  });
+  };
+  let { error: insertError } = await supabase.from('fp_members').insert(memberRow);
+  if (isMissingDisplayNameColumn(insertError)) {
+    const fallback = { ...memberRow };
+    delete fallback.display_name;
+    const retry = await supabase.from('fp_members').insert(fallback);
+    insertError = retry.error;
+  }
   if (insertError) throw new Error(insertError.message);
 
   res.setHeader('Cache-Control', 'no-store');
-  return res.status(201).json({ token: createAccessToken({ codeNumber, branch }), branch, codeNumber });
+  return res.status(201).json({ token: createAccessToken({ codeNumber, branch, displayName: verifiedName }), branch, codeNumber, displayName: verifiedName });
 }
 
 async function login(body, supabase, res) {
@@ -68,12 +72,7 @@ async function login(body, supabase, res) {
     return res.status(400).json({ error: '코드번호와 비밀번호를 입력해 주세요.' });
   }
 
-  const { data: member, error } = await supabase
-    .from('fp_members')
-    .select('code_number, branch, password_hash, password_salt')
-    .eq('code_number', codeNumber)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
+  const member = await getMemberByCode(supabase, codeNumber);
   const { data: activeCode, error: codeError } = await supabase
     .from('fp_member_codes')
     .select('branch, is_active')
@@ -82,6 +81,7 @@ async function login(body, supabase, res) {
     .maybeSingle();
   if (codeError) throw new Error(codeError.message);
   const branch = normalizeBranch(member && member.branch);
+  const displayName = normalizeDisplayName(member && member.display_name);
   if (!member || !activeCode || normalizeBranch(activeCode.branch) !== branch || !verifyPassword(password, member.password_salt, member.password_hash)) {
     return res.status(401).json({ error: '코드번호 또는 비밀번호를 확인해 주세요.' });
   }
@@ -89,7 +89,7 @@ async function login(body, supabase, res) {
   await supabase.from('fp_members').update({ last_login_at: new Date().toISOString() }).eq('code_number', codeNumber);
 
   res.setHeader('Cache-Control', 'no-store');
-  return res.status(200).json({ token: createAccessToken({ codeNumber, branch }), branch, codeNumber });
+  return res.status(200).json({ token: createAccessToken({ codeNumber, branch, displayName }), branch, codeNumber, displayName });
 }
 
 function normalizeCodeNumber(value) {
@@ -98,6 +98,10 @@ function normalizeCodeNumber(value) {
 
 function normalizeBranch(value) {
   return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function normalizeDisplayName(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ').slice(0, 30);
 }
 
 function isValidPassword(value) {
@@ -115,6 +119,50 @@ function verifyPassword(password, salt, hash) {
   const left = Buffer.from(crypto.scryptSync(String(password), salt, 64).toString('hex'));
   const right = Buffer.from(String(hash));
   return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+async function getActiveMemberCode(supabase, codeNumber) {
+  let { data, error } = await supabase
+    .from('fp_member_codes')
+    .select('code_number, branch, display_name, is_active')
+    .eq('code_number', codeNumber)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (isMissingDisplayNameColumn(error)) {
+    const retry = await supabase
+      .from('fp_member_codes')
+      .select('code_number, branch, is_active')
+      .eq('code_number', codeNumber)
+      .eq('is_active', true)
+      .maybeSingle();
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+async function getMemberByCode(supabase, codeNumber) {
+  let { data, error } = await supabase
+    .from('fp_members')
+    .select('code_number, branch, display_name, password_hash, password_salt')
+    .eq('code_number', codeNumber)
+    .maybeSingle();
+  if (isMissingDisplayNameColumn(error)) {
+    const retry = await supabase
+      .from('fp_members')
+      .select('code_number, branch, password_hash, password_salt')
+      .eq('code_number', codeNumber)
+      .maybeSingle();
+    data = retry.data;
+    error = retry.error;
+  }
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+function isMissingDisplayNameColumn(error) {
+  return Boolean(error && String(error.message || '').includes('display_name'));
 }
 
 function isMissingMemberTable(error) {
