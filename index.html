@@ -497,6 +497,8 @@ let hiddenAt=0;
 let adminTapCount=0;
 let adminTapTimer=0;
 let detailHistoryActive=false;
+let appHistoryReady=false;
+let applyingHistory=false;
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),notice:document.getElementById('gridNotice'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),notice:document.getElementById('emptyNotice'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
@@ -505,7 +507,15 @@ async function loadPosts(){
     try{
       const response=await fetch('/api/feed',{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
       const result=await response.json().catch(()=>({error:'자료를 불러오지 못했습니다.'}));
-      if(response.status===401){clearPublicAccess();showAuth();toast(result.error||'다시 로그인해 주세요');return}
+      if(response.status===401){
+        detailHistoryActive=false;
+        closeDetail(true);
+        clearPublicAccess();
+        history.replaceState({view:'auth'},'',location.pathname);
+        showAuth();
+        toast(result.error||'다시 로그인해 주세요');
+        return;
+      }
       if(!response.ok)throw new Error(result.error||'자료를 불러오지 못했습니다.');
       posts=Array.isArray(result.posts)?result.posts.map(rowToPost):[];
       return;
@@ -679,6 +689,7 @@ function showAuth(){
   setTimeout(()=>document.getElementById('memberCodeNumber').focus(),120);
 }
 function showFeed(){
+  ensureAppHistory();
   document.getElementById('app').classList.remove('auth-view');
   document.getElementById('authScreen').hidden=true;
   document.getElementById('tabs').hidden=false;
@@ -687,6 +698,57 @@ function showFeed(){
   document.getElementById('bellBtn').hidden=false;
   resetAutoLock();
   requestAnimationFrame(moveTabIndicator);
+}
+function ensureAppHistory(){
+  if(applyingHistory||appHistoryReady||!publicAccessToken)return;
+  history.replaceState({view:'auth'},'',location.pathname);
+  history.pushState(feedHistoryState(),'',location.pathname);
+  appHistoryReady=true;
+}
+function feedHistoryState(overrides={}){
+  const tab=document.querySelector('.tab[aria-selected="true"]')?.getAttribute('aria-controls')||'p-all';
+  return {view:'feed',tab,unread:unreadOnly,search:searchQuery,...overrides};
+}
+function isDefaultFeedState(state=feedHistoryState()){
+  return (state.tab||'p-all')==='p-all'&&!state.unread&&!String(state.search||'').trim();
+}
+function pushFeedHistory(overrides={}){
+  if(applyingHistory||!publicAccessToken)return;
+  const state=feedHistoryState(overrides);
+  if(isDefaultFeedState(state))return;
+  history.pushState(state,'',location.pathname);
+}
+function syncFeedHistory(){
+  if(applyingHistory||!publicAccessToken)return;
+  const state=feedHistoryState();
+  const currentState=history.state||{};
+  if(isDefaultFeedState(state)){
+    history.replaceState(state,'',location.pathname);
+    return;
+  }
+  if(currentState.view==='feed'&&!isDefaultFeedState(currentState))history.replaceState(state,'',location.pathname);
+  else history.pushState(state,'',location.pathname);
+}
+function pushDetailHistory(id){
+  if(applyingHistory||!publicAccessToken)return;
+  history.pushState({view:'detail',postId:id,feed:feedHistoryState()},'',`#post-${encodeURIComponent(id)}`);
+}
+function applyFeedHistoryState(state={}){
+  applyingHistory=true;
+  const tabId=state.tab||'p-all';
+  const target=document.querySelector(`.tab[aria-controls="${tabId}"]`)||document.querySelector('.tab[aria-controls="p-all"]');
+  document.querySelectorAll('.tab').forEach(tab=>{
+    const active=tab===target;
+    tab.setAttribute('aria-selected',active);
+    document.getElementById(tab.getAttribute('aria-controls')).hidden=!active;
+  });
+  unreadOnly=Boolean(state.unread);
+  searchQuery=String(state.search||'');
+  document.getElementById('searchInput').value=searchQuery;
+  document.getElementById('scroller').scrollTo({top:0,behavior:'auto'});
+  render();
+  requestAnimationFrame(moveTabIndicator);
+  applyingHistory=false;
 }
 function bindFeed(){
   document.querySelector('.scroller').addEventListener('click',e=>{
@@ -735,9 +797,9 @@ function openDetail(id,focusComment=false,fromHistory=false){
   render();
   document.getElementById('detail').classList.add('open');
   document.getElementById('detail').setAttribute('aria-hidden','false');
-  if(!fromHistory&&!history.state?.postId){
+  if(!fromHistory&&publicAccessToken){
     detailHistoryActive=true;
-    history.pushState({postId:id},'',`#post-${encodeURIComponent(id)}`);
+    pushDetailHistory(id);
   }
   if(focusComment)setTimeout(()=>document.getElementById('commentInput').focus(),250);
 }
@@ -832,6 +894,7 @@ function setupTabs(){
     });
     document.getElementById('scroller').scrollTo({top:0,behavior:'smooth'});
     move();
+    syncFeedHistory();
   }));
   window.addEventListener('resize',move);
   requestAnimationFrame(move);
@@ -850,6 +913,7 @@ function clearPublicAccess(){
   publicAccessToken='';
   sessionStorage.removeItem(ACCESS_KEY);
   posts=[];
+  appHistoryReady=false;
 }
 function stopAutoLock(){
   if(autoLockTimer)clearTimeout(autoLockTimer);
@@ -863,9 +927,11 @@ function resetAutoLock(){
 }
 function lockPublicAccess(){
   if(!publicAccessToken)return;
+  detailHistoryActive=false;
+  closeDetail(true);
   clearPublicAccess();
+  history.replaceState({view:'auth'},'',location.pathname);
   showAuth();
-  closeDetail();
   toast('10분 동안 활동이 없어 접속을 종료했습니다');
 }
 function handleVisibilityChange(){
@@ -1083,6 +1149,7 @@ document.getElementById('focusCommentBtn').addEventListener('click',()=>{
 document.getElementById('searchInput').addEventListener('input',e=>{
   searchQuery=e.target.value;
   render();
+  syncFeedHistory();
 });
 document.getElementById('commentForm').addEventListener('submit',e=>{
   e.preventDefault();
@@ -1228,11 +1295,13 @@ document.getElementById('bellBtn').addEventListener('click',async()=>{
   unreadOnly=true;
   document.querySelector('.tab[aria-controls="p-all"]').click();
   render();
+  syncFeedHistory();
   toast(`미확인 게시물 ${count}개`);
 });
 document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
   unreadOnly=false;
   render();
+  syncFeedHistory();
 });
 ['pointerdown','keydown','touchstart','wheel'].forEach(eventName=>{
   document.addEventListener(eventName,resetAutoLock,{passive:true});
@@ -1241,12 +1310,27 @@ document.addEventListener('visibilitychange',handleVisibilityChange);
 window.addEventListener('blur',handleWindowBlur);
 window.addEventListener('focus',handleVisibilityChange);
 window.addEventListener('popstate',e=>{
+  const state=e.state||{};
   if(current){
     detailHistoryActive=false;
     closeDetail(true);
+  }
+  if(state.view==='detail'&&state.postId){
+    if(state.feed)applyFeedHistoryState(state.feed);
+    openDetail(String(state.postId),false,true);
     return;
   }
-  if(e.state&&e.state.postId)openDetail(e.state.postId,false,true);
+  if(state.view==='feed'){
+    showFeed();
+    applyFeedHistoryState(state);
+    return;
+  }
+  if(state.view==='auth'){
+    clearPublicAccess();
+    closeDetail(true);
+    showAuth();
+    return;
+  }
 });
 document.addEventListener('keydown',e=>{
   const authVisible=!document.getElementById('authScreen').hidden;
