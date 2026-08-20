@@ -1,6 +1,9 @@
 const { requireAdmin } = require('../_auth');
 const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
 
+const UPSERT_CHUNK_SIZE = 1000;
+const LOOKUP_CHUNK_SIZE = 1000;
+
 module.exports = async function handler(req, res) {
   const admin = await requireAdmin(req);
   if (admin.error) return res.status(admin.error.status).json({ error: admin.error.message });
@@ -64,25 +67,17 @@ async function updatePasscode(req, res) {
     if (!codes.length) return res.status(400).json({ error: '업로드할 소속지점/코드번호 목록이 없습니다.' });
 
     const supabase = getSupabaseAdmin();
-    const { error: deactivateError } = await supabase
-      .from('fp_member_codes')
-      .update({ is_active: false })
-      .neq('code_number', '');
-    if (deactivateError) throw new Error(deactivateError.message);
-
-    let { error } = await supabase
-      .from('fp_member_codes')
-      .upsert(codes, { onConflict: 'code_number' });
-    if (isMissingDisplayNameColumn(error)) {
-      const fallbackCodes = codes.map(({ display_name, ...row }) => row);
-      const retry = await supabase
-        .from('fp_member_codes')
-        .upsert(fallbackCodes, { onConflict: 'code_number' });
-      error = retry.error;
-    }
-    if (error) throw new Error(error.message);
-    await updateExistingMemberNames(supabase, codes);
-    return res.status(200).json({ ok: true, configured: true, count: codes.length });
+    const existing = await getExistingCodeNumbers(supabase, codes.map((row) => row.code_number));
+    const newCodes = codes.filter((row) => !existing.has(row.code_number));
+    await insertNewMemberCodes(supabase, newCodes);
+    return res.status(200).json({
+      ok: true,
+      configured: true,
+      count: newCodes.length,
+      added: newCodes.length,
+      skipped: codes.length - newCodes.length,
+      submitted: codes.length
+    });
   } catch (error) {
     console.error(error);
     if (isMissingMemberTable(error)) {
@@ -92,14 +87,34 @@ async function updatePasscode(req, res) {
   }
 }
 
-async function updateExistingMemberNames(supabase, codes) {
-  const namedCodes = codes.filter((row) => row.display_name);
-  for (const row of namedCodes) {
-    const { error } = await supabase
-      .from('fp_members')
-      .update({ display_name: row.display_name })
-      .eq('code_number', row.code_number);
-    if (isMissingDisplayNameColumn(error)) return;
+async function getExistingCodeNumbers(supabase, codeNumbers) {
+  const existing = new Set();
+  for (const chunk of chunkArray(codeNumbers, LOOKUP_CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from('fp_member_codes')
+      .select('code_number')
+      .in('code_number', chunk);
+    if (error) throw new Error(error.message);
+    (data || []).forEach((row) => existing.add(row.code_number));
+  }
+  return existing;
+}
+
+async function insertNewMemberCodes(supabase, codes) {
+  if (!codes.length) return;
+  let useDisplayName = true;
+  for (const chunk of chunkArray(codes, UPSERT_CHUNK_SIZE)) {
+    const payload = useDisplayName ? chunk : chunk.map(({ display_name, ...row }) => row);
+    let { error } = await supabase
+      .from('fp_member_codes')
+      .upsert(payload, { onConflict: 'code_number', ignoreDuplicates: true });
+    if (useDisplayName && isMissingDisplayNameColumn(error)) {
+      useDisplayName = false;
+      const retry = await supabase
+        .from('fp_member_codes')
+        .upsert(chunk.map(({ display_name, ...row }) => row), { onConflict: 'code_number', ignoreDuplicates: true });
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
   }
 }
@@ -125,6 +140,14 @@ function isMissingMemberTable(error) {
 
 function isMissingDisplayNameColumn(error) {
   return Boolean(error && String(error.message || '').includes('display_name'));
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function displayAdminName(value) {
