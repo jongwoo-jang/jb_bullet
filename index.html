@@ -73,11 +73,12 @@ a{color:inherit;text-decoration:none}
 }
 .app.scrolled .appbar{box-shadow:0 1px 0 var(--line)}
 .app.auth-view .appbar{display:none}
-.app.auth-view .auth-screen{padding-top:34px}
-.app.auth-view .auth-card{display:flex;flex-direction:column;min-height:calc(100dvh - 58px)}
+.app.auth-view .auth-screen{padding-top:30px}
+.app.auth-view .auth-card{display:flex;flex-direction:column;min-height:calc(100dvh - 48px)}
 .app.auth-view .auth-card[hidden]{display:none}
 .app.auth-view .brand{margin-right:0}
 .app.auth-view .icon-btn{display:none}
+#bellBtn{display:none!important}
 .brand{margin-right:auto;display:flex;align-items:center;min-width:0;cursor:pointer;border-radius:10px}
 .brand b{font-size:21px;font-weight:850;white-space:nowrap;letter-spacing:0}
 .brand b span{color:var(--brand2)}
@@ -121,7 +122,7 @@ a{color:inherit;text-decoration:none}
 .auth-card{width:100%;max-width:348px}
 .auth-card[hidden]{display:none}
 #accessForm,#signupForm,#resetForm{display:flex;flex-direction:column;flex:1}
-.auth-head{margin:0 0 30px}
+.auth-head{margin:0 0 24px}
 .auth-head h1{margin:0;color:var(--ink);font-size:33px;font-weight:850;line-height:1.18;letter-spacing:0}
 .auth-head h1 span{color:var(--brand2)}
 .auth-head p{margin:14px 0 0;color:var(--ink3);font-size:15px;font-weight:600;line-height:1.62;word-break:keep-all}
@@ -146,7 +147,7 @@ a{color:inherit;text-decoration:none}
 .access-message{min-height:22px;margin-bottom:12px;color:#D94343;font-size:13px;font-weight:800;line-height:1.5}
 .access-message.ok{color:var(--spring-green)}
 .access-notice{
-  margin-top:auto;margin-bottom:14px;padding:14px 15px 10px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;box-shadow:none;
+  margin-top:auto;margin-bottom:12px;padding:13px 14px 10px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;box-shadow:none;
 }
 .access-legal{margin:0;color:var(--ink3);font-size:12.8px;font-weight:680;line-height:1.64;word-break:keep-all}
 .access-legal b{color:var(--ink2);font-weight:760}
@@ -165,12 +166,12 @@ a{color:inherit;text-decoration:none}
 .member-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 14px;padding:4px;border-radius:12px;background:#EEF1F5}
 .member-mode button{height:42px;border-radius:9px;color:var(--ink2);font-size:14px;font-weight:850}
 .member-mode button.on{background:#fff;color:var(--brand2);box-shadow:0 5px 16px rgba(24,34,45,.08)}
-.auth-link-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:6px}
-.signup-link{display:flex;align-items:center;justify-content:center;margin-top:6px;color:var(--brand2);font-size:14px;font-weight:850}
-.auth-link-row .signup-link{min-height:38px;margin-top:0;border-radius:999px;background:#F4F6F8}
-.admin-login-link{display:flex;align-items:center;justify-content:center;margin-top:14px;color:var(--ink3);font-size:12.8px;font-weight:820}
+.auth-link-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.signup-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:8px;color:var(--brand2);font-size:14.2px;font-weight:850;border-radius:10px}
+.auth-link-row .signup-link{min-height:44px;margin-top:0;border-radius:999px;background:#F4F6F8}
+.admin-login-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:8px;color:var(--ink3);font-size:13px;font-weight:820}
 .admin-login-link:hover{color:var(--brand2)}
-.member-fields{display:grid;gap:10px;margin-bottom:12px}
+.member-fields{display:grid;gap:9px;margin-bottom:10px}
 .member-field label{display:block;margin:0 0 6px;color:var(--ink2);font-size:12.8px;font-weight:850}
 .member-field input,.member-field select{
   width:100%;height:50px;border:1px solid var(--line);border-radius:10px;background:#FBFCFD;color:var(--ink);
@@ -193,7 +194,7 @@ a{color:inherit;text-decoration:none}
 .password-box input{padding-right:48px}
 .password-toggle{position:absolute;right:6px;top:6px;width:36px;height:36px;display:grid;place-items:center;border-radius:8px;color:var(--ink2)}
 .password-toggle:hover{background:var(--soft);color:var(--brand2)}
-.auth-actions{display:flex;gap:8px;margin-top:0;padding-bottom:18px}
+.auth-actions{display:flex;gap:8px;margin-top:0;padding-bottom:10px}
 .auth-actions button{height:54px;border-radius:8px;font-size:15.5px;font-weight:850}
 .auth-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
 .auth-actions .primary:disabled{background:#E2E5EB;color:#A8AEBB;opacity:1;cursor:not-allowed;box-shadow:none}
@@ -333,10 +334,6 @@ a{color:inherit;text-decoration:none}
 <div class="app" id="app">
   <header class="appbar">
     <button class="brand" id="loungeBrand" type="button" aria-label="전환법인 라운지"><b>전환법인 <span>라운지</span></b></button>
-    <button class="icon-btn" id="bellBtn" aria-label="알림" hidden>
-      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-      <span class="notice-dot"></span>
-    </button>
   </header>
 
   <nav class="tabs" role="tablist" id="tabs" hidden>
@@ -686,7 +683,8 @@ function showAuth(){
   document.getElementById('tabs').hidden=true;
   document.getElementById('searchWrap').hidden=true;
   document.getElementById('scroller').hidden=true;
-  document.getElementById('bellBtn').hidden=true;
+  const bell=document.getElementById('bellBtn');
+  if(bell)bell.hidden=true;
   updateAccessUi();
   setTimeout(()=>document.getElementById('memberCodeNumber').focus(),120);
 }
@@ -697,7 +695,8 @@ function showFeed(){
   document.getElementById('tabs').hidden=false;
   document.getElementById('searchWrap').hidden=false;
   document.getElementById('scroller').hidden=false;
-  document.getElementById('bellBtn').hidden=false;
+  const bell=document.getElementById('bellBtn');
+  if(bell)bell.hidden=false;
   resetAutoLock();
   requestAnimationFrame(moveTabIndicator);
 }
@@ -966,8 +965,10 @@ function updateUnreadUi(){
   const bell=document.getElementById('bellBtn');
   const filter=document.getElementById('unreadFilter');
   const filterText=document.getElementById('unreadFilterText');
-  bell.classList.toggle('has-unread',count>0);
-  bell.setAttribute('aria-label',count>0?`미확인 게시물 ${count}개`:'알림');
+  if(bell){
+    bell.classList.toggle('has-unread',count>0);
+    bell.setAttribute('aria-label',count>0?`미확인 게시물 ${count}개`:'알림');
+  }
   filter.classList.toggle('show',unreadOnly);
   filterText.textContent=count>0?`미확인 게시물 ${count}개를 보고 있습니다`:'미확인 게시물이 없습니다';
 }
@@ -1308,7 +1309,8 @@ document.getElementById('resetForm').addEventListener('submit',async e=>{
     updateResetUi();
   }
 });
-document.getElementById('bellBtn').addEventListener('click',async()=>{
+const bellBtn=document.getElementById('bellBtn');
+if(bellBtn)bellBtn.addEventListener('click',async()=>{
   await loadPosts();
   const count=unreadPosts().length;
   if(!count){unreadOnly=false;render();toast('새로운 알림이 없습니다');return}
