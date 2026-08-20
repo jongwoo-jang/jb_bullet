@@ -15,43 +15,48 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  let uploadedDriveFileId = null;
+  const uploadedDriveFileIds = [];
   try {
     const admin = await requireAdmin(req);
     if (admin.error) return res.status(admin.error.status).json({ error: admin.error.message });
     ensureServerConfig();
-    const { fields, file } = await parseMultipart(req);
-    if (!file) return res.status(400).json({ error: '파일이 없습니다.' });
-    if (!isAllowedMime(file.mimeType)) return res.status(400).json({ error: '이미지 또는 PDF만 업로드할 수 있습니다.' });
+    const { fields, files } = await parseMultipart(req);
+    if (!files.length) return res.status(400).json({ error: '파일이 없습니다.' });
+    files.forEach((file) => {
+      if (!isAllowedMime(file.mimeType)) throw new Error('이미지 또는 PDF만 업로드할 수 있습니다.');
+    });
 
-    const postType = file.mimeType === 'application/pdf' ? 'pdf' : 'image';
-    const driveFile = await withDriveStage('upload', () => uploadToDrive(file));
-    uploadedDriveFileId = driveFile.id;
-    await withDriveStage('share', () => makeDriveFilePublic(driveFile.id));
+    const attachments = [];
+    for (const file of files) {
+      const driveFile = await withDriveStage('upload', () => uploadToDrive(file));
+      uploadedDriveFileIds.push(driveFile.id);
+      await withDriveStage('share', () => makeDriveFilePublic(driveFile.id));
+      attachments.push(toAttachment(file, driveFile));
+    }
 
-    const downloadUrl = driveFile.webContentLink || driveDownloadUrl(driveFile.id);
-    const webViewUrl = driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`;
-    const mediaUrl = driveThumbnailUrl(driveFile.id);
+    const primary = attachments[0];
+    const postType = primary.type;
 
     const post = await withDriveStage('database', () => insertPost({
       type: postType,
-      title: firstField(fields.title) || file.filename,
+      title: firstField(fields.title) || files[0].filename,
       category: normalizeCategory(firstField(fields.category)),
-      author: firstField(fields.author) || admin.user.email || '관리자',
+      author: getAdminName(admin.user.email),
       tags: parseTags(firstField(fields.tags)),
       description: firstField(fields.description),
-      media_url: mediaUrl,
-      download_url: downloadUrl,
-      web_view_url: webViewUrl,
-      drive_file_id: driveFile.id,
+      media_url: primary.media_url,
+      download_url: primary.download_url,
+      web_view_url: primary.web_view_url,
+      drive_file_id: primary.drive_file_id,
       storage_provider: 'google_drive',
-      ratio: firstField(fields.ratio) || (postType === 'pdf' ? '3/4' : '4/5')
+      ratio: firstField(fields.ratio) || '1/1',
+      attachments
     }));
 
     return res.status(201).json({ post });
   } catch (error) {
     console.error(error);
-    if (uploadedDriveFileId) await safeDeleteDriveFile(uploadedDriveFileId);
+    await Promise.all(uploadedDriveFileIds.map((fileId) => safeDeleteDriveFile(fileId)));
     return res.status(500).json({ error: getUploadErrorMessage(error) });
   }
 };
@@ -64,11 +69,10 @@ function ensureServerConfig() {
 function parseMultipart(req) {
   return new Promise((resolve, reject) => {
     const fields = {};
-    let uploadedFile = null;
-    let totalBytes = 0;
+    const uploadedFiles = [];
     const busboy = Busboy({
       headers: req.headers,
-      limits: { files: 1, fileSize: MAX_FILE_BYTES, fields: 12 }
+      limits: { files: 20, fileSize: MAX_FILE_BYTES, fields: 12 }
     });
 
     busboy.on('field', (name, value) => {
@@ -78,27 +82,41 @@ function parseMultipart(req) {
     busboy.on('file', (name, stream, info) => {
       const chunks = [];
       stream.on('data', (chunk) => {
-        totalBytes += chunk.length;
         chunks.push(chunk);
       });
       stream.on('limit', () => {
         reject(new Error('업로드 가능한 파일 크기를 초과했습니다.'));
       });
       stream.on('end', () => {
-        uploadedFile = {
+        const buffer = Buffer.concat(chunks);
+        uploadedFiles.push({
           fieldName: name,
           filename: info.filename || 'upload',
           mimeType: info.mimeType || 'application/octet-stream',
-          buffer: Buffer.concat(chunks),
-          size: totalBytes
-        };
+          buffer,
+          size: buffer.length
+        });
       });
     });
 
     busboy.on('error', reject);
-    busboy.on('finish', () => resolve({ fields, file: uploadedFile }));
+    busboy.on('finish', () => resolve({ fields, files: uploadedFiles }));
     req.pipe(busboy);
   });
+}
+
+function toAttachment(file, driveFile) {
+  const type = file.mimeType === 'application/pdf' ? 'pdf' : 'image';
+  return {
+    type,
+    filename: file.filename,
+    mime_type: file.mimeType,
+    media_url: driveThumbnailUrl(driveFile.id),
+    download_url: driveFile.webContentLink || driveDownloadUrl(driveFile.id),
+    web_view_url: driveFile.webViewLink || `https://drive.google.com/file/d/${driveFile.id}/view`,
+    drive_file_id: driveFile.id,
+    ratio: type === 'pdf' ? '3/4' : '1/1'
+  };
 }
 
 async function uploadToDrive(file) {
@@ -150,6 +168,9 @@ function getUploadErrorMessage(error) {
     return '파일 업로드는 되었지만 공개 링크 권한 설정이 차단되었습니다. Google Drive 폴더의 링크 공유 설정을 확인해 주세요.';
   }
   if (error.driveStage === 'database') {
+    if (String(error.message || '').includes('attachments')) {
+      return 'Supabase fp_posts 테이블에 attachments 컬럼이 필요합니다. 최신 supabase-schema.sql을 SQL Editor에서 실행해 주세요.';
+    }
     return `Supabase 게시물 저장에 실패했습니다: ${error.message}`;
   }
   return error.message || '업로드에 실패했습니다.';
@@ -204,6 +225,10 @@ function parseTags(value) {
 
 function firstField(value) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function getAdminName(email) {
+  return String(email || '').split('@')[0] || '관리자';
 }
 
 function sanitizeFilename(filename) {

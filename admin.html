@@ -78,6 +78,11 @@ a{color:inherit;text-decoration:none}
 .preview.show{display:block}
 .preview img{display:block;width:100%;max-height:360px;object-fit:contain;background:#111}
 .preview .pdf{aspect-ratio:4/3;display:grid;place-items:center;font-weight:850;color:var(--brand2);background:var(--brand-soft)}
+.preview-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:8px;background:#fff}
+.preview-card{position:relative;overflow:hidden;border-radius:10px;aspect-ratio:1/1;background:#EEF2F5}
+.preview-card img{width:100%;height:100%;max-height:none;object-fit:cover}
+.preview-card .pdf{width:100%;height:100%;aspect-ratio:auto;font-size:12px}
+.preview-count{position:absolute;left:6px;top:6px;height:22px;padding:0 7px;border-radius:999px;background:rgba(32,36,42,.82);color:#fff;font-size:11px;font-weight:850;display:inline-flex;align-items:center}
 .actions{display:flex;gap:8px;margin-top:22px}
 .primary,.ghost,.danger{min-height:52px;border-radius:10px;font-weight:850}
 .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
@@ -121,6 +126,7 @@ a{color:inherit;text-decoration:none}
   .top{gap:6px}.top-copy span{font-size:11.5px}.top h1{font-size:20px}
   .item{grid-template-columns:62px 1fr;align-items:start}
   .item-media{width:62px;height:62px}.item .danger{grid-column:2;justify-self:start;min-height:34px}
+  .preview-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 </style>
 </head>
@@ -173,14 +179,14 @@ a{color:inherit;text-decoration:none}
           <label for="file">사진 또는 PDF</label>
           <label class="drop" for="file">
             <b>파일 선택</b>
-            <span>JPG, PNG, WebP, PDF를 등록할 수 있습니다.</span>
-            <input id="file" type="file" accept="image/*,.pdf,application/pdf" required>
+            <span>여러 사진과 PDF를 한 게시물에 함께 등록할 수 있습니다.</span>
+            <input id="file" type="file" accept="image/*,.pdf,application/pdf" multiple required>
           </label>
           <div class="preview" id="preview"></div>
         </div>
         <div class="field"><label for="title">제목</label><input id="title" required placeholder="예: 8월 신상품 핵심 이미지"></div>
         <div class="field"><label for="category">분류</label><select id="category"><option>상품</option><option>시상</option><option>복합</option></select></div>
-        <div class="field"><label for="author">작성자</label><input id="author" value="관리자"></div>
+        <div class="field"><label for="author">작성자</label><input id="author" value="관리자" readonly></div>
         <div class="field"><label for="tags">태그</label><input id="tags" placeholder="쉼표로 구분해 입력"><div class="tag-suggestions" id="tagSuggestions" aria-label="최근 태그"></div></div>
         <div class="field"><label for="desc">설명</label><textarea id="desc" placeholder="피드 상세 화면에 표시할 짧은 설명"></textarea></div>
         <div class="actions"><button class="primary" type="submit">게시하기</button><button class="ghost" type="reset">초기화</button></div>
@@ -229,7 +235,7 @@ const publicPasscode=document.getElementById('publicPasscode');
 const savePasscodeBtn=document.getElementById('savePasscodeBtn');
 const passcodeStatus=document.getElementById('passcodeStatus');
 const submitButton=form.querySelector('button[type="submit"]');
-let selected=null;
+let selected=[];
 let currentSession=null;
 let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
 let SUPABASE_CONFIG=window.FP_LOUNGE_SUPABASE||{};
@@ -241,30 +247,36 @@ function setPosts(posts){localStorage.setItem(STORE_KEY,JSON.stringify(posts))}
 function today(){const d=new Date();return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`}
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
 fileInput.addEventListener('change',async()=>{
-  const file=fileInput.files[0];if(!file)return;
-  const src=await readFile(file);
-  const type=file.type.includes('pdf')||file.name.toLowerCase().endsWith('.pdf')?'pdf':'image';
-  selected={src,type,name:file.name,file};
+  const files=[...fileInput.files];if(!files.length)return;
+  selected=await Promise.all(files.map(async(file)=>{
+    const src=await readFile(file);
+    const type=file.type.includes('pdf')||file.name.toLowerCase().endsWith('.pdf')?'pdf':'image';
+    return {src,type,name:file.name,file};
+  }));
   preview.classList.add('show');
-  preview.innerHTML=type==='image'?`<img src="${src}" alt="">`:`<div class="pdf">PDF 미리보기</div>`;
+  preview.innerHTML=`<div class="preview-list">${selected.map((item,index)=>`
+    <div class="preview-card">
+      <span class="preview-count">${index+1}</span>
+      ${item.type==='image'?`<img src="${item.src}" alt="">`:`<div class="pdf">PDF</div>`}
+    </div>`).join('')}</div>`;
 });
-form.addEventListener('reset',()=>{selected=null;preview.classList.remove('show');preview.innerHTML=''});
+form.addEventListener('reset',()=>{selected=[];preview.classList.remove('show');preview.innerHTML='';setAuthorFromSession()});
 form.addEventListener('submit',async e=>{
   e.preventDefault();
-  if(!selected){toast('파일을 선택해 주세요');return}
+  if(!selected.length){toast('파일을 선택해 주세요');return}
   submitButton.disabled=true;
-  submitButton.textContent='업로드 중';
+  submitButton.textContent=selected.length>1?`${selected.length}개 업로드 중`:'업로드 중';
   const post={
     id:'post-'+Date.now(),
-    type:selected.type,
-    src:selected.src,
+    type:selected[0].type,
+    src:selected[0].src,
     title:document.getElementById('title').value.trim(),
     category:document.getElementById('category').value,
-    author:document.getElementById('author').value.trim()||'관리자',
+    author:getCurrentAdminName(),
     tags:document.getElementById('tags').value.split(',').map(v=>v.trim()).filter(Boolean),
     desc:document.getElementById('desc').value.trim(),
     date:today(),
-    ratio:selected.type==='pdf'?'3/4':'4/5'
+    ratio:'1/1'
   };
   try{
     const ok=await savePost(post);
@@ -286,10 +298,9 @@ async function savePost(post){
   const token=getAccessToken();
   if(!token){toast('로그인이 필요합니다');return false}
   const body=new FormData();
-  body.append('file',selected.file,selected.name);
+  selected.forEach(item=>body.append('file',item.file,item.name));
   body.append('title',post.title);
   body.append('category',post.category);
-  body.append('author',post.author);
   body.append('tags',JSON.stringify(post.tags));
   body.append('description',post.desc);
   body.append('ratio',post.ratio);
@@ -337,7 +348,8 @@ async function getAdminPosts(){
       tags:row.tags||[],
       date:formatDate(row.created_at),
       storagePath:row.drive_file_id||row.storage_path||'',
-      storageProvider:row.storage_provider||'local'
+      storageProvider:row.storage_provider||'local',
+      attachments:Array.isArray(row.attachments)?row.attachments:[]
     }));
   }
   return getPosts();
@@ -359,7 +371,7 @@ async function render(){
   if(!filtered.length){list.innerHTML='<p class="empty">조회된 자료가 없습니다.</p>';return}
   list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'||p.src?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
-    <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p></div>
+    <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${(p.attachments||[]).length||1}개 파일 · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p></div>
     <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
   </article>`).join('');
 }
@@ -463,6 +475,14 @@ signOutBtn.addEventListener('click',async()=>{
   if(supabaseClient)await supabaseClient.auth.signOut();
 });
 function getAccessToken(){return currentSession&&currentSession.access_token?currentSession.access_token:''}
+function getCurrentAdminName(){
+  const email=currentSession&&currentSession.user?currentSession.user.email:'';
+  return String(email||'').split('@')[0]||'관리자';
+}
+function setAuthorFromSession(){
+  const input=document.getElementById('author');
+  if(input)input.value=getCurrentAdminName();
+}
 async function loadPasscodeStatus(){
   const token=getAccessToken();
   if(!token)return;
@@ -512,7 +532,7 @@ function applySession(session){
   authPanel.hidden=!!currentSession;
   adminLayout.hidden=!currentSession;
   signOutBtn.hidden=!currentSession;
-  if(currentSession){render();loadPasscodeStatus()}
+  if(currentSession){setAuthorFromSession();render();loadPasscodeStatus()}
 }
 function showPasswordReset(session){
   passwordRecoveryMode=true;
