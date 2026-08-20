@@ -10,6 +10,9 @@
     },
     "api/admin/drive-session.js": {
       "maxDuration": 60
+    },
+    "api/admin/drive-chunk.js": {
+      "maxDuration": 300
     }
   }
 }

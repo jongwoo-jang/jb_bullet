@@ -235,6 +235,7 @@ const publicPasscode=document.getElementById('publicPasscode');
 const savePasscodeBtn=document.getElementById('savePasscodeBtn');
 const passcodeStatus=document.getElementById('passcodeStatus');
 const submitButton=form.querySelector('button[type="submit"]');
+const DRIVE_CHUNK_BYTES=2.5*1024*1024;
 let selected=[];
 let currentSession=null;
 let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
@@ -339,16 +340,34 @@ async function uploadDirectToDrive(item,token){
     })
   });
   if(!session.ok)throw new Error(session.error||'Google Drive 업로드 세션을 만들지 못했습니다');
-  const response=await fetch(session.uploadUrl,{
-    method:'PUT',
-    headers:{'Content-Type':item.file.type||'application/octet-stream'},
-    body:item.file
-  });
-  const raw=await response.text();
-  let data={};
-  try{data=raw?JSON.parse(raw):{}}catch(error){}
-  if(!response.ok)throw new Error((data.error&&data.error.message)||raw.slice(0,140)||'Google Drive 업로드에 실패했습니다');
-  return {...data,filename:item.name,mimeType:item.file.type||data.mimeType||'application/octet-stream'};
+  const size=item.file.size;
+  let uploaded=0;
+  let finalFile=null;
+  while(uploaded<size){
+    const end=Math.min(uploaded+DRIVE_CHUNK_BYTES,size)-1;
+    const chunk=item.file.slice(uploaded,end+1);
+    const percent=Math.round(((end+1)/size)*100);
+    submitButton.textContent=`Drive 업로드 ${percent}%`;
+    const result=await apiJson('/api/admin/drive-chunk',{
+      method:'POST',
+      headers:{
+        Authorization:`Bearer ${token}`,
+        'Content-Type':'application/octet-stream',
+        'X-Upload-Url':encodeURIComponent(session.uploadUrl),
+        'X-Upload-Content-Type':item.file.type||'application/octet-stream',
+        'X-Upload-Content-Range':`bytes ${uploaded}-${end}/${size}`
+      },
+      body:chunk
+    });
+    if(!result.ok)throw new Error(result.error||'Google Drive 업로드에 실패했습니다');
+    if(result.done){
+      finalFile=result.file;
+      break;
+    }
+    uploaded=end+1;
+  }
+  if(!finalFile)throw new Error('Google Drive 업로드 완료 응답을 받지 못했습니다');
+  return {...finalFile,filename:item.name,mimeType:item.file.type||finalFile.mimeType||'application/octet-stream'};
 }
 async function apiJson(url,options){
   const response=await fetch(url,options);
