@@ -3,6 +3,7 @@ const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-ac
 
 const UPSERT_CHUNK_SIZE = 1000;
 const LOOKUP_CHUNK_SIZE = 1000;
+const DELETE_CHUNK_SIZE = 500;
 
 module.exports = async function handler(req, res) {
   const admin = await requireAdmin(req);
@@ -67,15 +68,19 @@ async function updatePasscode(req, res) {
     if (!codes.length) return res.status(400).json({ error: '업로드할 소속지점/코드번호 목록이 없습니다.' });
 
     const supabase = getSupabaseAdmin();
-    const existing = await getExistingCodeNumbers(supabase, codes.map((row) => row.code_number));
+    const incoming = new Set(codes.map((row) => row.code_number));
+    const existing = await getAllExistingCodeNumbers(supabase);
     const newCodes = codes.filter((row) => !existing.has(row.code_number));
+    const removedCodes = [...existing].filter((codeNumber) => !incoming.has(codeNumber));
     await insertNewMemberCodes(supabase, newCodes);
+    const removed = await deleteRemovedMemberCodes(supabase, removedCodes);
     return res.status(200).json({
       ok: true,
       configured: true,
       count: newCodes.length,
       added: newCodes.length,
       skipped: codes.length - newCodes.length,
+      removed,
       submitted: codes.length
     });
   } catch (error) {
@@ -87,15 +92,17 @@ async function updatePasscode(req, res) {
   }
 }
 
-async function getExistingCodeNumbers(supabase, codeNumbers) {
+async function getAllExistingCodeNumbers(supabase) {
   const existing = new Set();
-  for (const chunk of chunkArray(codeNumbers, LOOKUP_CHUNK_SIZE)) {
+  for (let start = 0; ; start += LOOKUP_CHUNK_SIZE) {
     const { data, error } = await supabase
       .from('fp_member_codes')
       .select('code_number')
-      .in('code_number', chunk);
+      .order('code_number', { ascending: true })
+      .range(start, start + LOOKUP_CHUNK_SIZE - 1);
     if (error) throw new Error(error.message);
     (data || []).forEach((row) => existing.add(row.code_number));
+    if (!data || data.length < LOOKUP_CHUNK_SIZE) break;
   }
   return existing;
 }
@@ -117,6 +124,26 @@ async function insertNewMemberCodes(supabase, codes) {
     }
     if (error) throw new Error(error.message);
   }
+}
+
+async function deleteRemovedMemberCodes(supabase, codeNumbers) {
+  if (!codeNumbers.length) return 0;
+  let removed = 0;
+  for (const chunk of chunkArray(codeNumbers, DELETE_CHUNK_SIZE)) {
+    const memberDelete = await supabase
+      .from('fp_members')
+      .delete()
+      .in('code_number', chunk);
+    if (memberDelete.error) throw new Error(memberDelete.error.message);
+
+    const codeDelete = await supabase
+      .from('fp_member_codes')
+      .delete()
+      .in('code_number', chunk);
+    if (codeDelete.error) throw new Error(codeDelete.error.message);
+    removed += chunk.length;
+  }
+  return removed;
 }
 
 function normalizeCodeRow(row) {

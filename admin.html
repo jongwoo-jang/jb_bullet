@@ -695,8 +695,9 @@ memberCodeForm.addEventListener('submit',async e=>{
     memberCodeCsv.value='';
     const added=Number(result.added||result.count||0);
     const skipped=Number(result.skipped||0);
-    memberCodeStatus.textContent=`신규 ${added}개 추가 · 기존 ${skipped}개 유지`;
-    toast(added?`신규 코드 ${added}개를 추가했습니다`:'추가할 신규 코드가 없습니다');
+    const removed=Number(result.removed||0);
+    memberCodeStatus.textContent=`신규 ${added}개 추가 · 기존 ${skipped}개 유지 · 삭제 ${removed}개`;
+    toast(`추가 ${added}개 · 삭제 ${removed}개 반영`);
   }catch(error){
     memberCodeStatus.textContent='업로드 실패';
     toast(error.message||'회원가입 코드 업로드에 실패했습니다');
