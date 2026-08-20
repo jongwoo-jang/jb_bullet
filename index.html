@@ -301,6 +301,7 @@ a{color:inherit;text-decoration:none}
 .actions button:active,.actions a:active{transform:scale(.9)}
 .actions .bookmark{margin-left:auto}
 .actions .on{color:var(--brand2)}
+.actions .edit-mode{background:#F4F6F8;color:var(--brand2)}
 .detail-stats{display:flex;flex-wrap:wrap;gap:7px;padding:0 16px 10px;color:var(--ink2);font-size:12.6px;font-weight:780}
 .detail-stats span{display:inline-flex;align-items:center;height:26px;padding:0 9px;border-radius:999px;background:#F4F6F8}
 .caption{padding:0 16px 16px;margin:0;font-size:14.9px;line-height:1.6;color:#343A42}
@@ -319,6 +320,34 @@ a{color:inherit;text-decoration:none}
 .comment-form{display:flex;gap:8px}
 .comment-form input{flex:1;min-width:0;border:1px solid var(--line);border-radius:999px;padding:11px 13px;background:#F7F9FA;outline:0;color:var(--ink);font-size:14.3px}
 .comment-form button{height:44px;padding:0 14px;border-radius:999px;background:var(--brand2);color:#fff;font-size:14.3px;font-weight:850}
+.edit-modal{
+  position:absolute;inset:0;z-index:80;display:flex;align-items:flex-end;background:rgba(32,36,42,.36);
+  opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s var(--ease),visibility 0s linear .22s;
+}
+.edit-modal.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s var(--ease)}
+.edit-card{
+  width:100%;max-height:86dvh;overflow-y:auto;padding:16px 16px calc(18px + env(safe-area-inset-bottom));
+  border-radius:20px 20px 0 0;background:#fff;box-shadow:0 -18px 44px rgba(24,34,45,.18);
+  transform:translateY(18px);transition:transform .28s var(--ease);
+}
+.edit-modal.open .edit-card{transform:none}
+.edit-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.edit-head b{margin-right:auto;font-size:18px;font-weight:850}
+.edit-head button{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#F4F6F8;color:var(--ink)}
+.edit-field{margin-bottom:12px}
+.edit-field label{display:block;margin:0 0 7px;color:var(--ink2);font-size:12.8px;font-weight:850}
+.edit-field input,.edit-field textarea{
+  width:100%;border:1px solid var(--line);border-radius:10px;background:#FBFCFD;color:var(--ink);
+  padding:13px;outline:0;font-size:15px;font-weight:720;line-height:1.45;
+}
+.edit-field input{height:52px}
+.edit-field textarea{min-height:112px;resize:vertical}
+.edit-field input:focus,.edit-field textarea:focus{border-color:var(--brand2);background:#fff;box-shadow:0 0 0 4px rgba(0,60,220,.08)}
+.edit-actions{display:flex;gap:8px;margin-top:16px}
+.edit-actions button{height:52px;border-radius:10px;font-size:15px;font-weight:850}
+.edit-actions .ghost{flex:0 0 96px;background:#F4F6F8;color:var(--ink2)}
+.edit-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
+.edit-actions .primary:disabled{background:#E2E5EB;color:#A8AEBB;box-shadow:none}
 .toast{
   position:absolute;left:50%;bottom:24px;z-index:90;transform:translate(-50%,16px);
   opacity:0;pointer-events:none;background:rgba(32,36,42,.96);color:#fff;padding:12px 16px;
@@ -467,6 +496,36 @@ a{color:inherit;text-decoration:none}
     </div>
   </section>
 
+  <section class="edit-modal" id="editModal" aria-hidden="true">
+    <div class="edit-card" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+      <div class="edit-head">
+        <b id="editTitle">게시물 수정</b>
+        <button id="editCloseBtn" type="button" aria-label="닫기">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+      <form id="editForm">
+        <div class="edit-field">
+          <label for="editPostTitle">제목</label>
+          <input id="editPostTitle" type="text" required maxlength="120">
+        </div>
+        <div class="edit-field">
+          <label for="editPostDesc">설명</label>
+          <textarea id="editPostDesc" maxlength="1000"></textarea>
+        </div>
+        <div class="edit-field">
+          <label for="editPostTags">태그</label>
+          <input id="editPostTags" type="text" placeholder="쉼표로 구분해 입력">
+        </div>
+        <div class="access-message" id="editMessage" aria-live="polite"></div>
+        <div class="edit-actions">
+          <button class="ghost" id="editCancelBtn" type="button">취소</button>
+          <button class="primary" id="editSaveBtn" type="submit">저장</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
   <div class="toast" id="toast"></div>
 </div>
 
@@ -497,6 +556,8 @@ let applyingHistory=false;
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),notice:document.getElementById('gridNotice'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),notice:document.getElementById('emptyNotice'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
+const PIN_ICON='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.2 20.25 8.1 14.35l1.55 1.55-5.9 5.9H2.2v-1.55Z"/><path fill="currentColor" fill-rule="evenodd" d="M15.1 1.7 22.3 8.9l-6.02 4.02c.46 2.5-.2 4.83-2.04 6.67L4.4 9.75c1.86-1.86 4.2-2.52 6.7-2.04L15.1 1.7Zm.48 4.09-2.77 4.15-.68-.18c-1.46-.39-2.82-.28-4.02.35l5.86 5.86c.62-1.2.74-2.56.34-4.02l-.18-.68 4.15-2.77-2.7-2.71Z" clip-rule="evenodd"/></svg>';
+const EDIT_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 async function loadPosts(){
   if(publicAccessToken){
     try{
@@ -817,9 +878,13 @@ function syncDetail(){
   if(!current)return;
   document.getElementById('likeBtn').classList.toggle('on',liked.has(current.id));
   document.getElementById('likeBtn').setAttribute('aria-pressed',liked.has(current.id));
-  document.getElementById('pinBtn').classList.toggle('on',isPostPinned(current));
-  document.getElementById('pinBtn').setAttribute('aria-pressed',isPostPinned(current));
-  document.getElementById('pinBtn').setAttribute('aria-label',isPostPinned(current)?'상단 고정 해제':'상단 고정');
+  const pinBtn=document.getElementById('pinBtn');
+  const admin=isAdminSession();
+  pinBtn.classList.toggle('edit-mode',admin);
+  pinBtn.classList.toggle('on',!admin&&isPostPinned(current));
+  pinBtn.innerHTML=admin?EDIT_ICON:PIN_ICON;
+  pinBtn.setAttribute('aria-pressed',admin?'false':String(isPostPinned(current)));
+  pinBtn.setAttribute('aria-label',admin?'게시물 수정':(isPostPinned(current)?'상단 고정 해제':'상단 고정'));
   updateDetailStats();
 }
 function updateDetailStats(commentCount){
@@ -850,6 +915,40 @@ function togglePin(id){
   render();
   if(current&&current.id===id)syncDetail();
   toast(pinned.has(id)?'상단에 고정했습니다':'상단 고정을 해제했습니다');
+}
+function editTagsFromInput(value){
+  return String(value||'').split(',').map(tag=>tag.trim()).filter(Boolean);
+}
+function setEditMessage(value=''){
+  document.getElementById('editMessage').textContent=value;
+}
+function openEditModal(){
+  if(!current)return;
+  if(!isAdminSession()){toast('관리자만 수정할 수 있습니다');return}
+  if(!isRemotePost(current)){toast('등록된 게시물만 수정할 수 있습니다');return}
+  document.getElementById('editPostTitle').value=current.title||'';
+  document.getElementById('editPostDesc').value=current.desc||'';
+  document.getElementById('editPostTags').value=(current.tags||[]).join(', ');
+  setEditMessage('');
+  document.getElementById('editModal').classList.add('open');
+  document.getElementById('editModal').setAttribute('aria-hidden','false');
+  setTimeout(()=>document.getElementById('editPostTitle').focus(),120);
+}
+function closeEditModal(){
+  document.getElementById('editModal').classList.remove('open');
+  document.getElementById('editModal').setAttribute('aria-hidden','true');
+  setEditMessage('');
+}
+function updateCurrentPost(row){
+  const updated=rowToPost(row);
+  const index=posts.findIndex(post=>String(post.id)===String(updated.id));
+  if(index>=0)posts[index]=updated;
+  current=updated;
+  document.getElementById('dTitle').textContent=current.title;
+  document.getElementById('dMeta').textContent=`${current.author||'관리자'} · ${current.category||'자료'} · ${current.date||''}`;
+  document.getElementById('dCaption').innerHTML=`<b>${escapeHtml(current.author||'관리자')}</b>${escapeHtml(current.desc||current.title)}<span class="tagline">${(current.tags||[]).map(t=>'#'+escapeHtml(t)).join(' ')}</span>`;
+  syncDetail();
+  render();
 }
 async function renderComments(){
   if(!current)return;
@@ -913,6 +1012,23 @@ function matchesSearch(post){
     .filter(Boolean).join(' ').toLowerCase().includes(q);
 }
 function isRemotePost(post){return post&&!String(post.id).startsWith('post-')}
+function getAccessPayload(){
+  if(!publicAccessToken)return null;
+  try{
+    const body=String(publicAccessToken).split('.')[0]||'';
+    const normalized=body.replace(/-/g,'+').replace(/_/g,'/');
+    const padded=normalized.padEnd(Math.ceil(normalized.length/4)*4,'=');
+    const raw=atob(padded);
+    const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }catch(error){
+    return null;
+  }
+}
+function isAdminSession(){
+  const payload=getAccessPayload();
+  return Boolean(payload&&payload.role==='admin');
+}
 function isUnread(post){return isRemotePost(post)&&!seen.has(post.id)}
 function unreadPosts(){return posts.filter(p=>isUnread(p))}
 function clearPublicAccess(){
@@ -1155,6 +1271,7 @@ document.getElementById('likeBtn').addEventListener('click',()=>{
 });
 document.getElementById('pinBtn').addEventListener('click',()=>{
   if(!current)return;
+  if(isAdminSession()){openEditModal();return}
   togglePin(current.id);
 });
 document.getElementById('shareBtn').addEventListener('click',()=>{if(current)sharePost(current.id)});
@@ -1176,6 +1293,40 @@ document.getElementById('commentForm').addEventListener('submit',e=>{
   addComment(text);
   input.value='';
   toast('댓글을 등록했습니다');
+});
+document.getElementById('editCloseBtn').addEventListener('click',closeEditModal);
+document.getElementById('editCancelBtn').addEventListener('click',closeEditModal);
+document.getElementById('editModal').addEventListener('click',e=>{
+  if(e.target.id==='editModal')closeEditModal();
+});
+document.getElementById('editForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  if(!current||!isAdminSession())return;
+  const button=document.getElementById('editSaveBtn');
+  const title=document.getElementById('editPostTitle').value.trim();
+  const description=document.getElementById('editPostDesc').value.trim();
+  const tags=editTagsFromInput(document.getElementById('editPostTags').value);
+  if(!title){setEditMessage('제목을 입력해 주세요');document.getElementById('editPostTitle').focus();return}
+  button.disabled=true;
+  button.textContent='저장 중';
+  setEditMessage('');
+  try{
+    const response=await fetch('/api/admin/create-post',{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${publicAccessToken}`},
+      body:JSON.stringify({id:current.id,title,description,tags})
+    });
+    const result=await response.json().catch(()=>({error:'게시물 수정 응답을 읽을 수 없습니다.'}));
+    if(!response.ok)throw new Error(result.error||'게시물 수정에 실패했습니다');
+    updateCurrentPost(result.post);
+    closeEditModal();
+    toast('게시물을 수정했습니다');
+  }catch(error){
+    setEditMessage(error.message||'게시물 수정에 실패했습니다');
+  }finally{
+    button.disabled=false;
+    button.textContent='저장';
+  }
 });
 document.getElementById('loungeBrand').addEventListener('click',()=>{
   clearTimeout(adminTapTimer);

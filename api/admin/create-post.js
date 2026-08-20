@@ -1,13 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdmin } = require('../_auth');
+const { requirePublicAccess } = require('../_public-access');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
 const { getDrive, getMissingDriveEnv } = require('../_google-drive');
 
 const MAX_FILES = 20;
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'PATCH') return updatePost(req, res);
+
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
+    res.setHeader('Allow', 'POST, PATCH');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -57,6 +60,44 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: getCreatePostErrorMessage(error) });
   }
 };
+
+async function updatePost(req, res) {
+  try {
+    const access = requirePublicAccess(req);
+    if (access.error) return res.status(access.error.status).json({ error: access.error.message });
+    if (!access.payload || access.payload.role !== 'admin') {
+      return res.status(403).json({ error: '관리자 권한이 필요합니다.' });
+    }
+
+    const body = await readJson(req);
+    const id = String(body.id || '').trim();
+    const title = String(body.title || '').trim();
+    if (!id) return res.status(400).json({ error: '게시물 ID가 필요합니다.' });
+    if (!title) return res.status(400).json({ error: '제목을 입력해 주세요.' });
+
+    const supabase = createClient(normalizeSupabaseUrl(process.env.SUPABASE_URL), process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false }
+    });
+    const update = {
+      title: title.slice(0, 120),
+      description: String(body.description || '').trim().slice(0, 1000),
+      tags: parseTags(body.tags).slice(0, 20)
+    };
+    const { data, error } = await supabase
+      .from('fp_posts')
+      .update(update)
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (error) throw new Error(error.message);
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ post: data });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || '게시물 수정에 실패했습니다.' });
+  }
+}
 
 function toAttachment(file) {
   const mimeType = String(file.mimeType || file.mime_type || 'application/octet-stream');
