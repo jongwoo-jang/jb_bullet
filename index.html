@@ -894,8 +894,7 @@ function updateDetailStats(commentCount){
   document.getElementById('detailStats').innerHTML=[
     ['좋아요',liked.has(current.id)?1:0],
     ['댓글',count],
-    ['공유',Number(shareCounts[current.id]||0)],
-    ['고정',isPostPinned(current)?1:0]
+    ['공유',Number(shareCounts[current.id]||0)]
   ].map(([label,value])=>`<span>${label} ${value}</span>`).join('');
 }
 function toggleLike(id){
