@@ -553,6 +553,7 @@ function rowToPost(row){
     date:formatDate(row.created_at),
     category:row.category||'상품',
     tags:row.tags||[],
+    adminPinned:Boolean(row.is_pinned),
     ratio:row.ratio||'4/5',
     src:attachments[0]&&attachments[0].src||'',
     downloadUrl:row.download_url||row.media_url||'',
@@ -643,10 +644,13 @@ function mediaMarkup(post,large=false){
   return singleMediaMarkup(attachments[0],large);
 }
 function orderedPosts(list){
-  return [...list].sort((a,b)=>Number(pinned.has(b.id))-Number(pinned.has(a.id)));
+  return [...list].sort((a,b)=>Number(isPostPinned(b))-Number(isPostPinned(a)));
+}
+function isPostPinned(post){
+  return Boolean(post&&post.adminPinned)||pinned.has(String(post&&post.id||''));
 }
 function card(post){
-  const isPinned=pinned.has(post.id), isLiked=liked.has(post.id);
+  const isPinned=isPostPinned(post), isLiked=liked.has(post.id);
   const commentCount=(comments[post.id]||[]).length;
   return `<article class="pin ${isLiked?'liked':''}" data-id="${post.id}">
     <div class="media-card">
@@ -846,9 +850,9 @@ function syncDetail(){
   if(!current)return;
   document.getElementById('likeBtn').classList.toggle('on',liked.has(current.id));
   document.getElementById('likeBtn').setAttribute('aria-pressed',liked.has(current.id));
-  document.getElementById('pinBtn').classList.toggle('on',pinned.has(current.id));
-  document.getElementById('pinBtn').setAttribute('aria-pressed',pinned.has(current.id));
-  document.getElementById('pinBtn').setAttribute('aria-label',pinned.has(current.id)?'상단 고정 해제':'상단 고정');
+  document.getElementById('pinBtn').classList.toggle('on',isPostPinned(current));
+  document.getElementById('pinBtn').setAttribute('aria-pressed',isPostPinned(current));
+  document.getElementById('pinBtn').setAttribute('aria-label',isPostPinned(current)?'상단 고정 해제':'상단 고정');
   updateDetailStats();
 }
 function updateDetailStats(commentCount){
@@ -859,7 +863,7 @@ function updateDetailStats(commentCount){
     ['좋아요',liked.has(current.id)?1:0],
     ['댓글',count],
     ['공유',Number(shareCounts[current.id]||0)],
-    ['저장',pinned.has(current.id)?1:0]
+    ['고정',isPostPinned(current)?1:0]
   ].map(([label,value])=>`<span>${label} ${value}</span>`).join('');
 }
 function toggleLike(id){
@@ -869,6 +873,11 @@ function toggleLike(id){
   if(current&&current.id===id)syncDetail();
 }
 function togglePin(id){
+  const post=posts.find(item=>String(item.id)===String(id));
+  if(post&&post.adminPinned){
+    toast('관리자가 상단에 고정한 자료입니다');
+    return;
+  }
   pinned.has(id)?pinned.delete(id):pinned.add(id);
   localStorage.setItem('fpPinned',JSON.stringify([...pinned]));
   render();

@@ -46,8 +46,9 @@ module.exports = async function handler(req, res) {
       drive_file_id: primary.drive_file_id,
       storage_provider: 'google_drive',
       ratio: String(body.ratio || '1/1'),
+      is_pinned: Boolean(body.isPinned),
       attachments
-    });
+    }, Boolean(body.isPinned));
 
     return res.status(201).json({ post });
   } catch (error) {
@@ -81,12 +82,19 @@ async function makeDriveFilePublic(fileId) {
   }));
 }
 
-async function insertPost(post) {
+async function insertPost(post, pinnedRequested = false) {
   return withDriveStage('database', async () => {
     const supabase = createClient(normalizeSupabaseUrl(process.env.SUPABASE_URL), process.env.SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false }
     });
-    const { data, error } = await supabase.from('fp_posts').insert(post).select('*').single();
+    let { data, error } = await supabase.from('fp_posts').insert(post).select('*').single();
+    if (isMissingPinnedColumn(error) && !pinnedRequested) {
+      const fallback = { ...post };
+      delete fallback.is_pinned;
+      const retry = await supabase.from('fp_posts').insert(fallback).select('*').single();
+      data = retry.data;
+      error = retry.error;
+    }
     if (error) throw new Error(error.message);
     return data;
   });
@@ -128,7 +136,7 @@ function readJson(req) {
 }
 
 function normalizeCategory(value) {
-  if (value === '시상' || value === '복합') return value;
+  if (value === '공지' || value === '시상' || value === '복합') return value;
   return '상품';
 }
 
@@ -160,7 +168,14 @@ function getCreatePostErrorMessage(error) {
     if (String(error.message || '').includes('attachments')) {
       return 'Supabase fp_posts 테이블에 attachments 컬럼이 필요합니다. 최신 supabase-schema.sql을 SQL Editor에서 실행해 주세요.';
     }
+    if (isMissingPinnedColumn(error)) {
+      return 'Supabase fp_posts 테이블에 is_pinned 컬럼이 필요합니다. 최신 supabase-schema.sql을 SQL Editor에서 실행해 주세요.';
+    }
     return `Supabase 게시물 저장에 실패했습니다: ${error.message}`;
   }
   return error.message || '게시물 저장에 실패했습니다.';
+}
+
+function isMissingPinnedColumn(error) {
+  return Boolean(error && String(error.message || '').includes('is_pinned'));
 }

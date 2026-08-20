@@ -81,6 +81,14 @@ a{color:inherit;text-decoration:none}
 .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--brand2);background:#fff;box-shadow:0 0 0 4px rgba(0,60,220,.08)}
 .field input::placeholder,.field textarea::placeholder{color:var(--ink3)}
 .field textarea{min-height:96px;resize:vertical;line-height:1.55}
+.check-row{display:flex;align-items:center;gap:11px;min-height:50px;margin:-2px 0 15px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#FBFCFD;cursor:pointer}
+.check-row input{position:absolute;opacity:0;width:0;height:0}
+.check-row .box{width:24px;height:24px;flex:0 0 auto;border:1.7px solid #D2D7E0;border-radius:8px;background:#fff;display:grid;place-items:center;transition:background .16s,border-color .16s,box-shadow .16s}
+.check-row .box svg{width:13px;height:13px;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.5);transition:opacity .13s,transform .18s var(--ease)}
+.check-row input:checked + .box{background:var(--brand2);border-color:var(--brand2)}
+.check-row input:checked + .box svg{opacity:1;transform:scale(1)}
+.check-row input:focus-visible + .box{box-shadow:0 0 0 3px rgba(0,60,220,.18)}
+.check-row span:last-child{color:var(--ink);font-size:14px;font-weight:850}
 .drop{border:1.5px dashed #C9D2DB;border-radius:12px;background:#FBFCFD;padding:28px 16px;text-align:center;color:var(--ink2);transition:border-color .16s,background .16s,color .16s}
 .drop:hover{border-color:var(--brand2);background:var(--brand-soft);color:var(--brand2)}
 .drop input{display:none}
@@ -119,6 +127,7 @@ a{color:inherit;text-decoration:none}
 .item-media .pdf{width:100%;height:100%;display:grid;place-items:center;background:var(--brand-soft);color:var(--brand2);font-size:12px;font-weight:900}
 .item h3{font-size:14.5px;line-height:1.35;margin:0 0 6px;font-weight:850;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .item p{margin:0;color:var(--ink2);font-size:12px;font-weight:650;line-height:1.45}
+.item .pin-label{display:inline-flex;align-items:center;height:22px;margin-left:4px;padding:0 7px;border-radius:999px;background:var(--brand-soft);color:var(--brand2);font-size:11px;font-weight:900;vertical-align:middle}
 .comment-panel{grid-column:1/-1;padding:18px}
 .comment-list{display:grid;gap:10px}
 .comment-item{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--line)}
@@ -215,6 +224,11 @@ a{color:inherit;text-decoration:none}
         </div>
         <div class="field"><label for="title">제목</label><input id="title" required placeholder="예: 8월 신상품 핵심 이미지"></div>
         <div class="field"><label for="category">분류</label><select id="category"><option>공지</option><option>상품</option><option>시상</option><option>복합</option></select></div>
+        <label class="check-row" for="isPinned">
+          <input id="isPinned" type="checkbox">
+          <span class="box"><svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 7"/></svg></span>
+          <span>피드 상단에 고정</span>
+        </label>
         <div class="field"><label for="author">작성자</label><input id="author" value="관리자" readonly></div>
         <div class="field"><label for="tags">태그</label><input id="tags" placeholder="쉼표로 구분해 입력"><div class="tag-suggestions" id="tagSuggestions" aria-label="최근 태그"></div></div>
         <div class="field"><label for="desc">설명</label><textarea id="desc" placeholder="피드 상세 화면에 표시할 짧은 설명"></textarea></div>
@@ -336,6 +350,7 @@ form.addEventListener('submit',async e=>{
     src:selected[0].src,
     title:document.getElementById('title').value.trim(),
     category:document.getElementById('category').value,
+    isPinned:document.getElementById('isPinned').checked,
     author:getCurrentAdminName(),
     tags:document.getElementById('tags').value.split(',').map(v=>v.trim()).filter(Boolean),
     desc:document.getElementById('desc').value.trim(),
@@ -374,6 +389,7 @@ async function savePost(post){
       body:JSON.stringify({
         title:post.title,
         category:post.category,
+        isPinned:post.isPinned,
         tags:post.tags,
         description:post.desc,
         ratio:post.ratio,
@@ -531,7 +547,11 @@ async function deleteComment(id){
 async function getAdminPosts(){
   await configureSupabase();
   if(supabaseClient){
-    const {data,error}=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
+    let {data,error}=await supabaseClient.from('fp_posts').select('*').order('is_pinned',{ascending:false}).order('created_at',{ascending:false});
+    if(error&&String(error.message||'').includes('is_pinned')){
+      const retry=await supabaseClient.from('fp_posts').select('*').order('created_at',{ascending:false});
+      data=retry.data;error=retry.error;
+    }
     if(!error&&Array.isArray(data))return data.map(row=>({
       id:String(row.id),
       type:row.type,
@@ -540,6 +560,7 @@ async function getAdminPosts(){
       category:row.category,
       author:displayAdminName(row.author),
       tags:row.tags||[],
+      isPinned:Boolean(row.is_pinned),
       date:formatDate(row.created_at),
       storagePath:row.drive_file_id||row.storage_path||'',
       storageProvider:row.storage_provider||'local',
@@ -573,7 +594,7 @@ async function render(){
   if(!filtered.length){list.innerHTML='<p class="empty">조회된 자료가 없습니다.</p>';return}
   list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'||p.src?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
-    <div><h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${(p.attachments||[]).length||1}개 파일 · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p></div>
+    <div><h3>${escapeHtml(p.title)}${p.isPinned?'<span class="pin-label">상단고정</span>':''}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${(p.attachments||[]).length||1}개 파일 · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p></div>
     <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
   </article>`).join('');
 }

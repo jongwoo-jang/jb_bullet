@@ -14,11 +14,13 @@ create table if not exists public.fp_posts (
   storage_path text,
   ratio text not null default '4/5',
   attachments jsonb not null default '[]'::jsonb,
+  is_pinned boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 alter table public.fp_posts drop constraint if exists fp_posts_category_check;
 alter table public.fp_posts add column if not exists attachments jsonb not null default '[]'::jsonb;
+alter table public.fp_posts add column if not exists is_pinned boolean not null default false;
 
 create table if not exists public.fp_settings (
   key text primary key,
