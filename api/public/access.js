@@ -2,14 +2,14 @@ const crypto = require('crypto');
 const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
   try {
-    const body = await readJson(req);
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      res.setHeader('Allow', 'GET, POST');
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
     const supabase = getSupabaseAdmin();
+    if (req.method === 'GET') return listBranches(req, supabase, res);
+    const body = await readJson(req);
     if (body.mode === 'signup') return signup(body, supabase, res);
     if (body.mode === 'reset') return resetPassword(body, supabase, res);
     return login(body, supabase, res);
@@ -21,6 +21,40 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: error.message || '접속 확인에 실패했습니다.' });
   }
 };
+
+async function listBranches(req, supabase, res) {
+  const searchParams = new URL(req.url || '', 'http://localhost').searchParams;
+  const action = String(
+    (req.query && (req.query.mode || req.query.action)) ||
+    searchParams.get('mode') ||
+    searchParams.get('action') ||
+    ''
+  ).trim();
+  if (action !== 'branches') {
+    return res.status(400).json({ error: '요청을 확인해 주세요.' });
+  }
+
+  const { data, error } = await supabase
+    .from('fp_member_codes')
+    .select('branch')
+    .eq('is_active', true)
+    .order('branch', { ascending: true })
+    .limit(10000);
+  if (error) throw new Error(error.message);
+
+  const seen = new Set();
+  const branches = [];
+  (Array.isArray(data) ? data : []).forEach(row => {
+    const branch = normalizeBranch(row && row.branch);
+    const key = branch.toLowerCase();
+    if (!branch || seen.has(key)) return;
+    seen.add(key);
+    branches.push(branch);
+  });
+
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({ branches });
+}
 
 async function signup(body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);

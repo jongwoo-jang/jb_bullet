@@ -120,7 +120,7 @@ a{color:inherit;text-decoration:none}
 .auth-screen[hidden]{display:none}
 .auth-card{width:100%;max-width:348px}
 .auth-card[hidden]{display:none}
-#accessForm,#signupForm{display:flex;flex-direction:column;flex:1}
+#accessForm,#signupForm,#resetForm{display:flex;flex-direction:column;flex:1}
 .auth-head{margin:0 0 30px}
 .auth-head h1{margin:0;color:var(--ink);font-size:33px;font-weight:850;line-height:1.18;letter-spacing:0}
 .auth-head h1 span{color:var(--brand2)}
@@ -146,13 +146,12 @@ a{color:inherit;text-decoration:none}
 .access-message{min-height:22px;margin-bottom:12px;color:#D94343;font-size:13px;font-weight:800;line-height:1.5}
 .access-message.ok{color:var(--spring-green)}
 .access-notice{
-  margin-top:auto;margin-bottom:14px;padding:15px 17px 12px;border:0;border-radius:22px;background:#F3F4F8;box-shadow:none;
+  margin-top:auto;margin-bottom:14px;padding:14px 15px 10px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;box-shadow:none;
 }
-.access-req{display:inline-flex;align-items:center;height:24px;padding:0 8px;margin-bottom:10px;border-radius:7px;background:#E8F8FD;color:var(--brand2);font-size:11px;font-weight:850}
-.access-legal{margin:0;color:#A4ACB5;font-size:12.7px;font-weight:650;line-height:1.68;word-break:keep-all}
+.access-legal{margin:0;color:var(--ink3);font-size:12.8px;font-weight:680;line-height:1.64;word-break:keep-all}
 .access-legal b{color:var(--ink2);font-weight:760}
-.access-divider{height:1px;background:#E3E6ED;margin:12px 0 2px}
-.access-agree{display:flex;align-items:center;gap:11px;min-height:44px;padding:8px 2px;cursor:pointer}
+.access-divider{height:1px;background:#E6E9EF;margin:12px 0 8px}
+.access-agree{display:flex;align-items:center;gap:11px;min-height:44px;padding:8px 6px;border-radius:12px;background:#F4F6F8;cursor:pointer}
 .access-agree input{position:absolute;opacity:0;width:0;height:0}
 .access-check{
   width:25px;height:25px;flex:0 0 auto;border-radius:8px;background:#fff;border:1.7px solid #D2D7E0;
@@ -173,11 +172,12 @@ a{color:inherit;text-decoration:none}
 .admin-login-link:hover{color:var(--brand2)}
 .member-fields{display:grid;gap:10px;margin-bottom:12px}
 .member-field label{display:block;margin:0 0 6px;color:var(--ink2);font-size:12.8px;font-weight:850}
-.member-field input{
+.member-field input,.member-field select{
   width:100%;height:50px;border:1px solid var(--line);border-radius:10px;background:#FBFCFD;color:var(--ink);
   padding:0 13px;outline:0;font-size:15px;font-weight:760;
 }
-.member-field input:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(0,60,220,.08);background:#fff}
+.member-field select{appearance:none;padding-right:38px;background:#FBFCFD url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%236E7785' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center/18px}
+.member-field input:focus,.member-field select:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(0,60,220,.08);background-color:#fff}
 .member-field input::placeholder{color:var(--ink3)}
 .auth-field{margin-bottom:16px}
 .auth-field label{display:block;margin-bottom:8px;color:var(--ink2);font-size:13.2px;font-weight:850}
@@ -383,13 +383,12 @@ a{color:inherit;text-decoration:none}
       <form id="signupForm">
         <div class="member-fields">
           <div class="member-field"><label for="signupDisplayName">실명</label><input id="signupDisplayName" type="text" autocomplete="name" required></div>
-          <div class="member-field"><label for="signupBranch">소속지점</label><input id="signupBranch" type="text" autocomplete="organization" required></div>
+          <div class="member-field"><label for="signupBranch">소속지점</label><select id="signupBranch" autocomplete="organization" required><option value=""></option></select></div>
           <div class="member-field"><label for="signupCodeNumber">코드번호</label><input id="signupCodeNumber" type="text" inputmode="text" autocomplete="username" required></div>
           <div class="member-field"><label for="signupPassword">비밀번호</label><input id="signupPassword" type="password" autocomplete="new-password" required minlength="6"></div>
           <div class="member-field"><label for="signupPasswordConfirm">비밀번호 확인</label><input id="signupPasswordConfirm" type="password" autocomplete="new-password" required minlength="6"></div>
         </div>
         <div class="access-notice" id="accessConsent" role="note">
-          <span class="access-req">필수 동의</span>
           <p class="access-legal"><b>권한 없는 접속·자료 이용·다운로드·공유 또는 유출은</b> 정보통신망법 및 개인정보보호법에 의거 법적 처벌받을 수 있습니다.</p>
           <div class="access-divider"></div>
           <label class="access-agree">
@@ -411,7 +410,7 @@ a{color:inherit;text-decoration:none}
       <form id="resetForm">
         <div class="member-fields">
           <div class="member-field"><label for="resetDisplayName">실명</label><input id="resetDisplayName" type="text" autocomplete="name" required></div>
-          <div class="member-field"><label for="resetBranch">소속지점</label><input id="resetBranch" type="text" autocomplete="organization" required></div>
+          <div class="member-field"><label for="resetBranch">소속지점</label><select id="resetBranch" autocomplete="organization" required><option value=""></option></select></div>
           <div class="member-field"><label for="resetCodeNumber">코드번호</label><input id="resetCodeNumber" type="text" inputmode="text" autocomplete="username" required></div>
           <div class="member-field"><label for="resetPassword">새 비밀번호</label><input id="resetPassword" type="password" autocomplete="new-password" required minlength="6"></div>
           <div class="member-field"><label for="resetPasswordConfirm">새 비밀번호 확인</label><input id="resetPasswordConfirm" type="password" autocomplete="new-password" required minlength="6"></div>
@@ -500,6 +499,8 @@ let adminTapTimer=0;
 let detailHistoryActive=false;
 let appHistoryReady=false;
 let applyingHistory=false;
+let branchOptions=[];
+let branchOptionsLoading=null;
 let moveTabIndicator=()=>{};
 const grids={all:document.getElementById('gridAll'),notice:document.getElementById('gridNotice'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
 const empties={all:document.getElementById('emptyAll'),notice:document.getElementById('emptyNotice'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
@@ -565,6 +566,34 @@ function displayAuthorName(value){
   const id=String(value||'').split('@')[0].toLowerCase();
   const names={lemuel05:'장종우',jaguar06:'정환석'};
   return names[id]||id||'관리자';
+}
+function branchSelects(){
+  return [document.getElementById('signupBranch'),document.getElementById('resetBranch')].filter(Boolean);
+}
+function populateBranchSelects(){
+  branchSelects().forEach(select=>{
+    const selected=select.value;
+    select.innerHTML='<option value=""></option>'+branchOptions.map(branch=>`<option value="${escapeHtml(branch)}">${escapeHtml(branch)}</option>`).join('');
+    if(selected&&branchOptions.includes(selected))select.value=selected;
+  });
+}
+async function loadBranchOptions(){
+  if(branchOptions.length){populateBranchSelects();return branchOptions}
+  if(branchOptionsLoading)return branchOptionsLoading;
+  branchOptionsLoading=(async()=>{
+    const response=await fetch('/api/public/access?mode=branches',{cache:'no-store'});
+    const result=await response.json().catch(()=>({error:'소속지점 목록을 불러오지 못했습니다.'}));
+    if(!response.ok)throw new Error(result.error||'소속지점 목록을 불러오지 못했습니다.');
+    branchOptions=Array.isArray(result.branches)?result.branches.filter(Boolean):[];
+    populateBranchSelects();
+    return branchOptions;
+  })().finally(()=>{branchOptionsLoading=null});
+  return branchOptionsLoading;
+}
+function ensureBranchOptions(setMessage){
+  loadBranchOptions().then(branches=>{
+    if(!branches.length)setMessage('관리자에게 소속지점 목록 등록을 요청해 주세요');
+  }).catch(()=>setMessage('소속지점 목록을 불러오지 못했습니다'));
 }
 function normalizeAttachment(item={},fallbackTitle=''){
   const driveFileId=item.drive_file_id||item.driveFileId||'';
@@ -1066,7 +1095,7 @@ function updateSignupUi(){
   button.disabled=busy||!filled||!agree.checked;
   if(hasPassword&&password.value.length<6&&!busy)setSignupMessage('비밀번호는 6자리 이상 입력해 주세요');
   else if(hasPassword&&hasConfirm&&password.value!==confirm.value&&!busy)setSignupMessage('비밀번호가 일치하지 않습니다');
-  else if(filled&&!agree.checked&&!busy)setSignupMessage('필수 동의 후 가입할 수 있습니다');
+  else if(filled&&!agree.checked&&!busy)setSignupMessage('동의 확인 후 가입할 수 있습니다');
   else if(!busy)setSignupMessage('');
 }
 function updateResetUi(){
@@ -1121,7 +1150,8 @@ function showSignup(){
   setAccessMessage('');
   setResetMessage('');
   updateSignupUi();
-  setTimeout(()=>document.getElementById('signupBranch').focus(),80);
+  ensureBranchOptions(setSignupMessage);
+  setTimeout(()=>document.getElementById('signupDisplayName').focus(),80);
 }
 function showReset(){
   document.getElementById('loginCard').hidden=true;
@@ -1131,6 +1161,7 @@ function showReset(){
   setAccessMessage('');
   setSignupMessage('');
   updateResetUi();
+  ensureBranchOptions(setResetMessage);
   setTimeout(()=>document.getElementById('resetDisplayName').focus(),80);
 }
 function showLogin(){
@@ -1191,9 +1222,11 @@ document.getElementById('resetBackToLoginBtn').addEventListener('click',showLogi
 });
 ['signupDisplayName','signupBranch','signupCodeNumber','signupPassword','signupPasswordConfirm'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateSignupUi);
+  document.getElementById(id).addEventListener('change',updateSignupUi);
 });
 ['resetDisplayName','resetBranch','resetCodeNumber','resetPassword','resetPasswordConfirm'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateResetUi);
+  document.getElementById(id).addEventListener('change',updateResetUi);
 });
 document.getElementById('accessAgree').addEventListener('change',updateSignupUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
@@ -1235,7 +1268,7 @@ document.getElementById('signupForm').addEventListener('submit',async e=>{
   if(!displayName.value.trim()||!branch.value.trim()||!codeNumber.value.trim()){displayName.focus();setSignupMessage('');return}
   if(password.value.length<6){password.focus();setSignupMessage('비밀번호는 6자리 이상 입력해 주세요');return}
   if(password.value!==confirm.value){confirm.focus();setSignupMessage('비밀번호가 일치하지 않습니다');return}
-  if(!agree.checked){setSignupMessage('필수 동의 후 가입할 수 있습니다');return}
+  if(!agree.checked){setSignupMessage('동의 확인 후 가입할 수 있습니다');return}
   button.dataset.busy='true';
   button.disabled=true;
   button.textContent='가입 중';
