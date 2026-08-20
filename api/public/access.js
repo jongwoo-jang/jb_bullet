@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
 
+const BRANCH_PAGE_SIZE = 1000;
+
 module.exports = async function handler(req, res) {
   try {
     if (req.method !== 'GET' && req.method !== 'POST') {
@@ -34,23 +36,25 @@ async function listBranches(req, supabase, res) {
     return res.status(400).json({ error: '요청을 확인해 주세요.' });
   }
 
-  const { data, error } = await supabase
-    .from('fp_member_codes')
-    .select('branch')
-    .eq('is_active', true)
-    .order('branch', { ascending: true })
-    .limit(10000);
-  if (error) throw new Error(error.message);
-
   const seen = new Set();
   const branches = [];
-  (Array.isArray(data) ? data : []).forEach(row => {
-    const branch = normalizeBranch(row && row.branch);
-    const key = branch.toLowerCase();
-    if (!branch || seen.has(key)) return;
-    seen.add(key);
-    branches.push(branch);
-  });
+  for (let start = 0; ; start += BRANCH_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('fp_member_codes')
+      .select('branch')
+      .eq('is_active', true)
+      .order('branch', { ascending: true })
+      .range(start, start + BRANCH_PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    (Array.isArray(data) ? data : []).forEach(row => {
+      const branch = normalizeBranch(row && row.branch);
+      const key = branch.toLowerCase();
+      if (!branch || seen.has(key)) return;
+      seen.add(key);
+      branches.push(branch);
+    });
+    if (!data || data.length < BRANCH_PAGE_SIZE) break;
+  }
 
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ branches });
