@@ -27,8 +27,11 @@ async function signup(body, supabase, res) {
   const branch = normalizeBranch(body.branch);
   const displayName = normalizeDisplayName(body.displayName);
   const password = String(body.password || '');
-  if (!codeNumber || !branch || !displayName || !isValidPassword(password)) {
-    return res.status(400).json({ error: '실명, 코드번호, 소속지점, 비밀번호를 모두 입력해 주세요.' });
+  if (!codeNumber || !branch || !displayName) {
+    return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
+  }
+  if (!isValidPassword(password)) {
+    return res.status(400).json({ error: '비밀번호는 6자리 이상 입력해 주세요.' });
   }
 
   const code = await getActiveMemberCode(supabase, codeNumber);
@@ -70,7 +73,7 @@ async function login(body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
   const password = String(body.password || '');
   if (!codeNumber || !password) {
-    return res.status(400).json({ error: '코드번호와 비밀번호를 입력해 주세요.' });
+    return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
   }
 
   const member = await getMemberByCode(supabase, codeNumber);
@@ -98,8 +101,11 @@ async function resetPassword(body, supabase, res) {
   const branch = normalizeBranch(body.branch);
   const displayName = normalizeDisplayName(body.displayName);
   const password = String(body.password || '');
-  if (!codeNumber || !branch || !displayName || !isValidPassword(password)) {
-    return res.status(400).json({ error: '실명, 소속지점, 코드번호, 새 비밀번호를 모두 입력해 주세요.' });
+  if (!codeNumber || !branch || !displayName) {
+    return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
+  }
+  if (!isValidPassword(password)) {
+    return res.status(400).json({ error: '비밀번호는 6자리 이상 입력해 주세요.' });
   }
 
   const code = await getActiveMemberCode(supabase, codeNumber);
@@ -158,7 +164,7 @@ function normalizeDisplayName(value) {
 }
 
 function isValidPassword(value) {
-  return String(value || '').length >= 4;
+  return String(value || '').length >= 6;
 }
 
 function hashPassword(password) {

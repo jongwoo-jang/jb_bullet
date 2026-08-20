@@ -57,7 +57,7 @@ The app prefers `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_
 
 10. Deploy to Vercel, sign in with a Supabase user whose email is listed in `ADMIN_EMAILS`, upload the member code CSV at the bottom of `/admin`, and upload posts.
 
-The public feed does not use email login. Admins upload a CSV where column A is `소속지점`, column B is `코드번호`, and optional column C is `실명`. General users can sign up only when their 소속지점 and 코드번호 match that uploaded list, then log in with 코드번호 and their password. Members can reset their password from the login screen when their 실명, 소속지점, and 코드번호 match. Comments use the verified member name stored at signup.
+The public feed does not use email login. Admins upload a CSV where column A is `소속지점`, column B is `코드번호`, and optional column C is `실명`. General users can sign up only when their 소속지점 and 코드번호 match that uploaded list, then log in with 코드번호 and their password. Signup and password reset require a password of at least 6 characters with confirmation. Members can reset their password from the login screen when their 실명, 소속지점, and 코드번호 match. Comments use the verified member name stored at signup.
 
 After deployment, open `/api/env-check` to confirm the required variables are present and `/api/drive-check` to confirm the Drive folder is writable. The `authMode` value should be `oauth` for personal Google Drive uploads.
 
