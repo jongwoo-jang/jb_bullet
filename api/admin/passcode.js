@@ -4,6 +4,7 @@ const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-ac
 const UPSERT_CHUNK_SIZE = 1000;
 const LOOKUP_CHUNK_SIZE = 1000;
 const DELETE_CHUNK_SIZE = 500;
+const ADMIN_FEED_TOKEN_TTL_SECONDS = 60 * 60 * 3;
 const DEFAULT_BRANCH = '전환법인';
 
 module.exports = async function handler(req, res) {
@@ -30,7 +31,8 @@ function createFeedToken(admin, res) {
       role: 'admin',
       codeNumber: 'ADMIN',
       branch: '관리자',
-      displayName
+      displayName,
+      ttlSeconds: ADMIN_FEED_TOKEN_TTL_SECONDS
     })
   });
 }

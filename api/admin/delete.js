@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
 const { getDrive, getMissingDriveEnv } = require('../_google-drive');
+const { logActivity } = require('../_activity');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,7 +22,7 @@ module.exports = async function handler(req, res) {
     });
     const { data: post, error: lookupError } = await supabase
       .from('fp_posts')
-      .select('id, drive_file_id')
+      .select('id, title, category, drive_file_id')
       .eq('id', body.id)
       .single();
     if (lookupError) throw new Error(lookupError.message);
@@ -32,6 +33,12 @@ module.exports = async function handler(req, res) {
     const { error: deleteError } = await supabase.from('fp_posts').delete().eq('id', body.id);
     if (deleteError) throw new Error(deleteError.message);
 
+    await logActivity(req, 'post_delete', {
+      actorRole: 'admin',
+      actorName: getAdminName(admin.user.email),
+      postId: post.id,
+      metadata: { title: post.title, category: post.category }
+    });
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -68,4 +75,10 @@ async function deleteDriveFile(fileId) {
   } catch (error) {
     if (error.code !== 404) throw error;
   }
+}
+
+function getAdminName(email) {
+  const id = String(email || '').split('@')[0].toLowerCase();
+  const names = { lemuel05: '장종우', jaguar06: '정환석' };
+  return names[id] || id || '관리자';
 }

@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
+const { isLoginLimited, logActivity } = require('../_activity');
 
 const DEFAULT_BRANCH = '전환법인';
 
@@ -11,9 +12,9 @@ module.exports = async function handler(req, res) {
     }
     const supabase = getSupabaseAdmin();
     const body = await readJson(req);
-    if (body.mode === 'signup') return signup(body, supabase, res);
-    if (body.mode === 'reset') return resetPassword(body, supabase, res);
-    return login(body, supabase, res);
+    if (body.mode === 'signup') return signup(req, body, supabase, res);
+    if (body.mode === 'reset') return resetPassword(req, body, supabase, res);
+    return login(req, body, supabase, res);
   } catch (error) {
     console.error(error);
     if (isMissingMemberTable(error)) {
@@ -23,7 +24,7 @@ module.exports = async function handler(req, res) {
   }
 };
 
-async function signup(body, supabase, res) {
+async function signup(req, body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
   const branch = DEFAULT_BRANCH;
   const displayName = normalizeDisplayName(body.displayName);
@@ -32,7 +33,7 @@ async function signup(body, supabase, res) {
     return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
   }
   if (!isValidPassword(password)) {
-    return res.status(400).json({ error: '비밀번호는 6자리 이상 입력해 주세요.' });
+    return res.status(400).json({ error: '비밀번호는 8자리 이상 입력해 주세요.' });
   }
 
   const code = await getActiveMemberCode(supabase, codeNumber);
@@ -70,15 +71,21 @@ async function signup(body, supabase, res) {
   }
   if (insertError) throw new Error(insertError.message);
 
+  await logActivity(req, 'signup_success', { actorCodeNumber: codeNumber, actorName: verifiedName });
   res.setHeader('Cache-Control', 'no-store');
   return res.status(201).json({ token: createAccessToken({ codeNumber, branch, displayName: verifiedName }), branch, codeNumber, displayName: verifiedName });
 }
 
-async function login(body, supabase, res) {
+async function login(req, body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
   const password = String(body.password || '');
   if (!codeNumber || !password) {
     return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
+  }
+
+  if (await isLoginLimited(req, codeNumber)) {
+    await logActivity(req, 'login_blocked', { actorCodeNumber: codeNumber });
+    return res.status(429).json({ error: '로그인 시도가 많습니다. 10분 후 다시 시도해 주세요.' });
   }
 
   const member = await getMemberByCode(supabase, codeNumber);
@@ -92,16 +99,18 @@ async function login(body, supabase, res) {
   const branch = normalizeBranch(member && member.branch) || DEFAULT_BRANCH;
   const displayName = normalizeDisplayName(member && member.display_name);
   if (!member || !activeCode || !verifyPassword(password, member.password_salt, member.password_hash)) {
+    await logActivity(req, 'login_failed', { actorCodeNumber: codeNumber });
     return res.status(401).json({ error: '코드번호 또는 비밀번호를 확인해 주세요.' });
   }
 
   await supabase.from('fp_members').update({ last_login_at: new Date().toISOString() }).eq('code_number', codeNumber);
+  await logActivity(req, 'login_success', { actorCodeNumber: codeNumber, actorName: displayName });
 
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ token: createAccessToken({ codeNumber, branch, displayName }), branch, codeNumber, displayName });
 }
 
-async function resetPassword(body, supabase, res) {
+async function resetPassword(req, body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
   const branch = DEFAULT_BRANCH;
   const displayName = normalizeDisplayName(body.displayName);
@@ -110,7 +119,7 @@ async function resetPassword(body, supabase, res) {
     return res.status(400).json({ error: '회원 정보를 확인해 주세요.' });
   }
   if (!isValidPassword(password)) {
-    return res.status(400).json({ error: '비밀번호는 6자리 이상 입력해 주세요.' });
+    return res.status(400).json({ error: '비밀번호는 8자리 이상 입력해 주세요.' });
   }
 
   const code = await getActiveMemberCode(supabase, codeNumber);
@@ -151,6 +160,7 @@ async function resetPassword(body, supabase, res) {
   }
   if (error) throw new Error(error.message);
 
+  await logActivity(req, 'password_reset', { actorCodeNumber: codeNumber, actorName: verifiedName });
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ ok: true, codeNumber, branch, displayName: verifiedName });
 }
@@ -168,7 +178,7 @@ function normalizeDisplayName(value) {
 }
 
 function isValidPassword(value) {
-  return String(value || '').length >= 6;
+  return String(value || '').length >= 8;
 }
 
 function hashPassword(password) {

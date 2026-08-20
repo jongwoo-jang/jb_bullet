@@ -2,7 +2,7 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeSupabaseUrl } = require('./_supabase-url');
 
-const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14;
+const DEFAULT_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14;
 
 function getSupabaseAdmin() {
   return createClient(normalizeSupabaseUrl(process.env.SUPABASE_URL), process.env.SUPABASE_SERVICE_ROLE_KEY, {
@@ -11,10 +11,12 @@ function getSupabaseAdmin() {
 }
 
 function createAccessToken(extra = {}) {
+  const { ttlSeconds, exp, ...rest } = extra || {};
+  const ttl = Number(ttlSeconds || DEFAULT_TOKEN_TTL_SECONDS);
   const payload = {
     typ: 'public',
-    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
-    ...extra
+    exp: Number(exp || 0) > 0 ? Number(exp) : Math.floor(Date.now() / 1000) + ttl,
+    ...rest
   };
   const body = toBase64Url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;

@@ -3,6 +3,7 @@ const { requireAdmin } = require('../_auth');
 const { requirePublicAccess } = require('../_public-access');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
 const { getDrive, getMissingDriveEnv } = require('../_google-drive');
+const { logActivity } = require('../_activity');
 
 const MAX_FILES = 20;
 
@@ -53,6 +54,12 @@ module.exports = async function handler(req, res) {
       attachments
     }, Boolean(body.isPinned));
 
+    await logActivity(req, 'post_create', {
+      actorRole: 'admin',
+      actorName: getAdminName(admin.user.email),
+      postId: post && post.id,
+      metadata: { title: post && post.title, category: post && post.category }
+    });
     return res.status(201).json({ post });
   } catch (error) {
     console.error(error);
@@ -91,6 +98,13 @@ async function updatePost(req, res) {
       .single();
     if (error) throw new Error(error.message);
 
+    await logActivity(req, 'post_update', {
+      actorRole: 'admin',
+      actorCodeNumber: access.payload.codeNumber,
+      actorName: access.payload.displayName,
+      postId: id,
+      metadata: { fields: Object.keys(update) }
+    });
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ post: data });
   } catch (error) {
