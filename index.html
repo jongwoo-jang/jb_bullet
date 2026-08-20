@@ -355,7 +355,6 @@ a{color:inherit;text-decoration:none}
       </div>
       <form id="accessForm">
         <div class="member-fields">
-          <div class="member-field"><label for="memberBranch">소속지점</label><input id="memberBranch" type="text" autocomplete="organization" placeholder="소속지점" required></div>
           <div class="member-field"><label for="memberCodeNumber">코드번호</label><input id="memberCodeNumber" type="text" inputmode="text" autocomplete="username" placeholder="코드번호" required></div>
           <div class="member-field"><label for="memberPassword">비밀번호</label><input id="memberPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="4"></div>
         </div>
@@ -643,7 +642,7 @@ function showAuth(){
   document.getElementById('scroller').hidden=true;
   document.getElementById('bellBtn').hidden=true;
   updateAccessUi();
-  setTimeout(()=>document.getElementById('memberBranch').focus(),120);
+  setTimeout(()=>document.getElementById('memberCodeNumber').focus(),120);
 }
 function showFeed(){
   document.getElementById('app').classList.remove('auth-view');
@@ -886,7 +885,6 @@ function downloadPost(id){
 }
 function accessElements(){
   return {
-    branch:document.getElementById('memberBranch'),
     codeNumber:document.getElementById('memberCodeNumber'),
     password:document.getElementById('memberPassword'),
     message:document.getElementById('accessMessage'),
@@ -914,11 +912,11 @@ function setSignupMessage(text='',ok=false){
   message.classList.toggle('ok',ok);
 }
 function updateAccessUi(){
-  const {branch,codeNumber,password,button}=accessElements();
-  const filled=branch.value.trim()&&codeNumber.value.trim()&&password.value.length>=4;
+  const {codeNumber,password,button}=accessElements();
+  const filled=codeNumber.value.trim()&&password.value.length>=4;
   const busy=button.dataset.busy==='true';
   button.disabled=busy||!filled;
-  if(!filled&&!busy)setAccessMessage('소속지점, 코드번호, 비밀번호를 입력해 주세요');
+  if(!filled&&!busy)setAccessMessage('코드번호와 비밀번호를 입력해 주세요');
   else if(!busy)setAccessMessage('');
 }
 function updateSignupUi(){
@@ -963,7 +961,7 @@ function showLogin(){
   document.getElementById('loginCard').hidden=false;
   setSignupMessage('');
   updateAccessUi();
-  setTimeout(()=>document.getElementById('memberBranch').focus(),80);
+  setTimeout(()=>document.getElementById('memberCodeNumber').focus(),80);
 }
 document.getElementById('scroller').addEventListener('scroll',e=>document.getElementById('app').classList.toggle('scrolled',e.currentTarget.scrollTop>6),{passive:true});
 document.getElementById('backBtn').addEventListener('click',closeDetail);
@@ -1006,7 +1004,7 @@ document.getElementById('loungeBrand').addEventListener('click',()=>{
 });
 document.getElementById('openSignupBtn').addEventListener('click',showSignup);
 document.getElementById('backToLoginBtn').addEventListener('click',showLogin);
-['memberBranch','memberCodeNumber','memberPassword'].forEach(id=>{
+['memberCodeNumber','memberPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateAccessUi);
 });
 ['signupBranch','signupCodeNumber','signupPassword'].forEach(id=>{
@@ -1015,8 +1013,8 @@ document.getElementById('backToLoginBtn').addEventListener('click',showLogin);
 document.getElementById('accessAgree').addEventListener('change',updateSignupUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const {branch,codeNumber,password,button}=accessElements();
-  if(!branch.value.trim()||!codeNumber.value.trim()||password.value.length<4){branch.focus();setAccessMessage('소속지점, 코드번호, 비밀번호를 입력해 주세요');return}
+  const {codeNumber,password,button}=accessElements();
+  if(!codeNumber.value.trim()||password.value.length<4){codeNumber.focus();setAccessMessage('코드번호와 비밀번호를 입력해 주세요');return}
   button.dataset.busy='true';
   button.disabled=true;
   button.textContent='확인 중';
@@ -1026,7 +1024,6 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({
         mode:'login',
-        branch:branch.value,
         codeNumber:codeNumber.value,
         password:password.value
       })
@@ -1069,7 +1066,6 @@ document.getElementById('signupForm').addEventListener('submit',async e=>{
     const result=await response.json().catch(()=>({error:'회원가입에 실패했습니다.'}));
     if(!response.ok){showSignupError(result.error||'소속지점 또는 코드번호를 확인해 주세요');return}
     const login=accessElements();
-    login.branch.value=branch.value;
     login.codeNumber.value=codeNumber.value;
     login.password.value='';
     document.getElementById('signupForm').reset();

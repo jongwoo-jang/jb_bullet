@@ -63,10 +63,9 @@ async function signup(body, supabase, res) {
 
 async function login(body, supabase, res) {
   const codeNumber = normalizeCodeNumber(body.codeNumber);
-  const branch = normalizeBranch(body.branch);
   const password = String(body.password || '');
-  if (!codeNumber || !branch || !password) {
-    return res.status(400).json({ error: '코드번호, 소속지점, 비밀번호를 입력해 주세요.' });
+  if (!codeNumber || !password) {
+    return res.status(400).json({ error: '코드번호와 비밀번호를 입력해 주세요.' });
   }
 
   const { data: member, error } = await supabase
@@ -82,8 +81,9 @@ async function login(body, supabase, res) {
     .eq('is_active', true)
     .maybeSingle();
   if (codeError) throw new Error(codeError.message);
-  if (!member || !activeCode || normalizeBranch(activeCode.branch) !== branch || normalizeBranch(member.branch) !== branch || !verifyPassword(password, member.password_salt, member.password_hash)) {
-    return res.status(401).json({ error: '가입 정보 또는 비밀번호를 확인해 주세요.' });
+  const branch = normalizeBranch(member && member.branch);
+  if (!member || !activeCode || normalizeBranch(activeCode.branch) !== branch || !verifyPassword(password, member.password_salt, member.password_hash)) {
+    return res.status(401).json({ error: '코드번호 또는 비밀번호를 확인해 주세요.' });
   }
 
   await supabase.from('fp_members').update({ last_login_at: new Date().toISOString() }).eq('code_number', codeNumber);
