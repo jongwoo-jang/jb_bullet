@@ -228,7 +228,9 @@ function firstField(value) {
 }
 
 function getAdminName(email) {
-  return String(email || '').split('@')[0] || '관리자';
+  const id = String(email || '').split('@')[0].toLowerCase();
+  const names = { lemuel05: '징종우', jaguar06: '정환석' };
+  return names[id] || id || '관리자';
 }
 
 function sanitizeFilename(filename) {

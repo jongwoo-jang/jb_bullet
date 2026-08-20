@@ -246,6 +246,11 @@ function getPosts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')
 function setPosts(posts){localStorage.setItem(STORE_KEY,JSON.stringify(posts))}
 function today(){const d=new Date();return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`}
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+function displayAdminName(value){
+  const id=String(value||'').split('@')[0].toLowerCase();
+  const names={lemuel05:'징종우',jaguar06:'정환석'};
+  return names[id]||id||'관리자';
+}
 fileInput.addEventListener('change',async()=>{
   const files=[...fileInput.files];if(!files.length)return;
   selected=await Promise.all(files.map(async(file)=>{
@@ -344,7 +349,7 @@ async function getAdminPosts(){
       src:row.type==='pdf'&&row.drive_file_id?driveThumbnailUrl(row.drive_file_id):row.media_url,
       title:row.title,
       category:row.category,
-      author:row.author,
+      author:displayAdminName(row.author),
       tags:row.tags||[],
       date:formatDate(row.created_at),
       storagePath:row.drive_file_id||row.storage_path||'',
@@ -477,7 +482,7 @@ signOutBtn.addEventListener('click',async()=>{
 function getAccessToken(){return currentSession&&currentSession.access_token?currentSession.access_token:''}
 function getCurrentAdminName(){
   const email=currentSession&&currentSession.user?currentSession.user.email:'';
-  return String(email||'').split('@')[0]||'관리자';
+  return displayAdminName(email);
 }
 function setAuthorFromSession(){
   const input=document.getElementById('author');

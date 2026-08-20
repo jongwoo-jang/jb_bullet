@@ -475,7 +475,7 @@ function rowToPost(row){
     id:String(row.id),
     type:row.type||'image',
     title:row.title||'제목 없음',
-    author:row.author||'관리자',
+    author:displayAuthorName(row.author),
     date:formatDate(row.created_at),
     category:row.category||'상품',
     tags:row.tags||[],
@@ -487,6 +487,11 @@ function rowToPost(row){
     desc:row.description||'',
     attachments
   };
+}
+function displayAuthorName(value){
+  const id=String(value||'').split('@')[0].toLowerCase();
+  const names={lemuel05:'징종우',jaguar06:'정환석'};
+  return names[id]||id||'관리자';
 }
 function normalizeAttachment(item={},fallbackTitle=''){
   const driveFileId=item.drive_file_id||item.driveFileId||'';
