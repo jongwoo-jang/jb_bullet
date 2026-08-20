@@ -171,6 +171,9 @@ a{color:inherit;text-decoration:none}
 .auth-link-row .signup-link{min-height:44px;margin-top:0;border-radius:999px;background:#F4F6F8}
 .admin-login-link{display:flex;align-items:center;justify-content:center;min-height:44px;margin-top:8px;color:var(--ink3);font-size:13px;font-weight:820}
 .admin-login-link:hover{color:var(--brand2)}
+.login-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:-2px 0 12px}
+.login-check{display:flex;align-items:center;gap:8px;min-height:42px;padding:0 10px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:13px;font-weight:820;cursor:pointer}
+.login-check input{width:17px;height:17px;accent-color:var(--brand2)}
 .member-fields{display:grid;gap:9px;margin-bottom:10px}
 .member-field label{display:block;margin:0 0 6px;color:var(--ink2);font-size:12.8px;font-weight:850}
 .member-field input,.member-field select{
@@ -388,8 +391,12 @@ a{color:inherit;text-decoration:none}
       </div>
       <form id="accessForm">
         <div class="member-fields">
-          <div class="member-field"><label for="memberCodeNumber">코드번호</label><input id="memberCodeNumber" type="text" inputmode="text" autocomplete="username" placeholder="코드번호" required></div>
-          <div class="member-field"><label for="memberPassword">비밀번호</label><input id="memberPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="8"></div>
+          <div class="member-field"><label for="memberCodeNumber">코드번호</label><input id="memberCodeNumber" name="username" type="text" inputmode="text" autocomplete="username" placeholder="코드번호" required></div>
+          <div class="member-field"><label for="memberPassword">비밀번호</label><input id="memberPassword" name="password" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="8"></div>
+        </div>
+        <div class="login-options">
+          <label class="login-check"><input id="rememberPassword" type="checkbox"><span>비밀번호 저장</span></label>
+          <label class="login-check"><input id="autoLogin" type="checkbox"><span>자동로그인</span></label>
         </div>
         <div class="access-message" id="accessMessage" aria-live="polite"></div>
         <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">로그인</button></div>
@@ -534,6 +541,10 @@ const STORE_KEY='fpLoungePosts';
 const SEEN_KEY='fpSeenPosts';
 const COMMENT_KEY='fpPostComments';
 const ACCESS_KEY='fpPublicAccessToken';
+const ACCESS_PERSIST_KEY='fpPublicAccessTokenPersist';
+const REMEMBER_PASSWORD_KEY='fpRememberPassword';
+const AUTO_LOGIN_KEY='fpAutoLogin';
+const SAVED_CODE_KEY='fpSavedCodeNumber';
 const SHARE_KEY='fpShareCounts';
 const AUTO_LOCK_MS=10*60*1000;
 const ADMIN_TAP_WINDOW_MS=1100;
@@ -545,7 +556,7 @@ let comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
 let posts=[], current=null;
 let unreadOnly=false;
 let searchQuery='';
-let publicAccessToken=sessionStorage.getItem(ACCESS_KEY)||'';
+let publicAccessToken=getStoredAccessToken();
 let autoLockTimer=0;
 let hiddenAt=0;
 let adminTapCount=0;
@@ -558,6 +569,26 @@ const grids={all:document.getElementById('gridAll'),notice:document.getElementBy
 const empties={all:document.getElementById('emptyAll'),notice:document.getElementById('emptyNotice'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
 const PIN_ICON='<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2.2 20.25 8.1 14.35l1.55 1.55-5.9 5.9H2.2v-1.55Z"/><path fill="currentColor" fill-rule="evenodd" d="M15.1 1.7 22.3 8.9l-6.02 4.02c.46 2.5-.2 4.83-2.04 6.67L4.4 9.75c1.86-1.86 4.2-2.52 6.7-2.04L15.1 1.7Zm.48 4.09-2.77 4.15-.68-.18c-1.46-.39-2.82-.28-4.02.35l5.86 5.86c.62-1.2.74-2.56.34-4.02l-.18-.68 4.15-2.77-2.7-2.71Z" clip-rule="evenodd"/></svg>';
 const EDIT_ICON='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+function getStoredAccessToken(){
+  const sessionToken=sessionStorage.getItem(ACCESS_KEY)||'';
+  if(sessionToken)return sessionToken;
+  if(localStorage.getItem(AUTO_LOGIN_KEY)==='true'){
+    const token=localStorage.getItem(ACCESS_PERSIST_KEY)||'';
+    if(token)sessionStorage.setItem(ACCESS_KEY,token);
+    return token;
+  }
+  return '';
+}
+function persistPublicAccess(token,autoLogin){
+  sessionStorage.setItem(ACCESS_KEY,token);
+  if(autoLogin){
+    localStorage.setItem(AUTO_LOGIN_KEY,'true');
+    localStorage.setItem(ACCESS_PERSIST_KEY,token);
+  }else{
+    localStorage.removeItem(AUTO_LOGIN_KEY);
+    localStorage.removeItem(ACCESS_PERSIST_KEY);
+  }
+}
 async function loadPosts(){
   if(publicAccessToken){
     try{
@@ -746,6 +777,7 @@ function showAuth(){
   document.getElementById('scroller').hidden=true;
   const bell=document.getElementById('bellBtn');
   if(bell)bell.hidden=true;
+  restoreLoginOptions();
   updateAccessUi();
   setTimeout(()=>document.getElementById('memberCodeNumber').focus(),120);
 }
@@ -1033,6 +1065,8 @@ function unreadPosts(){return posts.filter(p=>isUnread(p))}
 function clearPublicAccess(){
   publicAccessToken='';
   sessionStorage.removeItem(ACCESS_KEY);
+  localStorage.removeItem(ACCESS_PERSIST_KEY);
+  localStorage.removeItem(AUTO_LOGIN_KEY);
   posts=[];
   appHistoryReady=false;
 }
@@ -1141,9 +1175,30 @@ function accessElements(){
   return {
     codeNumber:document.getElementById('memberCodeNumber'),
     password:document.getElementById('memberPassword'),
+    remember:document.getElementById('rememberPassword'),
+    autoLogin:document.getElementById('autoLogin'),
     message:document.getElementById('accessMessage'),
     button:document.getElementById('accessBtn')
   };
+}
+function restoreLoginOptions(){
+  const {codeNumber,remember,autoLogin}=accessElements();
+  remember.checked=localStorage.getItem(REMEMBER_PASSWORD_KEY)==='true';
+  autoLogin.checked=localStorage.getItem(AUTO_LOGIN_KEY)==='true';
+  const savedCode=localStorage.getItem(SAVED_CODE_KEY)||'';
+  if(savedCode&&!codeNumber.value)codeNumber.value=savedCode;
+}
+async function saveLoginOptions(codeNumber,password,remember,autoLogin){
+  localStorage.setItem(REMEMBER_PASSWORD_KEY,remember?'true':'false');
+  if(remember) localStorage.setItem(SAVED_CODE_KEY,codeNumber);
+  else localStorage.removeItem(SAVED_CODE_KEY);
+  if(remember&&window.PasswordCredential&&navigator.credentials){
+    try{
+      const credential=new PasswordCredential({id:codeNumber,password,name:codeNumber});
+      await navigator.credentials.store(credential);
+    }catch(e){}
+  }
+  persistPublicAccess(publicAccessToken,autoLogin);
 }
 function signupElements(){
   return {
@@ -1356,6 +1411,16 @@ document.getElementById('resetBackToLoginBtn').addEventListener('click',showLogi
 ['memberCodeNumber','memberPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateAccessUi);
 });
+document.getElementById('rememberPassword').addEventListener('change',e=>{
+  localStorage.setItem(REMEMBER_PASSWORD_KEY,e.target.checked?'true':'false');
+  if(!e.target.checked)localStorage.removeItem(SAVED_CODE_KEY);
+});
+document.getElementById('autoLogin').addEventListener('change',e=>{
+  if(!e.target.checked){
+    localStorage.removeItem(AUTO_LOGIN_KEY);
+    localStorage.removeItem(ACCESS_PERSIST_KEY);
+  }
+});
 ['signupDisplayName','signupCodeNumber','signupPassword','signupPasswordConfirm'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateSignupUi);
   document.getElementById(id).addEventListener('change',updateSignupUi);
@@ -1367,7 +1432,7 @@ document.getElementById('resetBackToLoginBtn').addEventListener('click',showLogi
 document.getElementById('accessAgree').addEventListener('change',updateSignupUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const {codeNumber,password,button}=accessElements();
+  const {codeNumber,password,remember,autoLogin,button}=accessElements();
   if(!codeNumber.value.trim()||password.value.length<8){codeNumber.focus();setAccessMessage('비밀번호는 8자리 이상 입력해 주세요');return}
   button.dataset.busy='true';
   button.disabled=true;
@@ -1385,7 +1450,7 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
     const result=await response.json().catch(()=>({error:'접속 확인에 실패했습니다.'}));
     if(!response.ok){showAccessError(result.error||'회원 정보 또는 비밀번호를 확인해 주세요');return}
     publicAccessToken=result.token||'';
-    sessionStorage.setItem(ACCESS_KEY,publicAccessToken);
+    await saveLoginOptions(codeNumber.value.trim(),password.value,remember.checked,autoLogin.checked);
     setAccessMessage('확인되었습니다',true);
     document.getElementById('accessForm').reset();
     showFeed();
