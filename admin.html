@@ -435,7 +435,7 @@ async function getAdminComments(){
   if(!supabaseClient)return [];
   const token=getAccessToken();
   if(!token)return [];
-  const result=await apiJson('/api/admin/comments',{
+  const result=await apiJson('/api/comments?admin=1',{
     method:'GET',
     headers:{Authorization:`Bearer ${token}`},
     cache:'no-store'
@@ -485,7 +485,7 @@ async function deleteComment(id){
   if(!confirm('이 댓글을 삭제할까요?'))return;
   const token=getAccessToken();
   if(!token){toast('로그인이 필요합니다');return}
-  const result=await apiJson('/api/admin/comments',{
+  const result=await apiJson('/api/comments?admin=1',{
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
     body:JSON.stringify({id})
