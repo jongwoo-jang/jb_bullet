@@ -1,9 +1,12 @@
 const { requireAdmin } = require('../_auth');
-const { getSupabaseAdmin, readJson } = require('../_public-access');
+const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
 
 module.exports = async function handler(req, res) {
   const admin = await requireAdmin(req);
   if (admin.error) return res.status(admin.error.status).json({ error: admin.error.message });
+
+  const url = new URL(req.url, `https://${req.headers.host}`);
+  if (url.searchParams.get('action') === 'feed-token') return createFeedToken(admin, res);
 
   if (req.method === 'GET') return getStatus(res);
   if (req.method === 'POST') return updatePasscode(req, res);
@@ -11,6 +14,20 @@ module.exports = async function handler(req, res) {
   res.setHeader('Allow', 'GET, POST');
   return res.status(405).json({ error: 'Method not allowed' });
 };
+
+function createFeedToken(admin, res) {
+  const email = String(admin.user.email || '');
+  const displayName = displayAdminName(email);
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({
+    token: createAccessToken({
+      role: 'admin',
+      codeNumber: 'ADMIN',
+      branch: '관리자',
+      displayName
+    })
+  });
+}
 
 async function getStatus(res) {
   try {
@@ -108,4 +125,10 @@ function isMissingMemberTable(error) {
 
 function isMissingDisplayNameColumn(error) {
   return Boolean(error && String(error.message || '').includes('display_name'));
+}
+
+function displayAdminName(value) {
+  const id = String(value || '').split('@')[0].toLowerCase();
+  const names = { lemuel05: '장종우', jaguar06: '정환석' };
+  return names[id] || id || '관리자';
 }

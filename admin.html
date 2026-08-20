@@ -729,7 +729,7 @@ feedLink.addEventListener('click',async e=>{
   e.preventDefault();
   if(!currentSession){toast('관리자 로그인 후 피드로 이동할 수 있습니다');return}
   try{
-    const response=await fetch('/api/admin/feed-token',{
+    const response=await fetch('/api/admin/passcode?action=feed-token',{
       method:'POST',
       headers:{Authorization:`Bearer ${getAccessToken()}`}
     });
