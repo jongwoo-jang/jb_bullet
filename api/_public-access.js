@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 const { normalizeSupabaseUrl } = require('./_supabase-url');
 
-const SETTING_KEY = 'public_passcode_hash';
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 14;
 
 function getSupabaseAdmin() {
@@ -11,47 +10,11 @@ function getSupabaseAdmin() {
   });
 }
 
-function normalizePasscode(value) {
-  return String(value || '').trim();
-}
-
-function isValidPasscode(value) {
-  return /^\d{4}$/.test(normalizePasscode(value));
-}
-
-function hashPasscode(value) {
-  return crypto.createHash('sha256').update(normalizePasscode(value)).digest('hex');
-}
-
-async function getPasscodeHash(supabase = getSupabaseAdmin()) {
-  const { data, error } = await supabase
-    .from('fp_settings')
-    .select('value')
-    .eq('key', SETTING_KEY)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data && data.value ? data.value : '';
-}
-
-async function setPasscode(value, supabase = getSupabaseAdmin()) {
-  if (!isValidPasscode(value)) throw new Error('4자리 숫자 비밀번호를 입력해 주세요.');
-  const { error } = await supabase
-    .from('fp_settings')
-    .upsert({ key: SETTING_KEY, value: hashPasscode(value), updated_at: new Date().toISOString() }, { onConflict: 'key' });
-  if (error) throw new Error(error.message);
-}
-
-async function verifyPasscode(value, supabase = getSupabaseAdmin()) {
-  if (!isValidPasscode(value)) return false;
-  const storedHash = await getPasscodeHash(supabase);
-  if (!storedHash) return false;
-  return timingSafeEqual(hashPasscode(value), storedHash);
-}
-
-function createAccessToken() {
+function createAccessToken(extra = {}) {
   const payload = {
     typ: 'public',
-    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS
+    exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
+    ...extra
   };
   const body = toBase64Url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;
@@ -78,7 +41,7 @@ function getBearerToken(req) {
 
 function requirePublicAccess(req) {
   if (!verifyAccessToken(getBearerToken(req))) {
-    return { error: { status: 401, message: '다시 접속 비밀번호를 입력해 주세요.' } };
+    return { error: { status: 401, message: '다시 로그인해 주세요.' } };
   }
   return { ok: true };
 }
@@ -126,11 +89,7 @@ function readJson(req) {
 
 module.exports = {
   createAccessToken,
-  getPasscodeHash,
   getSupabaseAdmin,
-  isValidPasscode,
   readJson,
-  requirePublicAccess,
-  setPasscode,
-  verifyPasscode
+  requirePublicAccess
 };

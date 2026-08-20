@@ -225,12 +225,13 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="panel settings-panel">
-      <div class="section-head"><div><b>일반 사용자 접속 비밀번호</b><span>이메일 로그인 없이 4자리 비밀번호로 피드에 접속합니다.</span></div></div>
-      <form class="passcode-form" id="passcodeForm">
-        <div class="field"><label for="publicPasscode">비밀번호</label><input id="publicPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4자리 숫자" required></div>
-        <button class="primary" id="savePasscodeBtn" type="submit">저장</button>
-        <span class="passcode-status" id="passcodeStatus">상태 확인 중</span>
+      <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 소속지점, B열은 코드번호로 저장합니다.</span></div></div>
+      <form class="passcode-form" id="memberCodeForm">
+        <div class="field"><label for="memberCodeCsv">CSV 파일</label><input id="memberCodeCsv" type="file" accept=".csv,text/csv" required></div>
+        <button class="primary" id="saveMemberCodesBtn" type="submit">업로드</button>
+        <span class="passcode-status" id="memberCodeStatus">상태 확인 중</span>
       </form>
+      <p class="hint">첫 행이 제목이면 자동으로 제외합니다. 예: A열 소속지점, B열 코드번호</p>
     </section>
   </div>
 </div>
@@ -253,10 +254,10 @@ const authPanel=document.getElementById('authPanel');
 const authForm=document.getElementById('authForm');
 const signOutBtn=document.getElementById('signOutBtn');
 const adminLayout=document.getElementById('adminLayout');
-const passcodeForm=document.getElementById('passcodeForm');
-const publicPasscode=document.getElementById('publicPasscode');
-const savePasscodeBtn=document.getElementById('savePasscodeBtn');
-const passcodeStatus=document.getElementById('passcodeStatus');
+const memberCodeForm=document.getElementById('memberCodeForm');
+const memberCodeCsv=document.getElementById('memberCodeCsv');
+const saveMemberCodesBtn=document.getElementById('saveMemberCodesBtn');
+const memberCodeStatus=document.getElementById('memberCodeStatus');
 const submitButton=form.querySelector('button[type="submit"]');
 const DRIVE_CHUNK_BYTES=2.5*1024*1024;
 let selected=[];
@@ -551,6 +552,53 @@ function renderTagSuggestions(posts){
   }));
   tagSuggestions.innerHTML=recent.slice(0,12).map(tag=>`<button class="tag-chip" data-tag="${escapeHtml(tag)}" type="button">#${escapeHtml(tag)}</button>`).join('');
 }
+function parseMemberCodeCsv(text){
+  const rows=parseCsvRows(text);
+  return rows.map(row=>({
+    branch:String(row[0]||'').trim(),
+    codeNumber:String(row[1]||'').trim()
+  })).filter((row,index)=>{
+    if(!row.branch||!row.codeNumber)return false;
+    if(index===0&&/소속|지점|branch/i.test(row.branch)&&/코드|code/i.test(row.codeNumber))return false;
+    return true;
+  });
+}
+async function readCsvFile(file){
+  const utf8=await readTextFile(file,'utf-8');
+  if(!utf8.includes('\uFFFD'))return utf8;
+  try{return await readTextFile(file,'euc-kr')}catch(error){return utf8}
+}
+function readTextFile(file,encoding){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||''));
+    reader.onerror=()=>reject(reader.error||new Error('CSV 파일을 읽지 못했습니다.'));
+    reader.readAsText(file,encoding);
+  });
+}
+function parseCsvRows(text){
+  const rows=[];
+  let row=[],cell='',quote=false;
+  const value=String(text||'').replace(/^\uFEFF/,'');
+  for(let i=0;i<value.length;i++){
+    const ch=value[i],next=value[i+1];
+    if(ch==='"'){
+      if(quote&&next==='"'){cell+='"';i++}else quote=!quote;
+    }else if(ch===','&&!quote){
+      row.push(cell.trim());cell='';
+    }else if((ch==='\n'||ch==='\r')&&!quote){
+      if(ch==='\r'&&next==='\n')i++;
+      row.push(cell.trim());cell='';
+      if(row.some(Boolean))rows.push(row);
+      row=[];
+    }else{
+      cell+=ch;
+    }
+  }
+  row.push(cell.trim());
+  if(row.some(Boolean))rows.push(row);
+  return rows;
+}
 tagSuggestions.addEventListener('click',e=>{
   const button=e.target.closest('[data-tag]');
   if(!button)return;
@@ -564,29 +612,28 @@ tagSuggestions.addEventListener('click',e=>{
 adminSearch.addEventListener('input',render);
 commentSearch.addEventListener('input',()=>renderAdminComments());
 refreshCommentsBtn.addEventListener('click',()=>renderAdminComments());
-publicPasscode.addEventListener('input',e=>{
-  e.target.value=e.target.value.replace(/\D/g,'').slice(0,4);
-});
-passcodeForm.addEventListener('submit',async e=>{
+memberCodeForm.addEventListener('submit',async e=>{
   e.preventDefault();
-  const passcode=publicPasscode.value.trim();
-  if(!/^\d{4}$/.test(passcode)){toast('4자리 숫자 비밀번호를 입력해 주세요');return}
+  const file=memberCodeCsv.files&&memberCodeCsv.files[0];
+  if(!file){toast('CSV 파일을 선택해 주세요');return}
   const token=getAccessToken();
   if(!token){toast('로그인이 필요합니다');return}
-  savePasscodeBtn.disabled=true;
-  savePasscodeBtn.textContent='저장 중';
+  const codes=parseMemberCodeCsv(await readCsvFile(file));
+  if(!codes.length){toast('CSV에서 소속지점/코드번호를 찾지 못했습니다');return}
+  saveMemberCodesBtn.disabled=true;
+  saveMemberCodesBtn.textContent='업로드 중';
   const response=await fetch('/api/admin/passcode',{
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
-    body:JSON.stringify({passcode})
+    body:JSON.stringify({codes})
   });
   const result=await response.json().catch(()=>({error:'저장 응답을 읽을 수 없습니다.'}));
-  savePasscodeBtn.disabled=false;
-  savePasscodeBtn.textContent='저장';
-  if(!response.ok){toast(result.error||'접속 비밀번호 저장에 실패했습니다');return}
-  publicPasscode.value='';
-  passcodeStatus.textContent='설정됨';
-  toast('일반 사용자 비밀번호를 저장했습니다');
+  saveMemberCodesBtn.disabled=false;
+  saveMemberCodesBtn.textContent='업로드';
+  if(!response.ok){toast(result.error||'회원가입 코드 업로드에 실패했습니다');return}
+  memberCodeCsv.value='';
+  memberCodeStatus.textContent=`코드 ${result.count||codes.length}개 저장`;
+  toast('회원가입 코드 목록을 업로드했습니다');
 });
 authForm.addEventListener('submit',async e=>{
   e.preventDefault();
@@ -653,15 +700,15 @@ function setAuthorFromSession(){
   const input=document.getElementById('author');
   if(input)input.value=getCurrentAdminName();
 }
-async function loadPasscodeStatus(){
+async function loadMemberCodeStatus(){
   const token=getAccessToken();
   if(!token)return;
   try{
     const response=await fetch('/api/admin/passcode',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
     const result=await response.json().catch(()=>({configured:false}));
-    passcodeStatus.textContent=response.ok&&result.configured?'설정됨':'미설정';
+    memberCodeStatus.textContent=response.ok?`코드 ${result.codeCount||0}개 · 가입 ${result.memberCount||0}명`:'상태 확인 실패';
   }catch(error){
-    passcodeStatus.textContent='상태 확인 실패';
+    memberCodeStatus.textContent='상태 확인 실패';
   }
 }
 async function initAuth(){
@@ -702,7 +749,7 @@ function applySession(session){
   authPanel.hidden=!!currentSession;
   adminLayout.hidden=!currentSession;
   signOutBtn.hidden=!currentSession;
-  if(currentSession){setAuthorFromSession();render();loadPasscodeStatus()}
+  if(currentSession){setAuthorFromSession();render();loadMemberCodeStatus()}
 }
 function showPasswordReset(session){
   passwordRecoveryMode=true;

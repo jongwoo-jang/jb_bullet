@@ -1,6 +1,6 @@
 # FP Lounge
 
-Static product/award media lounge for Vercel deployment. Heavy files can be stored in Google Drive while Supabase stores searchable post metadata and the public 4-digit access code hash.
+Static product/award media lounge for Vercel deployment. Heavy files can be stored in Google Drive while Supabase stores searchable post metadata, member signup codes, and member login data.
 
 ## Files
 
@@ -9,11 +9,11 @@ Static product/award media lounge for Vercel deployment. Heavy files can be stor
 - `app-config.js`: optional Supabase connection settings
 - `api/config.js`: public runtime config for Supabase login
 - `api/_auth.js`: server-side Supabase session and admin email verification
-- `api/_public-access.js`: public 4-digit access token and passcode helpers
+- `api/_public-access.js`: signed public access token helpers
 - `api/feed.js`: protected public feed API
 - `api/comments.js`: protected public comments API
-- `api/public/access.js`: exchanges the 4-digit passcode for a public access token
-- `api/admin/passcode.js`: admin-only public passcode settings API
+- `api/public/access.js`: member signup/login API for public feed access
+- `api/admin/passcode.js`: admin-only CSV member code upload API
 - `api/admin/upload.js`: Vercel Function that uploads files to Google Drive and writes metadata to Supabase
 - `api/admin/delete.js`: Vercel Function that deletes Google Drive files and Supabase posts
 - `supabase-schema.sql`: Supabase tables and RLS policies
@@ -26,7 +26,7 @@ Import this repository in Vercel and use the default static site settings.
 ## Supabase and Google Drive
 
 1. Create a Supabase project.
-2. Run `supabase-schema.sql` in the Supabase SQL editor. Re-run it after updates so `fp_settings` exists for the public 4-digit access code.
+2. Run `supabase-schema.sql` in the Supabase SQL editor. Re-run it after updates so the member code and member login tables exist.
 3. Enable Supabase Auth email login and set the site URL to `https://jb-bullet.vercel.app`.
 4. Create admin users in Supabase Authentication. Admins sign in with their email address and password.
 5. Add admin user emails to `ADMIN_EMAILS`; only those accounts can use `/admin`.
@@ -55,9 +55,9 @@ The app prefers `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REFRESH_
 
 `ADMIN_EMAILS` is a comma-separated allowlist, for example `admin@example.com,manager@example.com`.
 
-10. Deploy to Vercel, sign in with a Supabase user whose email is listed in `ADMIN_EMAILS`, set the public 4-digit password at the bottom of `/admin`, and upload posts.
+10. Deploy to Vercel, sign in with a Supabase user whose email is listed in `ADMIN_EMAILS`, upload the member code CSV at the bottom of `/admin`, and upload posts.
 
-The public feed does not use email login. Admins set a 4-digit public access password from the bottom of `/admin`, and general users enter only that password on the main screen.
+The public feed does not use email login. Admins upload a CSV where column A is `소속지점` and column B is `코드번호`. General users can sign up only when their 소속지점 and 코드번호 match that uploaded list, then log in with 코드번호, 소속지점, and their password.
 
 After deployment, open `/api/env-check` to confirm the required variables are present and `/api/drive-check` to confirm the Drive folder is writable. The `authMode` value should be `oauth` for personal Google Drive uploads.
 

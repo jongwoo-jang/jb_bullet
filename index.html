@@ -161,6 +161,17 @@ a{color:inherit;text-decoration:none}
 .access-agree input:checked + .access-check svg{opacity:1;transform:scale(1)}
 .access-agree input:focus-visible + .access-check{box-shadow:0 0 0 3px rgba(0,60,220,.2)}
 .access-agree span:last-child{color:var(--ink);font-size:14.5px;font-weight:760}
+.member-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 14px;padding:4px;border-radius:12px;background:#EEF1F5}
+.member-mode button{height:42px;border-radius:9px;color:var(--ink2);font-size:14px;font-weight:850}
+.member-mode button.on{background:#fff;color:var(--brand2);box-shadow:0 5px 16px rgba(24,34,45,.08)}
+.member-fields{display:grid;gap:10px;margin-bottom:12px}
+.member-field label{display:block;margin:0 0 6px;color:var(--ink2);font-size:12.8px;font-weight:850}
+.member-field input{
+  width:100%;height:50px;border:1px solid var(--line);border-radius:10px;background:#FBFCFD;color:var(--ink);
+  padding:0 13px;outline:0;font-size:15px;font-weight:760;
+}
+.member-field input:focus{border-color:var(--brand2);box-shadow:0 0 0 4px rgba(0,60,220,.08);background:#fff}
+.member-field input::placeholder{color:var(--ink3)}
 .auth-field{margin-bottom:16px}
 .auth-field label{display:block;margin-bottom:8px;color:var(--ink2);font-size:13.2px;font-weight:850}
 .passcode-box{position:relative}
@@ -338,17 +349,17 @@ a{color:inherit;text-decoration:none}
     <div class="auth-card">
       <div class="auth-head">
         <h1>전환법인<br><span>라운지</span></h1>
-        <p><b>삼성화재 전환법인 ARC 전용 공간입니다.</b><br>비밀번호 4자리를 입력해 주세요.</p>
+        <p><b>삼성화재 전환법인 ARC 전용 공간입니다.</b><br>코드번호와 소속지점으로 로그인해 주세요.</p>
       </div>
       <form id="accessForm">
-        <div class="access-entry">
-          <div class="access-pin" id="accessPin" aria-hidden="true">
-            <span class="access-cell"></span>
-            <span class="access-cell"></span>
-            <span class="access-cell"></span>
-            <span class="access-cell"></span>
-          </div>
-          <input class="access-code-input" id="accessPasscode" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-label="접속 비밀번호 4자리" required>
+        <div class="member-mode" role="tablist" aria-label="회원 접속 방식">
+          <button class="on" id="memberLoginMode" type="button">로그인</button>
+          <button id="memberSignupMode" type="button">회원가입</button>
+        </div>
+        <div class="member-fields">
+          <div class="member-field"><label for="memberBranch">소속지점</label><input id="memberBranch" type="text" autocomplete="organization" placeholder="CSV A열과 동일하게 입력" required></div>
+          <div class="member-field"><label for="memberCodeNumber">코드번호</label><input id="memberCodeNumber" type="text" inputmode="text" autocomplete="username" placeholder="CSV B열 코드번호" required></div>
+          <div class="member-field"><label for="memberPassword">비밀번호</label><input id="memberPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required minlength="4"></div>
         </div>
         <div class="access-message" id="accessMessage" aria-live="polite"></div>
         <div class="access-notice" id="accessConsent" role="note">
@@ -361,7 +372,7 @@ a{color:inherit;text-decoration:none}
             <span>위 내용을 확인했습니다</span>
           </label>
         </div>
-        <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">입장</button></div>
+        <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">로그인</button></div>
       </form>
     </div>
   </section>
@@ -446,7 +457,7 @@ async function loadPosts(){
     try{
       const response=await fetch('/api/feed',{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
       const result=await response.json().catch(()=>({error:'자료를 불러오지 못했습니다.'}));
-      if(response.status===401){clearPublicAccess();showAuth();toast(result.error||'다시 접속 비밀번호를 입력해 주세요');return}
+      if(response.status===401){clearPublicAccess();showAuth();toast(result.error||'다시 로그인해 주세요');return}
       if(!response.ok)throw new Error(result.error||'자료를 불러오지 못했습니다.');
       posts=Array.isArray(result.posts)?result.posts.map(rowToPost):[];
       return;
@@ -614,7 +625,7 @@ function showAuth(){
   document.getElementById('scroller').hidden=true;
   document.getElementById('bellBtn').hidden=true;
   updateAccessUi();
-  setTimeout(()=>document.getElementById('accessPasscode').focus(),120);
+  setTimeout(()=>document.getElementById('memberBranch').focus(),120);
 }
 function showFeed(){
   document.getElementById('app').classList.remove('auth-view');
@@ -857,12 +868,14 @@ function downloadPost(id){
 }
 function accessElements(){
   return {
-    input:document.getElementById('accessPasscode'),
-    pin:document.getElementById('accessPin'),
-    cells:[...document.querySelectorAll('#accessPin .access-cell')],
+    branch:document.getElementById('memberBranch'),
+    codeNumber:document.getElementById('memberCodeNumber'),
+    password:document.getElementById('memberPassword'),
     agree:document.getElementById('accessAgree'),
     message:document.getElementById('accessMessage'),
-    button:document.getElementById('accessBtn')
+    button:document.getElementById('accessBtn'),
+    loginMode:document.getElementById('memberLoginMode'),
+    signupMode:document.getElementById('memberSignupMode')
   };
 }
 function setAccessMessage(text='',ok=false){
@@ -871,46 +884,34 @@ function setAccessMessage(text='',ok=false){
   message.classList.toggle('ok',ok);
 }
 function updateAccessUi(){
-  const {input,pin,cells,agree,button}=accessElements();
-  const code=input.value.trim();
-  const authVisible=!document.getElementById('authScreen').hidden;
-  cells.forEach((cell,index)=>{
-    cell.classList.toggle('filled',index<code.length);
-    cell.classList.toggle('active',index===code.length&&(authVisible||document.activeElement===input));
-  });
+  const {branch,codeNumber,password,agree,button}=accessElements();
+  const filled=branch.value.trim()&&codeNumber.value.trim()&&password.value.length>=4;
   const busy=button.dataset.busy==='true';
-  button.disabled=busy||code.length!==4||!agree.checked;
-  if(code.length<4&&!busy)setAccessMessage('비밀번호 4자리를 입력해 주세요');
+  button.disabled=busy||!filled||!agree.checked;
+  if(!filled&&!busy)setAccessMessage('소속지점, 코드번호, 비밀번호를 입력해 주세요');
   else if(!agree.checked&&!busy)setAccessMessage('동의 후 입장할 수 있습니다');
-  else if(!busy&&!pin.classList.contains('err'))setAccessMessage('');
-}
-function setAccessCode(value){
-  const {input,pin}=accessElements();
-  input.value=String(value).replace(/\D/g,'').slice(0,4);
-  pin.classList.remove('err','ok');
-  updateAccessUi();
-}
-function appendAccessDigit(digit){
-  const {input}=accessElements();
-  if(input.value.length>=4)return;
-  setAccessCode(input.value+digit);
-}
-function backspaceAccessDigit(){
-  const {input}=accessElements();
-  setAccessCode(input.value.slice(0,-1));
+  else if(!busy)setAccessMessage('');
 }
 function showAccessError(text){
-  const {input,pin,button}=accessElements();
-  pin.classList.remove('ok');
-  pin.classList.add('err');
+  const {password,button}=accessElements();
   button.disabled=true;
   setAccessMessage(text);
   setTimeout(()=>{
-    pin.classList.remove('err');
-    input.value='';
-    input.focus();
+    password.value='';
+    password.focus();
     updateAccessUi();
-  },620);
+  },520);
+}
+function setMemberMode(mode){
+  const {button,loginMode,signupMode,password}=accessElements();
+  const signup=mode==='signup';
+  document.getElementById('accessForm').dataset.mode=signup?'signup':'login';
+  loginMode.classList.toggle('on',!signup);
+  signupMode.classList.toggle('on',signup);
+  button.textContent=signup?'회원가입':'로그인';
+  password.setAttribute('autocomplete',signup?'new-password':'current-password');
+  setAccessMessage(signup?'CSV 명단과 일치하는 경우에만 가입됩니다.':'');
+  updateAccessUi();
 }
 document.getElementById('scroller').addEventListener('scroll',e=>document.getElementById('app').classList.toggle('scrolled',e.currentTarget.scrollTop>6),{passive:true});
 document.getElementById('backBtn').addEventListener('click',closeDetail);
@@ -951,42 +952,46 @@ document.getElementById('loungeBrand').addEventListener('click',()=>{
   }
   adminTapTimer=setTimeout(()=>{adminTapCount=0},ADMIN_TAP_WINDOW_MS);
 });
-document.getElementById('accessPin').addEventListener('click',()=>document.getElementById('accessPasscode').focus());
-document.getElementById('accessPasscode').addEventListener('focus',updateAccessUi);
-document.getElementById('accessPasscode').addEventListener('blur',updateAccessUi);
-document.getElementById('accessPasscode').addEventListener('input',e=>{
-  setAccessCode(e.target.value);
+document.getElementById('memberLoginMode').addEventListener('click',()=>setMemberMode('login'));
+document.getElementById('memberSignupMode').addEventListener('click',()=>setMemberMode('signup'));
+['memberBranch','memberCodeNumber','memberPassword'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',updateAccessUi);
 });
 document.getElementById('accessAgree').addEventListener('change',updateAccessUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const {input,pin,agree,button}=accessElements();
-  const passcode=input.value.trim();
-  if(!/^\d{4}$/.test(passcode)){input.focus();setAccessMessage('4자리 숫자 비밀번호를 입력해 주세요');return}
+  const {branch,codeNumber,password,agree,button}=accessElements();
+  const mode=document.getElementById('accessForm').dataset.mode==='signup'?'signup':'login';
+  if(!branch.value.trim()||!codeNumber.value.trim()||password.value.length<4){branch.focus();setAccessMessage('소속지점, 코드번호, 비밀번호를 입력해 주세요');return}
   if(!agree.checked){setAccessMessage('동의 후 입장할 수 있습니다');return}
   button.dataset.busy='true';
   button.disabled=true;
-  button.textContent='확인 중';
+  button.textContent=mode==='signup'?'가입 중':'확인 중';
   try{
     const response=await fetch('/api/public/access',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({passcode})
+      body:JSON.stringify({
+        mode,
+        branch:branch.value,
+        codeNumber:codeNumber.value,
+        password:password.value
+      })
     });
     const result=await response.json().catch(()=>({error:'접속 확인에 실패했습니다.'}));
-    if(!response.ok){showAccessError(result.error||'비밀번호를 확인해 주세요');return}
+    if(!response.ok){showAccessError(result.error||'가입 정보 또는 비밀번호를 확인해 주세요');return}
     publicAccessToken=result.token||'';
     sessionStorage.setItem(ACCESS_KEY,publicAccessToken);
-    pin.classList.add('ok');
-    setAccessMessage('확인되었습니다',true);
+    setAccessMessage(mode==='signup'?'가입되었습니다':'확인되었습니다',true);
     document.getElementById('accessForm').reset();
+    setMemberMode('login');
     showFeed();
     await render();
     toast('접속되었습니다');
   }finally{
     delete button.dataset.busy;
     button.disabled=false;
-    button.textContent='입장';
+    button.textContent=document.getElementById('accessForm').dataset.mode==='signup'?'회원가입':'로그인';
     updateAccessUi();
   }
 });
@@ -1020,8 +1025,6 @@ window.addEventListener('popstate',e=>{
 document.addEventListener('keydown',e=>{
   const authVisible=!document.getElementById('authScreen').hidden;
   if(authVisible){
-    if(/^\d$/.test(e.key)){appendAccessDigit(e.key);e.preventDefault();return}
-    if(e.key==='Backspace'){backspaceAccessDigit();e.preventDefault();return}
     if(e.key==='Enter'&&!document.getElementById('accessBtn').disabled){document.getElementById('accessForm').requestSubmit();return}
   }
   if(e.key==='Escape')closeDetail();
