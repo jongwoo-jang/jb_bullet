@@ -4,6 +4,12 @@
   "functions": {
     "api/admin/upload.js": {
       "maxDuration": 300
+    },
+    "api/admin/create-post.js": {
+      "maxDuration": 300
+    },
+    "api/admin/drive-session.js": {
+      "maxDuration": 60
     }
   }
 }

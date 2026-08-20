@@ -235,9 +235,6 @@ const publicPasscode=document.getElementById('publicPasscode');
 const savePasscodeBtn=document.getElementById('savePasscodeBtn');
 const passcodeStatus=document.getElementById('passcodeStatus');
 const submitButton=form.querySelector('button[type="submit"]');
-const MAX_UPLOAD_REQUEST_BYTES=4*1024*1024;
-const IMAGE_MAX_DIMENSION=1800;
-const IMAGE_QUALITY=.82;
 let selected=[];
 let currentSession=null;
 let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
@@ -249,30 +246,6 @@ function getPosts(){try{return JSON.parse(localStorage.getItem(STORE_KEY)||'[]')
 function setPosts(posts){localStorage.setItem(STORE_KEY,JSON.stringify(posts))}
 function today(){const d=new Date();return `${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`}
 function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
-function formatBytes(bytes){
-  if(bytes>=1024*1024)return `${(bytes/1024/1024).toFixed(1)}MB`;
-  return `${Math.max(1,Math.round(bytes/1024))}KB`;
-}
-async function compressImageFile(file){
-  if(!file.type.startsWith('image/')||file.type==='image/gif'||file.size<900*1024)return file;
-  const src=await readFile(file);
-  const image=await new Promise((resolve,reject)=>{
-    const img=new Image();
-    img.onload=()=>resolve(img);
-    img.onerror=reject;
-    img.src=src;
-  });
-  const scale=Math.min(1,IMAGE_MAX_DIMENSION/Math.max(image.width,image.height));
-  if(scale>=1&&file.size<MAX_UPLOAD_REQUEST_BYTES)return file;
-  const canvas=document.createElement('canvas');
-  canvas.width=Math.max(1,Math.round(image.width*scale));
-  canvas.height=Math.max(1,Math.round(image.height*scale));
-  canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
-  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',IMAGE_QUALITY));
-  if(!blob||blob.size>=file.size)return file;
-  const name=file.name.replace(/\.[^.]+$/,'')+'.jpg';
-  return new File([blob],name,{type:'image/jpeg',lastModified:Date.now()});
-}
 function displayAdminName(value){
   const id=String(value||'').split('@')[0].toLowerCase();
   const names={lemuel05:'장종우',jaguar06:'정환석'};
@@ -283,8 +256,7 @@ fileInput.addEventListener('change',async()=>{
   selected=await Promise.all(files.map(async(file)=>{
     const src=await readFile(file);
     const type=file.type.includes('pdf')||file.name.toLowerCase().endsWith('.pdf')?'pdf':'image';
-    const uploadFile=type==='image'?await compressImageFile(file):file;
-    return {src,type,name:uploadFile.name,file,uploadFile,originalSize:file.size,uploadSize:uploadFile.size};
+    return {src,type,name:file.name,file};
   }));
   preview.classList.add('show');
   preview.innerHTML=`<div class="preview-list">${selected.map((item,index)=>`
@@ -292,8 +264,6 @@ fileInput.addEventListener('change',async()=>{
       <span class="preview-count">${index+1}</span>
       ${item.type==='image'?`<img src="${item.src}" alt="">`:`<div class="pdf">PDF</div>`}
     </div>`).join('')}</div>`;
-  const total=selected.reduce((sum,item)=>sum+(item.uploadSize||0),0);
-  if(total>MAX_UPLOAD_REQUEST_BYTES)toast(`선택 파일이 ${formatBytes(total)}입니다. 한 번에 약 4MB 이하로 줄여 주세요`);
 });
 form.addEventListener('reset',()=>{selected=[];preview.classList.remove('show');preview.innerHTML='';setAuthorFromSession()});
 form.addEventListener('submit',async e=>{
@@ -332,26 +302,62 @@ async function savePost(post){
   }
   const token=getAccessToken();
   if(!token){toast('로그인이 필요합니다');return false}
-  const uploadBytes=selected.reduce((sum,item)=>sum+(item.uploadSize||item.file.size),0);
-  if(uploadBytes>MAX_UPLOAD_REQUEST_BYTES){
-    toast(`업로드 용량이 ${formatBytes(uploadBytes)}입니다. 사진 수를 줄여 약 4MB 이하로 올려 주세요`);
+  try{
+    const uploaded=[];
+    for(const [index,item] of selected.entries()){
+      submitButton.textContent=`${index+1}/${selected.length} Drive 업로드 중`;
+      uploaded.push(await uploadDirectToDrive(item,token));
+    }
+    submitButton.textContent='게시물 저장 중';
+    const result=await apiJson('/api/admin/create-post',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({
+        title:post.title,
+        category:post.category,
+        tags:post.tags,
+        description:post.desc,
+        ratio:post.ratio,
+        files:uploaded
+      })
+    });
+    if(!result.ok)throw new Error(result.error||'게시물 저장에 실패했습니다');
+    return true;
+  }catch(error){
+    toast(error.message||'업로드에 실패했습니다');
     return false;
   }
-  const body=new FormData();
-  selected.forEach(item=>body.append('file',item.uploadFile||item.file,item.name));
-  body.append('title',post.title);
-  body.append('category',post.category);
-  body.append('tags',JSON.stringify(post.tags));
-  body.append('description',post.desc);
-  body.append('ratio',post.ratio);
-  const response=await fetch('/api/admin/upload',{method:'POST',headers:{Authorization:`Bearer ${token}`},body});
+}
+async function uploadDirectToDrive(item,token){
+  const session=await apiJson('/api/admin/drive-session',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+    body:JSON.stringify({
+      filename:item.name,
+      mimeType:item.file.type||'application/octet-stream',
+      size:item.file.size
+    })
+  });
+  if(!session.ok)throw new Error(session.error||'Google Drive 업로드 세션을 만들지 못했습니다');
+  const response=await fetch(session.uploadUrl,{
+    method:'PUT',
+    headers:{'Content-Type':item.file.type||'application/octet-stream'},
+    body:item.file
+  });
   const raw=await response.text();
-  let result={};
-  try{result=raw?JSON.parse(raw):{}}catch(error){
-    result={error:response.status===413?'파일 용량이 커서 Vercel 업로드 제한에 걸렸습니다. 사진 수를 줄이거나 용량을 낮춰 주세요.':raw.slice(0,120)||'업로드 응답을 읽을 수 없습니다.'};
+  let data={};
+  try{data=raw?JSON.parse(raw):{}}catch(error){}
+  if(!response.ok)throw new Error((data.error&&data.error.message)||raw.slice(0,140)||'Google Drive 업로드에 실패했습니다');
+  return {...data,filename:item.name,mimeType:item.file.type||data.mimeType||'application/octet-stream'};
+}
+async function apiJson(url,options){
+  const response=await fetch(url,options);
+  const raw=await response.text();
+  let data={};
+  try{data=raw?JSON.parse(raw):{}}catch(error){
+    data={error:raw.slice(0,160)||'서버 응답을 읽을 수 없습니다.'};
   }
-  if(!response.ok){toast(result.error||'Google Drive 업로드에 실패했습니다');return false}
-  return true;
+  return {...data,ok:response.ok,status:response.status};
 }
 list.addEventListener('click',e=>{
   const btn=e.target.closest('[data-del]');if(!btn)return;

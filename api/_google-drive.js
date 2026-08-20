@@ -57,4 +57,4 @@ function hasValue(name) {
   return Boolean(String(process.env[name] || '').trim());
 }
 
-module.exports = { getDrive, getDriveAuthMode, getMissingDriveEnv };
+module.exports = { getDrive, getDriveAuth, getDriveAuthMode, getMissingDriveEnv };
