@@ -55,7 +55,7 @@ a{color:inherit;text-decoration:none}
 .settings-panel{padding:18px}
 .settings-panel h2{margin:0 0 5px;font-size:16px;font-weight:850}
 .settings-panel p{margin:0 0 16px;color:var(--ink2);font-size:13.5px;line-height:1.55;word-break:keep-all}
-.passcode-form{display:grid;grid-template-columns:minmax(0,190px) auto 1fr;gap:8px;align-items:end}
+.passcode-form{display:grid;grid-template-columns:minmax(0,190px) auto auto 1fr;gap:8px;align-items:end}
 .passcode-form .field{margin:0}
 .passcode-form button{height:52px;padding:0 18px}
 .passcode-status{align-self:center;display:inline-flex;align-items:center;color:var(--ink3);font-size:12.5px;font-weight:780}
@@ -263,6 +263,7 @@ a{color:inherit;text-decoration:none}
       <form class="passcode-form" id="memberCodeForm">
         <div class="field"><label for="memberCodeCsv">CSV 파일</label><input id="memberCodeCsv" type="file" accept=".csv,text/csv" required></div>
         <button class="primary" id="saveMemberCodesBtn" type="submit">업로드</button>
+        <button class="ghost" id="clearMemberCodesBtn" type="button">업로드 데이터 삭제</button>
         <span class="passcode-status" id="memberCodeStatus">상태 확인 중</span>
       </form>
       <p class="hint">첫 행이 제목이면 자동으로 제외합니다. 예: A열 소속지점, B열 코드번호, C열 실명 선택</p>
@@ -295,6 +296,7 @@ const adminPanels=[...document.querySelectorAll('[data-admin-panel]')];
 const memberCodeForm=document.getElementById('memberCodeForm');
 const memberCodeCsv=document.getElementById('memberCodeCsv');
 const saveMemberCodesBtn=document.getElementById('saveMemberCodesBtn');
+const clearMemberCodesBtn=document.getElementById('clearMemberCodesBtn');
 const memberCodeStatus=document.getElementById('memberCodeStatus');
 const submitButton=form.querySelector('button[type="submit"]');
 const DRIVE_CHUNK_BYTES=2.5*1024*1024;
@@ -704,6 +706,33 @@ memberCodeForm.addEventListener('submit',async e=>{
   }finally{
     saveMemberCodesBtn.disabled=false;
     saveMemberCodesBtn.textContent='업로드';
+  }
+});
+clearMemberCodesBtn.addEventListener('click',async()=>{
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  if(!confirm('업로드된 회원코드 목록만 삭제할까요? 기존 가입 회원과 비밀번호는 유지됩니다.'))return;
+  clearMemberCodesBtn.disabled=true;
+  clearMemberCodesBtn.textContent='삭제 중';
+  memberCodeStatus.textContent='업로드 데이터 삭제 중';
+  try{
+    const response=await fetch('/api/admin/passcode',{
+      method:'DELETE',
+      headers:{Authorization:`Bearer ${token}`}
+    });
+    const result=await response.json().catch(()=>({error:'삭제 응답을 읽을 수 없습니다.'}));
+    if(!response.ok){toast(result.error||'업로드 데이터 삭제에 실패했습니다');return}
+    memberCodeCsv.value='';
+    const mode=result.mode==='deactivated'?'비활성화':'삭제';
+    memberCodeStatus.textContent=`코드 ${Number(result.removedCodes||0)}개 ${mode} · 회원 비밀번호 유지`;
+    toast('회원코드 목록만 정리했습니다');
+    loadMemberCodeStatus();
+  }catch(error){
+    memberCodeStatus.textContent='삭제 실패';
+    toast(error.message||'업로드 데이터 삭제에 실패했습니다');
+  }finally{
+    clearMemberCodesBtn.disabled=false;
+    clearMemberCodesBtn.textContent='업로드 데이터 삭제';
   }
 });
 authForm.addEventListener('submit',async e=>{

@@ -14,8 +14,9 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') return getStatus(res);
   if (req.method === 'POST') return updatePasscode(req, res);
+  if (req.method === 'DELETE') return clearMemberCodeData(res);
 
-  res.setHeader('Allow', 'GET, POST');
+  res.setHeader('Allow', 'GET, POST, DELETE');
   return res.status(405).json({ error: 'Method not allowed' });
 };
 
@@ -72,7 +73,7 @@ async function updatePasscode(req, res) {
     const existing = await getAllExistingCodeNumbers(supabase);
     const newCodes = codes.filter((row) => !existing.has(row.code_number));
     const removedCodes = [...existing].filter((codeNumber) => !incoming.has(codeNumber));
-    await insertNewMemberCodes(supabase, newCodes);
+    await upsertMemberCodes(supabase, codes);
     const removed = await deleteRemovedMemberCodes(supabase, removedCodes);
     return res.status(200).json({
       ok: true,
@@ -92,6 +93,40 @@ async function updatePasscode(req, res) {
   }
 }
 
+async function clearMemberCodeData(res) {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { count: codeCount, error: codeCountError } = await supabase
+      .from('fp_member_codes')
+      .select('code_number', { count: 'exact', head: true });
+    if (codeCountError) throw new Error(codeCountError.message);
+
+    let mode = 'deleted';
+    const codeDelete = await supabase
+      .from('fp_member_codes')
+      .delete()
+      .neq('code_number', '');
+    if (codeDelete.error) {
+      if (!isForeignKeyDeleteError(codeDelete.error)) throw new Error(codeDelete.error.message);
+      const codeDeactivate = await supabase
+        .from('fp_member_codes')
+        .update({ is_active: false })
+        .neq('code_number', '');
+      if (codeDeactivate.error) throw new Error(codeDeactivate.error.message);
+      mode = 'deactivated';
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, removedCodes: codeCount || 0, preservedMembers: true, mode });
+  } catch (error) {
+    console.error(error);
+    if (isMissingMemberTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '회원가입 코드 데이터를 삭제하지 못했습니다.' });
+  }
+}
+
 async function getAllExistingCodeNumbers(supabase) {
   const existing = new Set();
   for (let start = 0; ; start += LOOKUP_CHUNK_SIZE) {
@@ -107,19 +142,19 @@ async function getAllExistingCodeNumbers(supabase) {
   return existing;
 }
 
-async function insertNewMemberCodes(supabase, codes) {
+async function upsertMemberCodes(supabase, codes) {
   if (!codes.length) return;
   let useDisplayName = true;
   for (const chunk of chunkArray(codes, UPSERT_CHUNK_SIZE)) {
     const payload = useDisplayName ? chunk : chunk.map(({ display_name, ...row }) => row);
     let { error } = await supabase
       .from('fp_member_codes')
-      .upsert(payload, { onConflict: 'code_number', ignoreDuplicates: true });
+      .upsert(payload, { onConflict: 'code_number' });
     if (useDisplayName && isMissingDisplayNameColumn(error)) {
       useDisplayName = false;
       const retry = await supabase
         .from('fp_member_codes')
-        .upsert(chunk.map(({ display_name, ...row }) => row), { onConflict: 'code_number', ignoreDuplicates: true });
+        .upsert(chunk.map(({ display_name, ...row }) => row), { onConflict: 'code_number' });
       error = retry.error;
     }
     if (error) throw new Error(error.message);
@@ -167,6 +202,11 @@ function isMissingMemberTable(error) {
 
 function isMissingDisplayNameColumn(error) {
   return Boolean(error && String(error.message || '').includes('display_name'));
+}
+
+function isForeignKeyDeleteError(error) {
+  const message = String(error && error.message ? error.message : '');
+  return message.includes('foreign key') || message.includes('violates foreign key constraint') || message.includes('23503');
 }
 
 function chunkArray(items, size) {
