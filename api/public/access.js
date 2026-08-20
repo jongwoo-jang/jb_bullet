@@ -11,6 +11,7 @@ module.exports = async function handler(req, res) {
     const body = await readJson(req);
     const supabase = getSupabaseAdmin();
     if (body.mode === 'signup') return signup(body, supabase, res);
+    if (body.mode === 'reset') return resetPassword(body, supabase, res);
     return login(body, supabase, res);
   } catch (error) {
     console.error(error);
@@ -90,6 +91,58 @@ async function login(body, supabase, res) {
 
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ token: createAccessToken({ codeNumber, branch, displayName }), branch, codeNumber, displayName });
+}
+
+async function resetPassword(body, supabase, res) {
+  const codeNumber = normalizeCodeNumber(body.codeNumber);
+  const branch = normalizeBranch(body.branch);
+  const displayName = normalizeDisplayName(body.displayName);
+  const password = String(body.password || '');
+  if (!codeNumber || !branch || !displayName || !isValidPassword(password)) {
+    return res.status(400).json({ error: '실명, 소속지점, 코드번호, 새 비밀번호를 모두 입력해 주세요.' });
+  }
+
+  const code = await getActiveMemberCode(supabase, codeNumber);
+  if (!code || normalizeBranch(code.branch) !== branch) {
+    return res.status(403).json({ error: '등록된 소속지점과 코드번호가 일치하지 않습니다.' });
+  }
+
+  const member = await getMemberByCode(supabase, codeNumber);
+  const memberBranch = normalizeBranch(member && member.branch);
+  const memberName = normalizeDisplayName(member && member.display_name);
+  const codeName = normalizeDisplayName(code.display_name);
+  if (!member || memberBranch !== branch) {
+    return res.status(404).json({ error: '가입된 회원 정보를 찾을 수 없습니다. 먼저 회원가입을 진행해 주세요.' });
+  }
+  if ((memberName && memberName !== '회원' && memberName !== displayName) || (codeName && codeName !== displayName)) {
+    return res.status(403).json({ error: '실명, 소속지점, 코드번호를 확인해 주세요.' });
+  }
+
+  const { salt, hash } = hashPassword(password);
+  const verifiedName = codeName || memberName || displayName;
+  const updateRow = {
+    password_hash: hash,
+    password_salt: salt,
+    display_name: verifiedName,
+    last_login_at: new Date().toISOString()
+  };
+  let { error } = await supabase
+    .from('fp_members')
+    .update(updateRow)
+    .eq('code_number', codeNumber);
+  if (isMissingDisplayNameColumn(error)) {
+    const fallback = { ...updateRow };
+    delete fallback.display_name;
+    const retry = await supabase
+      .from('fp_members')
+      .update(fallback)
+      .eq('code_number', codeNumber);
+    error = retry.error;
+  }
+  if (error) throw new Error(error.message);
+
+  res.setHeader('Cache-Control', 'no-store');
+  return res.status(200).json({ ok: true, codeNumber, branch, displayName: verifiedName });
 }
 
 function normalizeCodeNumber(value) {

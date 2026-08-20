@@ -166,7 +166,9 @@ a{color:inherit;text-decoration:none}
 .member-mode{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0 0 14px;padding:4px;border-radius:12px;background:#EEF1F5}
 .member-mode button{height:42px;border-radius:9px;color:var(--ink2);font-size:14px;font-weight:850}
 .member-mode button.on{background:#fff;color:var(--brand2);box-shadow:0 5px 16px rgba(24,34,45,.08)}
+.auth-link-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:6px}
 .signup-link{display:flex;align-items:center;justify-content:center;margin-top:6px;color:var(--brand2);font-size:14px;font-weight:850}
+.auth-link-row .signup-link{min-height:38px;margin-top:0;border-radius:999px;background:#F4F6F8}
 .admin-login-link{display:flex;align-items:center;justify-content:center;margin-top:14px;color:var(--ink3);font-size:12.8px;font-weight:820}
 .admin-login-link:hover{color:var(--brand2)}
 .member-fields{display:grid;gap:10px;margin-bottom:12px}
@@ -365,7 +367,10 @@ a{color:inherit;text-decoration:none}
         </div>
         <div class="access-message" id="accessMessage" aria-live="polite"></div>
         <div class="auth-actions"><button class="primary" id="accessBtn" type="submit">로그인</button></div>
-        <button class="signup-link" id="openSignupBtn" type="button">회원가입</button>
+        <div class="auth-link-row">
+          <button class="signup-link" id="openSignupBtn" type="button">회원가입</button>
+          <button class="signup-link" id="openResetBtn" type="button">비밀번호 재설정</button>
+        </div>
         <a class="admin-login-link" href="admin">관리자 로그인</a>
       </form>
     </div>
@@ -395,6 +400,24 @@ a{color:inherit;text-decoration:none}
         <div class="access-message" id="signupMessage" aria-live="polite"></div>
         <div class="auth-actions"><button class="primary" id="signupBtn" type="submit">가입하기</button></div>
         <button class="signup-link" id="backToLoginBtn" type="button">로그인으로 돌아가기</button>
+      </form>
+    </div>
+
+    <div class="auth-card" id="resetCard" hidden>
+      <div class="auth-head">
+        <h1>비밀번호<br><span>재설정</span></h1>
+        <p><b>가입한 회원 정보와 일치하면 새 비밀번호를 설정할 수 있습니다.</b></p>
+      </div>
+      <form id="resetForm">
+        <div class="member-fields">
+          <div class="member-field"><label for="resetDisplayName">실명</label><input id="resetDisplayName" type="text" autocomplete="name" placeholder="가입 시 입력한 실명" required></div>
+          <div class="member-field"><label for="resetBranch">소속지점</label><input id="resetBranch" type="text" autocomplete="organization" placeholder="소속지점" required></div>
+          <div class="member-field"><label for="resetCodeNumber">코드번호</label><input id="resetCodeNumber" type="text" inputmode="text" autocomplete="username" placeholder="코드번호" required></div>
+          <div class="member-field"><label for="resetPassword">새 비밀번호</label><input id="resetPassword" type="password" autocomplete="new-password" placeholder="4자 이상 입력" required minlength="4"></div>
+        </div>
+        <div class="access-message" id="resetMessage" aria-live="polite"></div>
+        <div class="auth-actions"><button class="primary" id="resetBtn" type="submit">새 비밀번호 저장</button></div>
+        <button class="signup-link" id="resetBackToLoginBtn" type="button">로그인으로 돌아가기</button>
       </form>
     </div>
   </section>
@@ -647,6 +670,7 @@ function showAuth(){
   document.getElementById('authScreen').hidden=false;
   document.getElementById('loginCard').hidden=false;
   document.getElementById('signupCard').hidden=true;
+  document.getElementById('resetCard').hidden=true;
   document.getElementById('tabs').hidden=true;
   document.getElementById('searchWrap').hidden=true;
   document.getElementById('scroller').hidden=true;
@@ -931,6 +955,16 @@ function signupElements(){
     button:document.getElementById('signupBtn')
   };
 }
+function resetElements(){
+  return {
+    displayName:document.getElementById('resetDisplayName'),
+    branch:document.getElementById('resetBranch'),
+    codeNumber:document.getElementById('resetCodeNumber'),
+    password:document.getElementById('resetPassword'),
+    message:document.getElementById('resetMessage'),
+    button:document.getElementById('resetBtn')
+  };
+}
 function setAccessMessage(text='',ok=false){
   const {message}=accessElements();
   message.textContent=text;
@@ -938,6 +972,11 @@ function setAccessMessage(text='',ok=false){
 }
 function setSignupMessage(text='',ok=false){
   const {message}=signupElements();
+  message.textContent=text;
+  message.classList.toggle('ok',ok);
+}
+function setResetMessage(text='',ok=false){
+  const {message}=resetElements();
   message.textContent=text;
   message.classList.toggle('ok',ok);
 }
@@ -957,6 +996,14 @@ function updateSignupUi(){
   if(!filled&&!busy)setSignupMessage('실명, 소속지점, 코드번호, 비밀번호를 입력해 주세요');
   else if(!agree.checked&&!busy)setSignupMessage('필수 동의 후 가입할 수 있습니다');
   else if(!busy)setSignupMessage('');
+}
+function updateResetUi(){
+  const {displayName,branch,codeNumber,password,button}=resetElements();
+  const filled=displayName.value.trim()&&branch.value.trim()&&codeNumber.value.trim()&&password.value.length>=4;
+  const busy=button.dataset.busy==='true';
+  button.disabled=busy||!filled;
+  if(!filled&&!busy)setResetMessage('실명, 소속지점, 코드번호, 새 비밀번호를 입력해 주세요');
+  else if(!busy)setResetMessage('');
 }
 function showAccessError(text){
   const {password,button}=accessElements();
@@ -978,18 +1025,42 @@ function showSignupError(text){
     updateSignupUi();
   },520);
 }
+function showResetError(text){
+  const {password,button}=resetElements();
+  button.disabled=true;
+  setResetMessage(text);
+  setTimeout(()=>{
+    password.value='';
+    password.focus();
+    updateResetUi();
+  },520);
+}
 function showSignup(){
   document.getElementById('loginCard').hidden=true;
   document.getElementById('signupCard').hidden=false;
+  document.getElementById('resetCard').hidden=true;
   document.getElementById('signupForm').reset();
   setAccessMessage('');
+  setResetMessage('');
   updateSignupUi();
   setTimeout(()=>document.getElementById('signupBranch').focus(),80);
 }
+function showReset(){
+  document.getElementById('loginCard').hidden=true;
+  document.getElementById('signupCard').hidden=true;
+  document.getElementById('resetCard').hidden=false;
+  document.getElementById('resetForm').reset();
+  setAccessMessage('');
+  setSignupMessage('');
+  updateResetUi();
+  setTimeout(()=>document.getElementById('resetDisplayName').focus(),80);
+}
 function showLogin(){
   document.getElementById('signupCard').hidden=true;
+  document.getElementById('resetCard').hidden=true;
   document.getElementById('loginCard').hidden=false;
   setSignupMessage('');
+  setResetMessage('');
   updateAccessUi();
   setTimeout(()=>document.getElementById('memberCodeNumber').focus(),80);
 }
@@ -1033,12 +1104,17 @@ document.getElementById('loungeBrand').addEventListener('click',()=>{
   adminTapTimer=setTimeout(()=>{adminTapCount=0},ADMIN_TAP_WINDOW_MS);
 });
 document.getElementById('openSignupBtn').addEventListener('click',showSignup);
+document.getElementById('openResetBtn').addEventListener('click',showReset);
 document.getElementById('backToLoginBtn').addEventListener('click',showLogin);
+document.getElementById('resetBackToLoginBtn').addEventListener('click',showLogin);
 ['memberCodeNumber','memberPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateAccessUi);
 });
 ['signupDisplayName','signupBranch','signupCodeNumber','signupPassword'].forEach(id=>{
   document.getElementById(id).addEventListener('input',updateSignupUi);
+});
+['resetDisplayName','resetBranch','resetCodeNumber','resetPassword'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',updateResetUi);
 });
 document.getElementById('accessAgree').addEventListener('change',updateSignupUi);
 document.getElementById('accessForm').addEventListener('submit',async e=>{
@@ -1110,6 +1186,41 @@ document.getElementById('signupForm').addEventListener('submit',async e=>{
     updateSignupUi();
   }
 });
+document.getElementById('resetForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const {displayName,branch,codeNumber,password,button}=resetElements();
+  if(!displayName.value.trim()||!branch.value.trim()||!codeNumber.value.trim()||password.value.length<4){displayName.focus();setResetMessage('실명, 소속지점, 코드번호, 새 비밀번호를 입력해 주세요');return}
+  button.dataset.busy='true';
+  button.disabled=true;
+  button.textContent='저장 중';
+  try{
+    const response=await fetch('/api/public/access',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        mode:'reset',
+        displayName:displayName.value,
+        branch:branch.value,
+        codeNumber:codeNumber.value,
+        password:password.value
+      })
+    });
+    const result=await response.json().catch(()=>({error:'비밀번호 재설정에 실패했습니다.'}));
+    if(!response.ok){showResetError(result.error||'회원 정보를 확인해 주세요');return}
+    const login=accessElements();
+    login.codeNumber.value=codeNumber.value;
+    login.password.value='';
+    document.getElementById('resetForm').reset();
+    showLogin();
+    setAccessMessage('비밀번호가 재설정되었습니다. 새 비밀번호로 로그인해 주세요.',true);
+    toast('비밀번호를 재설정했습니다');
+  }finally{
+    delete button.dataset.busy;
+    button.disabled=false;
+    button.textContent='새 비밀번호 저장';
+    updateResetUi();
+  }
+});
 document.getElementById('bellBtn').addEventListener('click',async()=>{
   await loadPosts();
   const count=unreadPosts().length;
@@ -1141,8 +1252,9 @@ document.addEventListener('keydown',e=>{
   const authVisible=!document.getElementById('authScreen').hidden;
   if(authVisible){
     const signupVisible=!document.getElementById('signupCard').hidden;
-    const button=document.getElementById(signupVisible?'signupBtn':'accessBtn');
-    const form=document.getElementById(signupVisible?'signupForm':'accessForm');
+    const resetVisible=!document.getElementById('resetCard').hidden;
+    const button=document.getElementById(resetVisible?'resetBtn':signupVisible?'signupBtn':'accessBtn');
+    const form=document.getElementById(resetVisible?'resetForm':signupVisible?'signupForm':'accessForm');
     if(e.key==='Enter'&&!button.disabled){form.requestSubmit();return}
   }
   if(e.key==='Escape')closeDetail();
