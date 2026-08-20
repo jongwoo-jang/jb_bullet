@@ -195,7 +195,7 @@ a{color:inherit;text-decoration:none}
 }
 .pin.in{opacity:1;transform:none}
 .media-card{
-  position:relative;overflow:hidden;border-radius:10px;background:#F1F3F5;aspect-ratio:1/1;
+  position:relative;overflow:hidden;border-radius:10px;background:#F1F3F5;aspect-ratio:3/4;
   border:0;box-shadow:none;
   transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s;
 }
@@ -203,7 +203,7 @@ a{color:inherit;text-decoration:none}
 .thumb{display:block;width:100%;height:auto;aspect-ratio:var(--ratio,3/4);object-fit:cover;background:#E7EBEF}
 .pdf-preview{position:relative;aspect-ratio:var(--ratio,3/4);display:grid;place-items:center;background:#F2F5F8}
 .pdf-preview .thumb{width:100%;height:100%;aspect-ratio:auto;object-fit:contain;background:#fff}
-.media-card>.thumb,.media-card>.pdf-preview,.media-card .pdf-thumb{width:100%;height:100%;aspect-ratio:1/1}
+.media-card>.thumb,.media-card>.pdf-preview,.media-card .pdf-thumb{width:100%;height:100%;aspect-ratio:3/4}
 .media-card>.thumb,.media-card .pdf-preview .thumb{object-fit:cover}
 .media-stack{display:grid;width:100%;height:100%;gap:2px;background:#fff}
 .media-stack.count-2{grid-template-columns:repeat(2,1fr)}
@@ -322,6 +322,7 @@ a{color:inherit;text-decoration:none}
   <nav class="tabs" role="tablist" id="tabs" hidden>
     <span class="tab-ind" id="ind"></span>
     <button class="tab" role="tab" aria-selected="true" aria-controls="p-all">전체</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="p-notice">공지</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-product">상품</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-award">시상</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-mixed">복합</button>
@@ -368,6 +369,7 @@ a{color:inherit;text-decoration:none}
   <main class="scroller" id="scroller" hidden>
     <div class="unread-filter" id="unreadFilter"><span id="unreadFilterText"></span><button type="button" id="clearUnreadFilter">전체 보기</button></div>
     <section class="panel" id="p-all" role="tabpanel"><div class="masonry" id="gridAll"></div><p class="empty" id="emptyAll">아직 등록된 자료가 없습니다.<br>새 자료가 등록되면 여기에 표시됩니다.</p></section>
+    <section class="panel" id="p-notice" role="tabpanel" hidden><div class="masonry" id="gridNotice"></div><p class="empty" id="emptyNotice">등록된 공지 자료가 없습니다.</p></section>
     <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
     <section class="panel" id="p-award" role="tabpanel" hidden><div class="masonry" id="gridAward"></div><p class="empty" id="emptyAward">등록된 시상 자료가 없습니다.</p></section>
     <section class="panel" id="p-mixed" role="tabpanel" hidden><div class="masonry" id="gridMixed"></div><p class="empty" id="emptyMixed">등록된 복합 자료가 없습니다.</p></section>
@@ -435,9 +437,10 @@ let autoLockTimer=0;
 let hiddenAt=0;
 let adminTapCount=0;
 let adminTapTimer=0;
+let detailHistoryActive=false;
 let moveTabIndicator=()=>{};
-const grids={all:document.getElementById('gridAll'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
-const empties={all:document.getElementById('emptyAll'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
+const grids={all:document.getElementById('gridAll'),notice:document.getElementById('gridNotice'),product:document.getElementById('gridProduct'),award:document.getElementById('gridAward'),mixed:document.getElementById('gridMixed')};
+const empties={all:document.getElementById('emptyAll'),notice:document.getElementById('emptyNotice'),product:document.getElementById('emptyProduct'),award:document.getElementById('emptyAward'),mixed:document.getElementById('emptyMixed')};
 async function loadPosts(){
   if(publicAccessToken){
     try{
@@ -581,6 +584,7 @@ async function render(){
   const visiblePosts=unreadOnly?searchedPosts.filter(p=>isUnread(p)):searchedPosts;
   const groups={
     all:orderedPosts(visiblePosts),
+    notice:orderedPosts(visiblePosts.filter(p=>p.category==='공지')),
     product:orderedPosts(visiblePosts.filter(p=>p.category==='상품')),
     award:orderedPosts(visiblePosts.filter(p=>p.category==='시상')),
     mixed:orderedPosts(visiblePosts.filter(p=>p.category==='복합'))
@@ -655,7 +659,7 @@ function bindFeed(){
   });
 }
 function reveal(nodes){[...nodes].forEach((el,i)=>setTimeout(()=>el.classList.add('in'),30+i*35))}
-function openDetail(id,focusComment=false){
+function openDetail(id,focusComment=false,fromHistory=false){
   current=posts.find(p=>p.id===id);
   if(!current)return;
   markSeen(current.id);
@@ -669,12 +673,20 @@ function openDetail(id,focusComment=false){
   render();
   document.getElementById('detail').classList.add('open');
   document.getElementById('detail').setAttribute('aria-hidden','false');
+  if(!fromHistory&&!history.state?.postId){
+    detailHistoryActive=true;
+    history.pushState({postId:id},'',`#post-${encodeURIComponent(id)}`);
+  }
   if(focusComment)setTimeout(()=>document.getElementById('commentInput').focus(),250);
 }
-function closeDetail(){
+function closeDetail(skipHistory=false){
   document.getElementById('detail').classList.remove('open');
   document.getElementById('detail').setAttribute('aria-hidden','true');
   current=null;
+  if(!skipHistory&&detailHistoryActive){
+    detailHistoryActive=false;
+    history.back();
+  }
 }
 function syncDetail(){
   if(!current)return;
@@ -997,6 +1009,14 @@ document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
 document.addEventListener('visibilitychange',handleVisibilityChange);
 window.addEventListener('blur',handleWindowBlur);
 window.addEventListener('focus',handleVisibilityChange);
+window.addEventListener('popstate',e=>{
+  if(current){
+    detailHistoryActive=false;
+    closeDetail(true);
+    return;
+  }
+  if(e.state&&e.state.postId)openDetail(e.state.postId,false,true);
+});
 document.addEventListener('keydown',e=>{
   const authVisible=!document.getElementById('authScreen').hidden;
   if(authVisible){
