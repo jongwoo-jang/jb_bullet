@@ -352,21 +352,26 @@ a{color:inherit;text-decoration:none}
 .edit-actions .primary{flex:1;background:var(--brand2);color:#fff;box-shadow:0 10px 22px rgba(0,60,220,.2)}
 .edit-actions .primary:disabled{background:#E2E5EB;color:#A8AEBB;box-shadow:none}
 .entry-popup{
-  position:absolute;inset:0;z-index:85;display:flex;align-items:flex-end;background:rgba(32,36,42,.34);
+  position:absolute;inset:0;z-index:85;display:flex;align-items:center;justify-content:center;padding:24px 18px;
+  background:rgba(32,36,42,.42);
   opacity:0;visibility:hidden;pointer-events:none;transition:opacity .22s var(--ease),visibility 0s linear .22s;
 }
 .entry-popup.open{opacity:1;visibility:visible;pointer-events:auto;transition:opacity .22s var(--ease)}
 .entry-popup-card{
-  width:100%;padding:20px 18px calc(18px + env(safe-area-inset-bottom));border-radius:22px 22px 0 0;
-  background:#fff;box-shadow:0 -18px 44px rgba(24,34,45,.2);transform:translateY(18px);transition:transform .28s var(--ease);
+  position:relative;width:min(100%,380px);padding:0;background:transparent;
+  transform:translateY(14px) scale(.98);transition:transform .28s var(--ease);
 }
 .entry-popup.open .entry-popup-card{transform:none}
-.entry-popup h2{margin:0 0 10px;color:var(--ink);font-size:21px;line-height:1.3;font-weight:850;word-break:keep-all}
-.entry-popup p{margin:0 0 18px;color:var(--ink2);font-size:15.5px;line-height:1.65;font-weight:680;white-space:pre-line;word-break:keep-all}
-.entry-popup button{
-  width:100%;height:54px;border-radius:10px;background:var(--brand2);color:#fff;
-  font-size:15.5px;font-weight:850;box-shadow:0 10px 22px rgba(0,60,220,.2);
+.entry-popup-image{
+  display:block;width:100%;padding:0;border-radius:18px;overflow:hidden;background:#fff;
+  box-shadow:0 18px 46px rgba(12,18,28,.28);
 }
+.entry-popup-image img{display:block;width:100%;max-height:72dvh;object-fit:contain;background:#fff}
+.entry-popup-close{
+  position:absolute;right:10px;top:10px;z-index:2;width:38px;height:38px;display:grid;place-items:center;
+  border-radius:50%;background:rgba(255,255,255,.92);color:#20242A;box-shadow:0 8px 22px rgba(24,34,45,.18);
+}
+.entry-popup-close svg{width:20px;height:20px}
 .toast{
   position:absolute;left:50%;bottom:24px;z-index:90;transform:translate(-50%,16px);
   opacity:0;pointer-events:none;background:rgba(32,36,42,.96);color:#fff;padding:12px 16px;
@@ -549,10 +554,13 @@ a{color:inherit;text-decoration:none}
   </section>
 
   <section class="entry-popup" id="entryPopup" aria-hidden="true">
-    <div class="entry-popup-card" role="dialog" aria-modal="true" aria-labelledby="entryPopupTitle">
-      <h2 id="entryPopupTitle"></h2>
-      <p id="entryPopupBody"></p>
-      <button id="entryPopupClose" type="button">확인</button>
+    <div class="entry-popup-card" role="dialog" aria-modal="true">
+      <button class="entry-popup-close" id="entryPopupClose" type="button" aria-label="닫기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+      <button class="entry-popup-image" id="entryPopupImageBtn" type="button" aria-label="게시물 상세 보기">
+        <img id="entryPopupImage" alt="">
+      </button>
     </div>
   </section>
 
@@ -786,17 +794,19 @@ async function render(){
   maybeShowEntryPopup();
 }
 function maybeShowEntryPopup(){
-  if(!entryPopup||!entryPopup.enabled)return;
-  const version=String(entryPopup.version||`${entryPopup.title||''}:${entryPopup.body||''}`);
+  if(!entryPopup||!entryPopup.enabled||!entryPopup.imageUrl)return;
+  const version=String(entryPopup.version||`${entryPopup.imageUrl||''}:${entryPopup.postId||''}`);
   if(!version||sessionStorage.getItem(ENTRY_POPUP_SEEN_KEY)===version)return;
   sessionStorage.setItem(ENTRY_POPUP_SEEN_KEY,version);
   openEntryPopup(entryPopup);
 }
 function openEntryPopup(popup){
   const modal=document.getElementById('entryPopup');
-  document.getElementById('entryPopupTitle').textContent=popup.title||'안내';
-  document.getElementById('entryPopupBody').textContent=popup.body||'';
-  document.getElementById('entryPopupClose').textContent=popup.buttonLabel||'확인';
+  const image=document.getElementById('entryPopupImage');
+  const button=document.getElementById('entryPopupImageBtn');
+  image.src=popup.imageUrl||'';
+  image.alt='접속 팝업 이미지';
+  button.dataset.postId=popup.postId||'';
   modal.classList.add('open');
   modal.setAttribute('aria-hidden','false');
 }
@@ -806,6 +816,11 @@ function closeEntryPopup(){
   modal.setAttribute('aria-hidden','true');
 }
 document.getElementById('entryPopupClose').addEventListener('click',closeEntryPopup);
+document.getElementById('entryPopupImageBtn').addEventListener('click',()=>{
+  const id=document.getElementById('entryPopupImageBtn').dataset.postId;
+  closeEntryPopup();
+  if(id)openDetail(String(id));
+});
 document.getElementById('entryPopup').addEventListener('click',e=>{
   if(e.target.id==='entryPopup')closeEntryPopup();
 });

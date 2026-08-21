@@ -73,15 +73,13 @@ async function getEntryPopup(supabase) {
     }
     const value = parseJson(data && data.value);
     if (!value || !value.enabled) return null;
-    const title = cleanText(value.title, 80);
-    const body = cleanText(value.body, 1000);
-    if (!title && !body) return null;
+    const imageUrl = cleanText(value.imageUrl || value.mediaUrl, 1200);
+    if (!imageUrl) return null;
     return {
       enabled: true,
-      title,
-      body,
-      buttonLabel: cleanText(value.buttonLabel, 20) || '확인',
-      version: cleanText(value.version || data.updated_at, 80) || `${title}:${body}`
+      imageUrl,
+      postId: cleanText(value.postId, 80),
+      version: cleanText(value.version || data.updated_at, 80) || imageUrl
     };
   } catch (error) {
     console.error('Entry popup setting skipped:', error.message);

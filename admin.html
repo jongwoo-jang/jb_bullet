@@ -62,6 +62,9 @@ a{color:inherit;text-decoration:none}
 .popup-form{display:grid;gap:0}
 .popup-form .actions{margin-top:10px}
 .popup-status{min-height:18px}
+.popup-preview{display:none;margin:2px 0 14px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#F4F6F8}
+.popup-preview.show{display:block}
+.popup-preview img{display:block;width:100%;max-height:360px;object-fit:contain;background:#fff}
 .auth-panel{width:min(392px,100%);margin:66px auto 0;padding:24px 22px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow2)}
 .auth-panel[hidden]{display:none}
 .auth-kicker{margin:0 0 12px;color:var(--brand2);font-size:12px;font-weight:900}
@@ -263,16 +266,17 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="panel settings-panel admin-panel" data-admin-panel="popup" hidden>
-      <div class="section-head"><div><b>접속 팝업</b><span>회원이 피드에 들어왔을 때 보여줄 안내를 설정합니다.</span></div></div>
+      <div class="section-head"><div><b>접속 팝업</b><span>회원이 피드에 들어왔을 때 이미지 팝업을 표시하고, 누르면 게시물 상세로 이동합니다.</span></div></div>
       <form class="popup-form" id="popupForm">
         <label class="check-row" for="popupEnabled">
           <input id="popupEnabled" type="checkbox">
           <span class="box"><svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 7"/></svg></span>
-          <span>접속 시 안내 팝업 표시</span>
+          <span>접속 시 이미지 팝업 표시</span>
         </label>
-        <div class="field"><label for="popupTitle">제목</label><input id="popupTitle" type="text" maxlength="80" placeholder="예: 중요 안내"></div>
-        <div class="field"><label for="popupBody">내용</label><textarea id="popupBody" maxlength="1000" placeholder="회원에게 보여줄 안내 내용을 입력"></textarea></div>
-        <div class="field"><label for="popupButtonLabel">버튼명</label><input id="popupButtonLabel" type="text" maxlength="20" value="확인"></div>
+        <div class="field"><label for="popupImageFile">팝업 이미지</label><input id="popupImageFile" type="file" accept="image/*"></div>
+        <div class="field"><label for="popupImageUrl">이미지 URL</label><input id="popupImageUrl" type="url" placeholder="이미지 파일을 올리면 자동 입력됩니다"></div>
+        <div class="popup-preview" id="popupPreview"></div>
+        <div class="field"><label for="popupPostId">연결 게시물</label><select id="popupPostId"><option value="">게시물 선택</option></select></div>
         <div class="actions">
           <button class="primary" id="savePopupBtn" type="submit">저장</button>
           <button class="ghost" id="clearPopupBtn" type="button">초기화</button>
@@ -323,14 +327,16 @@ const clearMemberCodesBtn=document.getElementById('clearMemberCodesBtn');
 const memberCodeStatus=document.getElementById('memberCodeStatus');
 const popupForm=document.getElementById('popupForm');
 const popupEnabled=document.getElementById('popupEnabled');
-const popupTitle=document.getElementById('popupTitle');
-const popupBody=document.getElementById('popupBody');
-const popupButtonLabel=document.getElementById('popupButtonLabel');
+const popupImageFile=document.getElementById('popupImageFile');
+const popupImageUrl=document.getElementById('popupImageUrl');
+const popupPreview=document.getElementById('popupPreview');
+const popupPostId=document.getElementById('popupPostId');
 const popupStatus=document.getElementById('popupStatus');
 const clearPopupBtn=document.getElementById('clearPopupBtn');
 const submitButton=form.querySelector('button[type="submit"]');
 const DRIVE_CHUNK_BYTES=2.5*1024*1024;
 let selected=[];
+let popupSelectedImage=null;
 let currentSession=null;
 let adminComments=[];
 let passwordRecoveryMode=location.hash.includes('type=recovery')||location.search.includes('type=recovery');
@@ -436,7 +442,7 @@ async function savePost(post){
     return false;
   }
 }
-async function uploadDirectToDrive(item,token){
+async function uploadDirectToDrive(item,token,onProgress){
   const session=await apiJson('/api/admin/drive-session',{
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
@@ -454,7 +460,7 @@ async function uploadDirectToDrive(item,token){
     const end=Math.min(uploaded+DRIVE_CHUNK_BYTES,size)-1;
     const chunk=item.file.slice(uploaded,end+1);
     const percent=Math.round(((end+1)/size)*100);
-    submitButton.textContent=`Drive 업로드 ${percent}%`;
+    setUploadProgress(onProgress,`Drive 업로드 ${percent}%`);
     const result=await apiJson('/api/admin/drive-chunk',{
       method:'POST',
       headers:{
@@ -475,6 +481,10 @@ async function uploadDirectToDrive(item,token){
   }
   if(!finalFile)throw new Error('Google Drive 업로드 완료 응답을 받지 못했습니다');
   return {...finalFile,filename:item.name,mimeType:item.file.type||finalFile.mimeType||'application/octet-stream'};
+}
+function setUploadProgress(onProgress,text){
+  if(typeof onProgress==='function')onProgress(text);
+  else submitButton.textContent=text;
 }
 async function apiJson(url,options){
   const response=await fetch(url,options);
@@ -647,42 +657,82 @@ async function loadPopupSetting(){
   }
   popupStatus.textContent='설정 확인 중';
   try{
+    const posts=await getAdminPosts();
     const result=await apiJson('/api/admin/passcode?action=popup',{
       headers:{Authorization:`Bearer ${token}`},
       cache:'no-store'
     });
     if(!result.ok)throw new Error(result.error||'접속 팝업 설정을 불러오지 못했습니다');
     const setting=result.setting||{};
+    renderPopupPostOptions(posts,setting.postId);
     popupEnabled.checked=Boolean(setting.enabled);
-    popupTitle.value=setting.title||'';
-    popupBody.value=setting.body||'';
-    popupButtonLabel.value=setting.buttonLabel||'확인';
+    popupImageUrl.value=setting.imageUrl||'';
+    popupPostId.value=setting.postId||'';
+    popupSelectedImage=null;
+    popupImageFile.value='';
+    updatePopupPreview(setting.imageUrl||'');
     popupStatus.textContent=setting.enabled?'현재 표시 중':'현재 표시하지 않음';
   }catch(error){
     popupStatus.textContent='설정 확인 실패';
     toast(error.message||'접속 팝업 설정을 불러오지 못했습니다');
   }
 }
+function renderPopupPostOptions(posts,selectedId=''){
+  popupPostId.innerHTML='<option value="">게시물 선택</option>'+posts.map(post=>`<option value="${escapeHtml(post.id)}" ${String(post.id)===String(selectedId)?'selected':''}>${escapeHtml(post.title)}</option>`).join('');
+}
+function updatePopupPreview(url){
+  const clean=String(url||'').trim();
+  popupPreview.classList.toggle('show',Boolean(clean));
+  popupPreview.innerHTML=clean?`<img src="${escapeHtml(clean)}" alt="팝업 이미지 미리보기">`:'';
+}
+popupImageFile.addEventListener('change',async()=>{
+  const file=popupImageFile.files&&popupImageFile.files[0];
+  popupSelectedImage=null;
+  if(!file)return;
+  if(!file.type.startsWith('image/')){
+    popupImageFile.value='';
+    toast('이미지 파일만 선택해 주세요');
+    return;
+  }
+  const src=await readFile(file);
+  popupSelectedImage={src,type:'image',name:file.name,file};
+  updatePopupPreview(src);
+});
+popupImageUrl.addEventListener('input',()=>updatePopupPreview(popupImageUrl.value));
 popupForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const token=getAccessToken();
   if(!token){toast('로그인이 필요합니다');return}
   const savePopupBtn=document.getElementById('savePopupBtn');
+  if(popupEnabled.checked&&!popupPostId.value){toast('연결 게시물을 선택해 주세요');return}
+  if(popupEnabled.checked&&!popupSelectedImage&&!popupImageUrl.value.trim()){toast('팝업 이미지를 선택해 주세요');return}
   savePopupBtn.disabled=true;
   savePopupBtn.textContent='저장 중';
   popupStatus.textContent='저장 중';
   try{
+    let imageUrl=popupImageUrl.value.trim();
+    let driveFileId='';
+    if(popupSelectedImage){
+      savePopupBtn.textContent='이미지 업로드 중';
+      const uploaded=await uploadDirectToDrive(popupSelectedImage,token,text=>{savePopupBtn.textContent=text});
+      driveFileId=uploaded.id||uploaded.drive_file_id||'';
+      imageUrl=driveFileId?driveThumbnailUrl(driveFileId):imageUrl;
+      popupImageUrl.value=imageUrl;
+      updatePopupPreview(imageUrl);
+    }
     const result=await apiJson('/api/admin/passcode?action=popup',{
       method:'POST',
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
       body:JSON.stringify({
         enabled:popupEnabled.checked,
-        title:popupTitle.value,
-        body:popupBody.value,
-        buttonLabel:popupButtonLabel.value
+        imageUrl,
+        driveFileId,
+        postId:popupPostId.value
       })
     });
     if(!result.ok)throw new Error(result.error||'접속 팝업 설정을 저장하지 못했습니다');
+    popupSelectedImage=null;
+    popupImageFile.value='';
     popupStatus.textContent=popupEnabled.checked?'현재 표시 중':'현재 표시하지 않음';
     toast('접속 팝업 설정을 저장했습니다');
   }catch(error){
@@ -708,7 +758,10 @@ clearPopupBtn.addEventListener('click',async()=>{
     if(!result.ok)throw new Error(result.error||'접속 팝업 설정을 초기화하지 못했습니다');
     popupForm.reset();
     popupEnabled.checked=false;
-    popupButtonLabel.value='확인';
+    popupSelectedImage=null;
+    popupImageUrl.value='';
+    popupPostId.value='';
+    updatePopupPreview('');
     popupStatus.textContent='현재 표시하지 않음';
     toast('접속 팝업 설정을 초기화했습니다');
   }catch(error){

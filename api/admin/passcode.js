@@ -1,5 +1,6 @@
 const { requireAdmin } = require('../_auth');
 const { createAccessToken, getSupabaseAdmin, readJson } = require('../_public-access');
+const { getDrive } = require('../_google-drive');
 
 const UPSERT_CHUNK_SIZE = 1000;
 const LOOKUP_CHUNK_SIZE = 1000;
@@ -69,6 +70,13 @@ async function savePopupSetting(req, res) {
     const body = await readJson(req);
     const setting = normalizePopupSetting(body);
     setting.version = new Date().toISOString();
+    if (setting.enabled && !setting.imageUrl) {
+      return res.status(400).json({ error: '팝업 이미지가 필요합니다.' });
+    }
+    if (setting.enabled && !setting.postId) {
+      return res.status(400).json({ error: '연결할 게시물을 선택해 주세요.' });
+    }
+    if (setting.driveFileId) await makeDriveFilePublic(setting.driveFileId);
     const supabase = getSupabaseAdmin();
     const { error } = await supabase
       .from('fp_settings')
@@ -287,11 +295,25 @@ function chunkArray(items, size) {
 function normalizePopupSetting(value) {
   return {
     enabled: Boolean(value && value.enabled),
-    title: cleanText(value && value.title, 80),
-    body: cleanText(value && value.body, 1000),
-    buttonLabel: cleanText(value && value.buttonLabel, 20) || '확인',
+    imageUrl: cleanText(value && (value.imageUrl || value.mediaUrl), 1200),
+    postId: cleanText(value && value.postId, 80),
+    driveFileId: cleanText(value && (value.driveFileId || value.drive_file_id), 120),
     version: cleanText(value && value.version, 80)
   };
+}
+
+async function makeDriveFilePublic(fileId) {
+  if (!fileId) return;
+  try {
+    await getDrive().permissions.create({
+      fileId,
+      requestBody: { role: 'reader', type: 'anyone' },
+      supportsAllDrives: true
+    });
+  } catch (error) {
+    const message = String(error && error.message || '');
+    if (!message.includes('already exists')) throw error;
+  }
 }
 
 function parseJson(value) {
