@@ -5,15 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>전환법인 라운지</title>
 <meta name="description" content="전환법인 ARC 전용 자료공유공간">
-<link rel="canonical" href="https://jb-bullet.vercel.app/">
+<link rel="canonical" href="https://jb-bullet.vercel.app/?share=20260821b">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="ko_KR">
 <meta property="og:site_name" content="전환법인 라운지">
 <meta property="og:title" content="전환법인 라운지">
 <meta property="og:description" content="전환법인 ARC 전용 자료공유공간">
-<meta property="og:url" content="https://jb-bullet.vercel.app/">
-<meta property="og:image" content="https://jb-bullet.vercel.app/assets/kakao-share-v2.png">
-<meta property="og:image:secure_url" content="https://jb-bullet.vercel.app/assets/kakao-share-v2.png">
+<meta property="og:url" content="https://jb-bullet.vercel.app/?share=20260821b">
+<meta property="og:image" content="https://jb-bullet.vercel.app/assets/kakao-share-v2.png?v=20260821b">
+<meta property="og:image:secure_url" content="https://jb-bullet.vercel.app/assets/kakao-share-v2.png?v=20260821b">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -21,7 +21,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="전환법인 라운지">
 <meta name="twitter:description" content="전환법인 ARC 전용 자료공유공간">
-<meta name="twitter:image" content="https://jb-bullet.vercel.app/assets/kakao-share-v2.png">
+<meta name="twitter:image" content="https://jb-bullet.vercel.app/assets/kakao-share-v2.png?v=20260821b">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
 <style>
 :root{
@@ -547,6 +547,7 @@ const SAVED_CODE_KEY='fpSavedCodeNumber';
 const SHARE_KEY='fpShareCounts';
 const AUTO_LOCK_MS=10*60*1000;
 const ADMIN_TAP_WINDOW_MS=1100;
+const SHARE_PREVIEW_VERSION='20260821b';
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const pinned=new Set(JSON.parse(localStorage.getItem('fpPinned')||localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
@@ -1125,7 +1126,7 @@ let toastTimer;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),1800)}
 async function sharePost(id){
   const post=posts.find(p=>p.id===id);
-  const url=`${location.origin}${location.pathname}#post-${encodeURIComponent(id)}`;
+  const url=`${location.origin}${location.pathname}?share=${SHARE_PREVIEW_VERSION}#post-${encodeURIComponent(id)}`;
   let shared=false;
   try{
     if(navigator.share&&post){await navigator.share({title:post.title,text:post.desc||post.title,url});shared=true}
