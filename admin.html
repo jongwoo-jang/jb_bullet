@@ -37,7 +37,7 @@ a{color:inherit;text-decoration:none}
 .layout[hidden]{display:none}
 .panel{background:rgba(255,255,255,.96);border:1px solid rgba(236,239,242,.95);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
 .admin-tabs{
-  position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;
+  position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;
   padding:6px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.96);
   box-shadow:var(--shadow);backdrop-filter:blur(14px);
 }
@@ -59,6 +59,9 @@ a{color:inherit;text-decoration:none}
 .passcode-form .field{margin:0}
 .passcode-form button{height:52px;padding:0 18px}
 .passcode-status{align-self:center;display:inline-flex;align-items:center;color:var(--ink3);font-size:12.5px;font-weight:780}
+.popup-form{display:grid;gap:0}
+.popup-form .actions{margin-top:10px}
+.popup-status{min-height:18px}
 .auth-panel{width:min(392px,100%);margin:66px auto 0;padding:24px 22px;background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow2)}
 .auth-panel[hidden]{display:none}
 .auth-kicker{margin:0 0 12px;color:var(--brand2);font-size:12px;font-weight:900}
@@ -207,6 +210,7 @@ a{color:inherit;text-decoration:none}
       <button class="admin-tab" type="button" data-admin-tab="upload" aria-selected="true">자료 게시</button>
       <button class="admin-tab" type="button" data-admin-tab="posts" aria-selected="false">등록 자료</button>
       <button class="admin-tab" type="button" data-admin-tab="comments" aria-selected="false">댓글 관리</button>
+      <button class="admin-tab" type="button" data-admin-tab="popup" aria-selected="false">접속 팝업</button>
       <button class="admin-tab" type="button" data-admin-tab="members" aria-selected="false">회원 코드</button>
     </nav>
 
@@ -258,6 +262,25 @@ a{color:inherit;text-decoration:none}
       <div class="comment-list" id="commentAdminList"></div>
     </section>
 
+    <section class="panel settings-panel admin-panel" data-admin-panel="popup" hidden>
+      <div class="section-head"><div><b>접속 팝업</b><span>회원이 피드에 들어왔을 때 보여줄 안내를 설정합니다.</span></div></div>
+      <form class="popup-form" id="popupForm">
+        <label class="check-row" for="popupEnabled">
+          <input id="popupEnabled" type="checkbox">
+          <span class="box"><svg viewBox="0 0 24 24"><path d="M5 13l4.5 4.5L19 7"/></svg></span>
+          <span>접속 시 안내 팝업 표시</span>
+        </label>
+        <div class="field"><label for="popupTitle">제목</label><input id="popupTitle" type="text" maxlength="80" placeholder="예: 중요 안내"></div>
+        <div class="field"><label for="popupBody">내용</label><textarea id="popupBody" maxlength="1000" placeholder="회원에게 보여줄 안내 내용을 입력"></textarea></div>
+        <div class="field"><label for="popupButtonLabel">버튼명</label><input id="popupButtonLabel" type="text" maxlength="20" value="확인"></div>
+        <div class="actions">
+          <button class="primary" id="savePopupBtn" type="submit">저장</button>
+          <button class="ghost" id="clearPopupBtn" type="button">초기화</button>
+        </div>
+        <p class="hint popup-status" id="popupStatus">설정 확인 중</p>
+      </form>
+    </section>
+
     <section class="panel settings-panel admin-panel" data-admin-panel="members" hidden>
       <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 코드번호, B열은 실명으로 저장합니다.</span></div></div>
       <form class="passcode-form" id="memberCodeForm">
@@ -298,6 +321,13 @@ const memberCodeCsv=document.getElementById('memberCodeCsv');
 const saveMemberCodesBtn=document.getElementById('saveMemberCodesBtn');
 const clearMemberCodesBtn=document.getElementById('clearMemberCodesBtn');
 const memberCodeStatus=document.getElementById('memberCodeStatus');
+const popupForm=document.getElementById('popupForm');
+const popupEnabled=document.getElementById('popupEnabled');
+const popupTitle=document.getElementById('popupTitle');
+const popupBody=document.getElementById('popupBody');
+const popupButtonLabel=document.getElementById('popupButtonLabel');
+const popupStatus=document.getElementById('popupStatus');
+const clearPopupBtn=document.getElementById('clearPopupBtn');
 const submitButton=form.querySelector('button[type="submit"]');
 const DRIVE_CHUNK_BYTES=2.5*1024*1024;
 let selected=[];
@@ -321,6 +351,7 @@ function switchAdminTab(target){
   adminTabs.forEach(tab=>tab.setAttribute('aria-selected',String(tab.dataset.adminTab===target)));
   adminPanels.forEach(panel=>{panel.hidden=panel.dataset.adminPanel!==target});
   if(target==='posts'||target==='comments')render();
+  if(target==='popup')loadPopupSetting();
   if(target==='members')loadMemberCodeStatus();
 }
 adminTabs.forEach(tab=>{
@@ -608,6 +639,86 @@ function renderTagSuggestions(posts){
   }));
   tagSuggestions.innerHTML=recent.slice(0,12).map(tag=>`<button class="tag-chip" data-tag="${escapeHtml(tag)}" type="button">#${escapeHtml(tag)}</button>`).join('');
 }
+async function loadPopupSetting(){
+  const token=getAccessToken();
+  if(!token){
+    popupStatus.textContent='로그인이 필요합니다';
+    return;
+  }
+  popupStatus.textContent='설정 확인 중';
+  try{
+    const result=await apiJson('/api/admin/passcode?action=popup',{
+      headers:{Authorization:`Bearer ${token}`},
+      cache:'no-store'
+    });
+    if(!result.ok)throw new Error(result.error||'접속 팝업 설정을 불러오지 못했습니다');
+    const setting=result.setting||{};
+    popupEnabled.checked=Boolean(setting.enabled);
+    popupTitle.value=setting.title||'';
+    popupBody.value=setting.body||'';
+    popupButtonLabel.value=setting.buttonLabel||'확인';
+    popupStatus.textContent=setting.enabled?'현재 표시 중':'현재 표시하지 않음';
+  }catch(error){
+    popupStatus.textContent='설정 확인 실패';
+    toast(error.message||'접속 팝업 설정을 불러오지 못했습니다');
+  }
+}
+popupForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  const savePopupBtn=document.getElementById('savePopupBtn');
+  savePopupBtn.disabled=true;
+  savePopupBtn.textContent='저장 중';
+  popupStatus.textContent='저장 중';
+  try{
+    const result=await apiJson('/api/admin/passcode?action=popup',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({
+        enabled:popupEnabled.checked,
+        title:popupTitle.value,
+        body:popupBody.value,
+        buttonLabel:popupButtonLabel.value
+      })
+    });
+    if(!result.ok)throw new Error(result.error||'접속 팝업 설정을 저장하지 못했습니다');
+    popupStatus.textContent=popupEnabled.checked?'현재 표시 중':'현재 표시하지 않음';
+    toast('접속 팝업 설정을 저장했습니다');
+  }catch(error){
+    popupStatus.textContent='저장 실패';
+    toast(error.message||'접속 팝업 설정을 저장하지 못했습니다');
+  }finally{
+    savePopupBtn.disabled=false;
+    savePopupBtn.textContent='저장';
+  }
+});
+clearPopupBtn.addEventListener('click',async()=>{
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  if(!confirm('접속 팝업 설정을 초기화할까요?'))return;
+  clearPopupBtn.disabled=true;
+  clearPopupBtn.textContent='초기화 중';
+  popupStatus.textContent='초기화 중';
+  try{
+    const result=await apiJson('/api/admin/passcode?action=popup',{
+      method:'DELETE',
+      headers:{Authorization:`Bearer ${token}`}
+    });
+    if(!result.ok)throw new Error(result.error||'접속 팝업 설정을 초기화하지 못했습니다');
+    popupForm.reset();
+    popupEnabled.checked=false;
+    popupButtonLabel.value='확인';
+    popupStatus.textContent='현재 표시하지 않음';
+    toast('접속 팝업 설정을 초기화했습니다');
+  }catch(error){
+    popupStatus.textContent='초기화 실패';
+    toast(error.message||'접속 팝업 설정을 초기화하지 못했습니다');
+  }finally{
+    clearPopupBtn.disabled=false;
+    clearPopupBtn.textContent='초기화';
+  }
+});
 function parseMemberCodeCsv(text){
   const rows=parseCsvRows(text);
   const codes=[];

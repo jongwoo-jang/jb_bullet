@@ -13,6 +13,7 @@ module.exports = async function handler(req, res) {
 
   const url = new URL(req.url, `https://${req.headers.host}`);
   if (url.searchParams.get('action') === 'feed-token') return createFeedToken(admin, res);
+  if (url.searchParams.get('action') === 'popup') return handlePopupSetting(req, res);
 
   if (req.method === 'GET') return getStatus(res);
   if (req.method === 'POST') return updatePasscode(req, res);
@@ -35,6 +36,70 @@ function createFeedToken(admin, res) {
       ttlSeconds: ADMIN_FEED_TOKEN_TTL_SECONDS
     })
   });
+}
+
+async function handlePopupSetting(req, res) {
+  if (req.method === 'GET') return getPopupSetting(res);
+  if (req.method === 'POST') return savePopupSetting(req, res);
+  if (req.method === 'DELETE') return deletePopupSetting(res);
+  res.setHeader('Allow', 'GET, POST, DELETE');
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+async function getPopupSetting(res) {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('fp_settings')
+      .select('value,updated_at')
+      .eq('key', 'entry_popup')
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const setting = normalizePopupSetting(parseJson(data && data.value) || {});
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, setting: { ...setting, updatedAt: data && data.updated_at } });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || '접속 팝업 설정을 불러오지 못했습니다.' });
+  }
+}
+
+async function savePopupSetting(req, res) {
+  try {
+    const body = await readJson(req);
+    const setting = normalizePopupSetting(body);
+    setting.version = new Date().toISOString();
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from('fp_settings')
+      .upsert({
+        key: 'entry_popup',
+        value: JSON.stringify(setting),
+        updated_at: setting.version
+      }, { onConflict: 'key' });
+    if (error) throw new Error(error.message);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, setting });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || '접속 팝업 설정을 저장하지 못했습니다.' });
+  }
+}
+
+async function deletePopupSetting(res) {
+  try {
+    const supabase = getSupabaseAdmin();
+    const { error } = await supabase
+      .from('fp_settings')
+      .delete()
+      .eq('key', 'entry_popup');
+    if (error) throw new Error(error.message);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || '접속 팝업 설정을 삭제하지 못했습니다.' });
+  }
 }
 
 async function getStatus(res) {
@@ -217,6 +282,30 @@ function chunkArray(items, size) {
     chunks.push(items.slice(index, index + size));
   }
   return chunks;
+}
+
+function normalizePopupSetting(value) {
+  return {
+    enabled: Boolean(value && value.enabled),
+    title: cleanText(value && value.title, 80),
+    body: cleanText(value && value.body, 1000),
+    buttonLabel: cleanText(value && value.buttonLabel, 20) || '확인',
+    version: cleanText(value && value.version, 80)
+  };
+}
+
+function parseJson(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(String(value));
+  } catch (error) {
+    return null;
+  }
+}
+
+function cleanText(value, maxLength) {
+  return String(value || '').replace(/\r\n/g, '\n').trim().slice(0, maxLength);
 }
 
 function displayAdminName(value) {

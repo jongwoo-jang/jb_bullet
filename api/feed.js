@@ -25,8 +25,9 @@ module.exports = async function handler(req, res) {
       error = retry.error;
     }
     if (error) throw new Error(error.message);
+    const popup = await getEntryPopup(supabase);
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ posts: data || [] });
+    return res.status(200).json({ posts: data || [], popup });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: error.message || '자료를 불러오지 못했습니다.' });
@@ -57,4 +58,47 @@ async function recordFeedActivity(req, res, payload) {
 
 function isMissingPinnedColumn(error) {
   return Boolean(error && String(error.message || '').includes('is_pinned'));
+}
+
+async function getEntryPopup(supabase) {
+  try {
+    const { data, error } = await supabase
+      .from('fp_settings')
+      .select('value,updated_at')
+      .eq('key', 'entry_popup')
+      .maybeSingle();
+    if (error) {
+      console.error('Entry popup setting skipped:', error.message);
+      return null;
+    }
+    const value = parseJson(data && data.value);
+    if (!value || !value.enabled) return null;
+    const title = cleanText(value.title, 80);
+    const body = cleanText(value.body, 1000);
+    if (!title && !body) return null;
+    return {
+      enabled: true,
+      title,
+      body,
+      buttonLabel: cleanText(value.buttonLabel, 20) || '확인',
+      version: cleanText(value.version || data.updated_at, 80) || `${title}:${body}`
+    };
+  } catch (error) {
+    console.error('Entry popup setting skipped:', error.message);
+    return null;
+  }
+}
+
+function parseJson(value) {
+  if (!value) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(String(value));
+  } catch (error) {
+    return null;
+  }
+}
+
+function cleanText(value, maxLength) {
+  return String(value || '').replace(/\r\n/g, '\n').trim().slice(0, maxLength);
 }
