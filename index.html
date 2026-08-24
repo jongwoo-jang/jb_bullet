@@ -211,6 +211,14 @@ a{color:inherit;text-decoration:none}
 }
 .empty.show{display:block}
 .masonry{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 8px;align-items:start}
+.feed-more{display:flex;justify-content:center;padding:18px 6px 8px}
+.feed-more[hidden]{display:none}
+.feed-more button{
+  min-width:132px;height:44px;padding:0 18px;border-radius:999px;background:#F4F6F8;color:var(--ink);
+  font-size:14.5px;font-weight:850;transition:background .18s,color .18s,transform .16s var(--ease);
+}
+.feed-more button:active{transform:scale(.96)}
+.feed-more button:disabled{color:var(--ink3);cursor:not-allowed}
 .pin{
   width:100%;display:block;text-align:left;
   opacity:0;transform:translateY(14px);transition:opacity .42s var(--ease),transform .42s var(--ease);
@@ -480,6 +488,7 @@ a{color:inherit;text-decoration:none}
     <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
     <section class="panel" id="p-award" role="tabpanel" hidden><div class="masonry" id="gridAward"></div><p class="empty" id="emptyAward">등록된 시상 자료가 없습니다.</p></section>
     <section class="panel" id="p-mixed" role="tabpanel" hidden><div class="masonry" id="gridMixed"></div><p class="empty" id="emptyMixed">등록된 복합 자료가 없습니다.</p></section>
+    <div class="feed-more" id="feedMore" hidden><button type="button" id="loadMoreBtn">더 보기</button></div>
   </main>
 
   <section class="detail" id="detail" aria-hidden="true">
@@ -581,6 +590,7 @@ const ENTRY_POPUP_SEEN_KEY='fpEntryPopupSeenVersion';
 const AUTO_LOCK_MS=10*60*1000;
 const ADMIN_TAP_WINDOW_MS=1100;
 const SHARE_PREVIEW_VERSION='20260821b';
+const FEED_PAGE_SIZE=30;
 const liked=new Set(JSON.parse(localStorage.getItem('fpLiked')||'[]'));
 const pinned=new Set(JSON.parse(localStorage.getItem('fpPinned')||localStorage.getItem('fpSaved')||'[]'));
 const seen=new Set(JSON.parse(localStorage.getItem(SEEN_KEY)||'[]'));
@@ -588,6 +598,9 @@ let shareCounts=JSON.parse(localStorage.getItem(SHARE_KEY)||'{}');
 let comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
 let posts=[], current=null;
 let entryPopup=null;
+let feedOffset=0;
+let feedHasMore=false;
+let feedLoading=false;
 let unreadOnly=false;
 let searchQuery='';
 let publicAccessToken=getStoredAccessToken();
@@ -623,10 +636,17 @@ function persistPublicAccess(token,autoLogin){
     localStorage.removeItem(ACCESS_PERSIST_KEY);
   }
 }
-async function loadPosts(){
+async function loadPosts({reset=false}={}){
+  if(feedLoading)return;
+  feedLoading=true;
+  if(reset){
+    feedOffset=0;
+    feedHasMore=false;
+  }
   if(publicAccessToken){
     try{
-      const response=await fetch('/api/feed',{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
+      const params=new URLSearchParams({limit:String(FEED_PAGE_SIZE),offset:String(feedOffset)});
+      const response=await fetch(`/api/feed?${params}`,{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
       const result=await response.json().catch(()=>({error:'자료를 불러오지 못했습니다.'}));
       if(response.status===401){
         detailHistoryActive=false;
@@ -635,23 +655,47 @@ async function loadPosts(){
         history.replaceState({view:'auth'},'',location.pathname);
         showAuth();
         toast(result.error||'다시 로그인해 주세요');
+        feedLoading=false;
         return;
       }
       if(!response.ok)throw new Error(result.error||'자료를 불러오지 못했습니다.');
       entryPopup=result.popup||null;
-      posts=Array.isArray(result.posts)?result.posts.map(rowToPost):[];
+      const nextPosts=Array.isArray(result.posts)?result.posts.map(rowToPost):[];
+      posts=reset?nextPosts:mergePosts(posts,nextPosts);
+      const pagination=result.pagination||{};
+      feedOffset=Number.isFinite(Number(pagination.nextOffset))?Number(pagination.nextOffset):posts.length;
+      feedHasMore=Boolean(pagination.hasMore);
       syncViewerReactions(posts);
+      feedLoading=false;
       return;
     }catch(error){
-      posts=[];
+      if(reset)posts=[];
+      feedHasMore=false;
       toast(error.message||'자료를 불러오지 못했습니다');
+      feedLoading=false;
       return;
     }
   }
   let custom=[];
   try{custom=JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){custom=[]}
   entryPopup=null;
+  feedOffset=custom.length;
+  feedHasMore=false;
   posts=custom;
+  feedLoading=false;
+}
+function mergePosts(currentPosts=[],nextPosts=[]){
+  const merged=[...currentPosts];
+  const indexById=new Map(merged.map((post,index)=>[String(post.id),index]));
+  nextPosts.forEach(post=>{
+    const key=String(post.id);
+    if(indexById.has(key))merged[indexById.get(key)]=post;
+    else{
+      indexById.set(key,merged.length);
+      merged.push(post);
+    }
+  });
+  return merged;
 }
 function syncViewerReactions(items=[]){
   const ids=new Set(items.map(post=>String(post.id)));
@@ -799,8 +843,12 @@ function card(post){
     </div>
   </article>`;
 }
-async function render(){
-  await loadPosts();
+async function render(options={}){
+  const {fetchPosts=true,reset=false}=options;
+  if(fetchPosts)await loadPosts({reset});
+  renderPosts();
+}
+function renderPosts(){
   const searchedPosts=posts.filter(matchesSearch);
   const visiblePosts=unreadOnly?searchedPosts.filter(p=>isUnread(p)):searchedPosts;
   const groups={
@@ -816,7 +864,21 @@ async function render(){
     reveal(grids[key].querySelectorAll('.pin'));
   });
   updateUnreadUi();
+  updateLoadMoreUi();
   maybeShowEntryPopup();
+}
+function updateLoadMoreUi(){
+  const wrap=document.getElementById('feedMore');
+  const button=document.getElementById('loadMoreBtn');
+  if(!wrap||!button)return;
+  wrap.hidden=!feedHasMore;
+  button.disabled=feedLoading;
+  button.textContent=feedLoading?'불러오는 중':'더 보기';
+}
+async function loadMorePosts(){
+  if(feedLoading||!feedHasMore)return;
+  await loadPosts({reset:false});
+  renderPosts();
 }
 function maybeShowEntryPopup(){
   if(!entryPopup||!entryPopup.enabled||!entryPopup.imageUrl)return;
@@ -856,7 +918,7 @@ async function initAuth(){
   bindFeed();
   if(publicAccessToken){
     showFeed();
-    render();
+    render({reset:true});
   }else{
     showAuth();
   }
@@ -936,7 +998,7 @@ function applyFeedHistoryState(state={}){
   searchQuery=String(state.search||'');
   document.getElementById('searchInput').value=searchQuery;
   document.getElementById('scroller').scrollTo({top:0,behavior:'auto'});
-  render();
+  render({fetchPosts:false});
   requestAnimationFrame(moveTabIndicator);
   applyingHistory=false;
 }
@@ -985,7 +1047,7 @@ function openDetail(id,focusComment=false,fromHistory=false){
   document.getElementById('dCta').innerHTML='';
   renderComments();
   syncDetail();
-  render();
+  render({fetchPosts:false});
   document.getElementById('detail').classList.add('open');
   document.getElementById('detail').setAttribute('aria-hidden','false');
   if(!fromHistory&&publicAccessToken){
@@ -1036,7 +1098,7 @@ async function toggleLike(id){
   localStorage.setItem('fpLiked',JSON.stringify([...liked]));
   updatePostStat(id,'like_count',wasLiked?-1:1);
   await logFeedActivity(wasLiked?'unlike':'like',post);
-  render();
+  render({fetchPosts:false});
   if(current&&current.id===id)syncDetail();
 }
 async function togglePin(id){
@@ -1050,7 +1112,7 @@ async function togglePin(id){
   localStorage.setItem('fpPinned',JSON.stringify([...pinned]));
   updatePostStat(id,'save_count',wasPinned?-1:1);
   await logFeedActivity(wasPinned?'unsave':'save',post);
-  render();
+  render({fetchPosts:false});
   if(current&&current.id===id)syncDetail();
   toast(pinned.has(id)?'저장했습니다':'저장을 해제했습니다');
 }
@@ -1093,7 +1155,7 @@ function updateCurrentPost(row){
   document.getElementById('dMeta').textContent=`${current.author||'관리자'} · ${current.category||'자료'} · ${current.date||''}`;
   document.getElementById('dCaption').innerHTML=`<b>${escapeHtml(current.author||'관리자')}</b>${escapeHtml(current.desc||current.title)}<span class="tagline">${(current.tags||[]).map(t=>'#'+escapeHtml(t)).join(' ')}</span>`;
   syncDetail();
-  render();
+  render({fetchPosts:false});
 }
 async function renderComments(){
   if(!current)return;
@@ -1123,14 +1185,14 @@ async function addComment(text){
     });
     if(!response.ok){toast('댓글 저장에 실패했습니다');return}
     await renderComments();
-    render();
+    render({fetchPosts:false});
     return;
   }
   comments=JSON.parse(localStorage.getItem(COMMENT_KEY)||'{}');
   comments[current.id]=[...(comments[current.id]||[]),{author:'방문자',text,at:Date.now()}];
   localStorage.setItem(COMMENT_KEY,JSON.stringify(comments));
   renderComments();
-  render();
+  render({fetchPosts:false});
 }
 function setupTabs(){
   const tabs=[...document.querySelectorAll('.tab')], ind=document.getElementById('ind');
@@ -1468,7 +1530,7 @@ document.getElementById('focusCommentBtn').addEventListener('click',()=>{
 });
 document.getElementById('searchInput').addEventListener('input',e=>{
   searchQuery=e.target.value;
-  render();
+  render({fetchPosts:false});
   syncFeedHistory();
 });
 document.getElementById('commentForm').addEventListener('submit',e=>{
@@ -1582,7 +1644,7 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
     setAccessMessage('확인되었습니다',true);
     document.getElementById('accessForm').reset();
     showFeed();
-    await render();
+    await render({reset:true});
     toast('접속되었습니다');
   }finally{
     delete button.dataset.busy;
@@ -1666,20 +1728,21 @@ document.getElementById('resetForm').addEventListener('submit',async e=>{
 });
 const bellBtn=document.getElementById('bellBtn');
 if(bellBtn)bellBtn.addEventListener('click',async()=>{
-  await loadPosts();
+  await loadPosts({reset:true});
   const count=unreadPosts().length;
-  if(!count){unreadOnly=false;render();toast('새로운 알림이 없습니다');return}
+  if(!count){unreadOnly=false;render({fetchPosts:false});toast('새로운 알림이 없습니다');return}
   unreadOnly=true;
   document.querySelector('.tab[aria-controls="p-all"]').click();
-  render();
+  render({fetchPosts:false});
   syncFeedHistory();
   toast(`미확인 게시물 ${count}개`);
 });
 document.getElementById('clearUnreadFilter').addEventListener('click',()=>{
   unreadOnly=false;
-  render();
+  render({fetchPosts:false});
   syncFeedHistory();
 });
+document.getElementById('loadMoreBtn').addEventListener('click',loadMorePosts);
 ['pointerdown','keydown','touchstart','wheel'].forEach(eventName=>{
   document.addEventListener(eventName,resetAutoLock,{passive:true});
 });
@@ -1720,7 +1783,7 @@ document.addEventListener('keydown',e=>{
   }
   if(e.key==='Escape')closeDetail();
 });
-window.addEventListener('storage',e=>{if(e.key===STORE_KEY||e.key===SEEN_KEY)render()});
+window.addEventListener('storage',e=>{if(e.key===STORE_KEY||e.key===SEEN_KEY)render({reset:true})});
 setupTabs();initAuth();
 if(location.hash.startsWith('#post-')){
   const id=decodeURIComponent(location.hash.replace('#post-',''));

@@ -2,6 +2,8 @@ const { getSupabaseAdmin, readJson, requirePublicAccess } = require('./_public-a
 const { logActivity } = require('./_activity');
 
 const FEED_EVENTS = new Set(['view', 'like', 'unlike', 'save', 'unsave', 'download', 'share', 'popup_view', 'popup_click']);
+const DEFAULT_FEED_LIMIT = 30;
+const MAX_FEED_LIMIT = 60;
 const STAT_FIELDS = {
   view: 'view_count',
   like: 'like_count',
@@ -26,26 +28,53 @@ module.exports = async function handler(req, res) {
 
   try {
     const supabase = getSupabaseAdmin();
+    const pagination = getPagination(req);
     let { data, error } = await supabase
       .from('fp_posts')
       .select('*')
       .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(pagination.offset, pagination.offset + pagination.limit - 1);
     if (isMissingPinnedColumn(error)) {
-      const retry = await supabase.from('fp_posts').select('*').order('created_at', { ascending: false });
+      const retry = await supabase
+        .from('fp_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(pagination.offset, pagination.offset + pagination.limit - 1);
       data = retry.data;
       error = retry.error;
     }
     if (error) throw new Error(error.message);
     data = await attachEngagement(supabase, data || [], access.payload);
     const popup = await getEntryPopup(supabase);
+    const count = Array.isArray(data) ? data.length : 0;
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ posts: data || [], popup });
+    return res.status(200).json({
+      posts: data || [],
+      popup,
+      pagination: {
+        limit: pagination.limit,
+        offset: pagination.offset,
+        nextOffset: pagination.offset + count,
+        hasMore: count === pagination.limit
+      }
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: error.message || '자료를 불러오지 못했습니다.' });
   }
 };
+
+function getPagination(req) {
+  const url = new URL(req.url || '/', 'http://localhost');
+  const rawLimit = Number(url.searchParams.get('limit'));
+  const rawOffset = Number(url.searchParams.get('offset'));
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(Math.floor(rawLimit), MAX_FEED_LIMIT)
+    : DEFAULT_FEED_LIMIT;
+  const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
+  return { limit, offset };
+}
 
 async function recordFeedActivity(req, res, payload) {
   try {
