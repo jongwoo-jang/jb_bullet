@@ -640,6 +640,7 @@ async function loadPosts(){
       if(!response.ok)throw new Error(result.error||'자료를 불러오지 못했습니다.');
       entryPopup=result.popup||null;
       posts=Array.isArray(result.posts)?result.posts.map(rowToPost):[];
+      syncViewerReactions(posts);
       return;
     }catch(error){
       posts=[];
@@ -651,6 +652,18 @@ async function loadPosts(){
   try{custom=JSON.parse(localStorage.getItem(STORE_KEY)||'[]')}catch(e){custom=[]}
   entryPopup=null;
   posts=custom;
+}
+function syncViewerReactions(items=[]){
+  const ids=new Set(items.map(post=>String(post.id)));
+  [...liked].forEach(id=>{if(ids.has(String(id)))liked.delete(id)});
+  [...pinned].forEach(id=>{if(ids.has(String(id)))pinned.delete(id)});
+  items.forEach(post=>{
+    const reactions=Array.isArray(post.viewerReactions)?post.viewerReactions:[];
+    if(reactions.includes('like'))liked.add(String(post.id));
+    if(reactions.includes('save'))pinned.add(String(post.id));
+  });
+  localStorage.setItem('fpLiked',JSON.stringify([...liked]));
+  localStorage.setItem('fpPinned',JSON.stringify([...pinned]));
 }
 function rowToPost(row){
   const isPdf=row.type==='pdf';
@@ -681,7 +694,19 @@ function rowToPost(row){
     webViewUrl:row.web_view_url||row.media_url||'',
     driveFileId:row.drive_file_id||'',
     desc:row.description||'',
-    attachments
+    attachments,
+    stats:normalizePostStats(row.stats),
+    viewerReactions:Array.isArray(row.viewer_reactions)?row.viewer_reactions:[]
+  };
+}
+function normalizePostStats(value={}){
+  return {
+    view_count:Number(value.view_count||0),
+    like_count:Number(value.like_count||0),
+    save_count:Number(value.save_count||0),
+    share_count:Number(value.share_count||0),
+    download_count:Number(value.download_count||0),
+    popup_click_count:Number(value.popup_click_count||0)
   };
 }
 function displayAuthorName(value){
@@ -799,6 +824,7 @@ function maybeShowEntryPopup(){
   if(!version||sessionStorage.getItem(ENTRY_POPUP_SEEN_KEY)===version)return;
   sessionStorage.setItem(ENTRY_POPUP_SEEN_KEY,version);
   openEntryPopup(entryPopup);
+  logFeedActivity('popup_view',null,{postId:entryPopup.postId,popupVersion:version});
 }
 function openEntryPopup(popup){
   const modal=document.getElementById('entryPopup');
@@ -818,6 +844,8 @@ function closeEntryPopup(){
 document.getElementById('entryPopupClose').addEventListener('click',closeEntryPopup);
 document.getElementById('entryPopupImageBtn').addEventListener('click',()=>{
   const id=document.getElementById('entryPopupImageBtn').dataset.postId;
+  if(entryPopup)logFeedActivity('popup_click',null,{postId:id,popupVersion:entryPopup.version||entryPopup.imageUrl||''});
+  updatePostStat(id,'popup_click_count',1);
   closeEntryPopup();
   if(id)openDetail(String(id));
 });
@@ -948,7 +976,8 @@ function reveal(nodes){[...nodes].forEach((el,i)=>setTimeout(()=>el.classList.ad
 function openDetail(id,focusComment=false,fromHistory=false){
   current=posts.find(p=>p.id===id);
   if(!current)return;
-  markSeen(current.id);
+  const firstSeen=markSeen(current.id);
+  if(firstSeen)logFeedActivity('view',current);
   document.getElementById('dTitle').textContent=current.title;
   document.getElementById('dMeta').textContent=`${current.author||'관리자'} · ${current.category||'자료'} · ${current.date||''}`;
   document.getElementById('dMedia').innerHTML=mediaMarkup(current,true);
@@ -991,29 +1020,46 @@ function updateDetailStats(commentCount){
   if(!current)return;
   const localComments=comments[current.id]||[];
   const count=Number.isFinite(commentCount)?commentCount:localComments.length;
+  const stats=current.stats||normalizePostStats();
   document.getElementById('detailStats').innerHTML=[
-    ['좋아요',liked.has(current.id)?1:0],
+    ['좋아요',Math.max(Number(stats.like_count||0),liked.has(current.id)?1:0)],
     ['댓글',count],
-    ['공유',Number(shareCounts[current.id]||0)]
+    ['공유',Math.max(Number(stats.share_count||0),Number(shareCounts[current.id]||0))],
+    ['저장',Math.max(Number(stats.save_count||0),pinned.has(current.id)?1:0)],
+    ['다운로드',Number(stats.download_count||0)]
   ].map(([label,value])=>`<span>${label} ${value}</span>`).join('');
 }
-function toggleLike(id){
-  liked.has(id)?liked.delete(id):liked.add(id);
+async function toggleLike(id){
+  const post=posts.find(item=>String(item.id)===String(id));
+  const wasLiked=liked.has(id);
+  wasLiked?liked.delete(id):liked.add(id);
   localStorage.setItem('fpLiked',JSON.stringify([...liked]));
+  updatePostStat(id,'like_count',wasLiked?-1:1);
+  await logFeedActivity(wasLiked?'unlike':'like',post);
   render();
   if(current&&current.id===id)syncDetail();
 }
-function togglePin(id){
+async function togglePin(id){
   const post=posts.find(item=>String(item.id)===String(id));
   if(post&&post.adminPinned){
     toast('관리자가 상단에 고정한 자료입니다');
     return;
   }
-  pinned.has(id)?pinned.delete(id):pinned.add(id);
+  const wasPinned=pinned.has(id);
+  wasPinned?pinned.delete(id):pinned.add(id);
   localStorage.setItem('fpPinned',JSON.stringify([...pinned]));
+  updatePostStat(id,'save_count',wasPinned?-1:1);
+  await logFeedActivity(wasPinned?'unsave':'save',post);
   render();
   if(current&&current.id===id)syncDetail();
-  toast(pinned.has(id)?'상단에 고정했습니다':'상단 고정을 해제했습니다');
+  toast(pinned.has(id)?'저장했습니다':'저장을 해제했습니다');
+}
+function updatePostStat(id,field,amount){
+  const post=posts.find(item=>String(item.id)===String(id));
+  if(!post||!field)return;
+  post.stats=normalizePostStats(post.stats);
+  post.stats[field]=Math.max(0,Number(post.stats[field]||0)+amount);
+  if(current&&String(current.id)===String(id))current.stats=post.stats;
 }
 function editTagsFromInput(value){
   return String(value||'').split(',').map(tag=>tag.trim()).filter(Boolean);
@@ -1173,9 +1219,10 @@ function handleWindowBlur(){
   if(publicAccessToken&&!hiddenAt)hiddenAt=Date.now();
 }
 function markSeen(id){
-  if(seen.has(id))return;
+  if(seen.has(id))return false;
   seen.add(id);
   localStorage.setItem(SEEN_KEY,JSON.stringify([...seen]));
+  return true;
 }
 function updateUnreadUi(){
   const count=unreadPosts().length;
@@ -1205,6 +1252,7 @@ async function sharePost(id){
   if(shared){
     shareCounts[id]=Number(shareCounts[id]||0)+1;
     localStorage.setItem(SHARE_KEY,JSON.stringify(shareCounts));
+    updatePostStat(id,'share_count',1);
     logFeedActivity('share',post);
     if(current&&current.id===id)updateDetailStats();
   }
@@ -1226,16 +1274,20 @@ function downloadPost(id){
     link.click();
     link.remove();
   },index*180));
+  updatePostStat(id,'download_count',1);
   logFeedActivity('download',post);
+  if(current&&current.id===id)updateDetailStats();
   toast(valid.length>1?`${valid.length}개 파일 다운로드를 시작합니다`:'다운로드를 시작합니다');
 }
-async function logFeedActivity(eventType,post){
-  if(!publicAccessToken||!post||!isRemotePost(post))return;
+async function logFeedActivity(eventType,post,extra={}){
+  const postId=post&&post.id?post.id:extra.postId;
+  if(!publicAccessToken||!postId)return;
+  if(post&&!isRemotePost(post))return;
   try{
     await fetch('/api/feed',{
       method:'POST',
       headers:{'Content-Type':'application/json',Authorization:`Bearer ${publicAccessToken}`},
-      body:JSON.stringify({eventType,postId:post.id})
+      body:JSON.stringify({eventType,postId,...extra})
     });
   }catch(e){}
 }

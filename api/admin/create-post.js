@@ -151,8 +151,23 @@ async function insertPost(post, pinnedRequested = false) {
       error = retry.error;
     }
     if (error) throw new Error(error.message);
+    await ensurePostStats(supabase, data && data.id);
     return data;
   });
+}
+
+async function ensurePostStats(supabase, postId) {
+  if (!postId) return;
+  try {
+    const { error } = await supabase
+      .from('fp_post_stats')
+      .upsert({ post_id: postId }, { onConflict: 'post_id' });
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    if (!String(error && error.message || '').includes('fp_post_stats')) {
+      console.error('post stats init skipped:', error.message || error);
+    }
+  }
 }
 
 async function safeDeleteDriveFile(fileId) {

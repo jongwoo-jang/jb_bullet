@@ -22,13 +22,13 @@ module.exports = async function handler(req, res) {
     });
     const { data: post, error: lookupError } = await supabase
       .from('fp_posts')
-      .select('id, title, category, drive_file_id')
+      .select('id, title, category, drive_file_id, attachments')
       .eq('id', body.id)
       .single();
     if (lookupError) throw new Error(lookupError.message);
 
-    const driveFileId = body.driveFileId || post.drive_file_id;
-    if (driveFileId) await deleteDriveFile(driveFileId);
+    const driveFileIds = getDriveFileIds(post, body);
+    await Promise.all(driveFileIds.map((fileId) => deleteDriveFile(fileId)));
 
     const { error: deleteError } = await supabase.from('fp_posts').delete().eq('id', body.id);
     if (deleteError) throw new Error(deleteError.message);
@@ -75,6 +75,22 @@ async function deleteDriveFile(fileId) {
   } catch (error) {
     if (error.code !== 404) throw error;
   }
+}
+
+function getDriveFileIds(post = {}, body = {}) {
+  const ids = new Set();
+  addDriveFileId(ids, body.driveFileId);
+  addDriveFileId(ids, post.drive_file_id);
+  const attachments = Array.isArray(post.attachments) ? post.attachments : [];
+  attachments.forEach((item) => {
+    addDriveFileId(ids, item && (item.drive_file_id || item.driveFileId));
+  });
+  return [...ids];
+}
+
+function addDriveFileId(ids, value) {
+  const id = String(value || '').trim();
+  if (id) ids.add(id);
 }
 
 function getAdminName(email) {
