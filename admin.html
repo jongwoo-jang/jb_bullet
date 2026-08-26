@@ -612,8 +612,7 @@ async function getAdminMembers(query=''){
   if(!supabaseClient)return [];
   const token=getAccessToken();
   if(!token)return [];
-  const qs=query?`?q=${encodeURIComponent(query)}`:'';
-  const result=await apiJson(`/api/admin/members${qs}`,{
+  const result=await apiJson(`/api/admin/passcode?action=members${query?'&q='+encodeURIComponent(query):''}`,{
     method:'GET',
     headers:{Authorization:`Bearer ${token}`},
     cache:'no-store'
@@ -657,7 +656,7 @@ async function deleteMember(codeNumber){
   if(!confirm('이 회원을 삭제할까요? 삭제하면 해당 회원은 다시 회원가입해야 합니다.'))return;
   const token=getAccessToken();
   if(!token){toast('로그인이 필요합니다');return}
-  const result=await apiJson('/api/admin/members',{
+  const result=await apiJson('/api/admin/passcode?action=members',{
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
     body:JSON.stringify({codeNumber})
@@ -685,7 +684,7 @@ async function getAdminPosts(){
   if(supabaseClient){
     const token=getAccessToken();
     if(token){
-      const result=await apiJson('/api/admin/posts',{
+      const result=await apiJson('/api/admin/passcode?action=posts',{
         method:'GET',
         headers:{Authorization:`Bearer ${token}`},
         cache:'no-store'

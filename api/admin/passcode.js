@@ -5,6 +5,7 @@ const { getDrive } = require('../_google-drive');
 const UPSERT_CHUNK_SIZE = 1000;
 const LOOKUP_CHUNK_SIZE = 1000;
 const DELETE_CHUNK_SIZE = 500;
+const ADMIN_POST_LIMIT = 500;
 const ADMIN_FEED_TOKEN_TTL_SECONDS = 60 * 60 * 3;
 const DEFAULT_BRANCH = '전환법인';
 
@@ -15,6 +16,8 @@ module.exports = async function handler(req, res) {
   const url = new URL(req.url, `https://${req.headers.host}`);
   if (url.searchParams.get('action') === 'feed-token') return createFeedToken(admin, res);
   if (url.searchParams.get('action') === 'popup') return handlePopupSetting(req, res);
+  if (url.searchParams.get('action') === 'posts') return listAdminPosts(req, res, admin.supabase);
+  if (url.searchParams.get('action') === 'members') return handleMembers(req, res, admin.supabase);
 
   if (req.method === 'GET') return getStatus(res);
   if (req.method === 'POST') return updatePasscode(req, res);
@@ -37,6 +40,153 @@ function createFeedToken(admin, res) {
       ttlSeconds: ADMIN_FEED_TOKEN_TTL_SECONDS
     })
   });
+}
+
+async function listAdminPosts(req, res, supabase) {
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', 'GET');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  try {
+    let { data, error } = await supabase
+      .from('fp_posts')
+      .select('*')
+      .order('is_pinned', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(ADMIN_POST_LIMIT);
+    if (isMissingPinnedColumn(error)) {
+      const retry = await supabase
+        .from('fp_posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(ADMIN_POST_LIMIT);
+      data = retry.data;
+      error = retry.error;
+    }
+    if (error) throw new Error(error.message);
+    const posts = await attachPostStats(supabase, data || []);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, posts });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || '등록 자료를 불러오지 못했습니다.' });
+  }
+}
+
+async function attachPostStats(supabase, posts) {
+  const ids = posts.map((post) => Number(post.id)).filter((id) => Number.isSafeInteger(id) && id > 0);
+  if (!ids.length) return posts.map((post) => ({ ...post, stats: defaultStats() }));
+  const statsByPostId = new Map();
+  try {
+    const { data, error } = await supabase
+      .from('fp_post_stats')
+      .select('post_id, view_count, like_count, share_count, download_count, save_count')
+      .in('post_id', ids);
+    if (error) throw new Error(error.message);
+    (data || []).forEach((row) => {
+      statsByPostId.set(String(row.post_id), {
+        view_count: Number(row.view_count || 0),
+        like_count: Number(row.like_count || 0),
+        share_count: Number(row.share_count || 0),
+        download_count: Number(row.download_count || 0),
+        save_count: Number(row.save_count || 0)
+      });
+    });
+  } catch (error) {
+    if (!isMissingStatsTable(error)) console.error('admin post stats skipped:', error.message || error);
+  }
+  return posts.map((post) => ({ ...post, stats: statsByPostId.get(String(post.id)) || defaultStats() }));
+}
+
+function defaultStats() {
+  return {
+    view_count: 0,
+    like_count: 0,
+    share_count: 0,
+    download_count: 0,
+    save_count: 0
+  };
+}
+
+async function handleMembers(req, res, supabase) {
+  if (req.method === 'GET') return listMembers(req, res, supabase);
+  if (req.method === 'POST' || req.method === 'DELETE') return deleteMember(req, res, supabase);
+  res.setHeader('Allow', 'GET, POST, DELETE');
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+async function listMembers(req, res, supabase) {
+  try {
+    const url = new URL(req.url || '/', `https://${req.headers.host || 'localhost'}`);
+    const q = cleanText(url.searchParams.get('q'), 80).toLowerCase();
+    const data = await getAllMembers(supabase);
+    const members = data
+      .map(normalizeMember)
+      .filter((member) => {
+        if (!q) return true;
+        return [member.code_number, member.branch, member.display_name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(q);
+      });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, members, total: members.length });
+  } catch (error) {
+    console.error(error);
+    if (isMissingMemberTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '회원 목록을 불러오지 못했습니다.' });
+  }
+}
+
+async function getAllMembers(supabase) {
+  const members = [];
+  for (let start = 0; ; start += LOOKUP_CHUNK_SIZE) {
+    const { data, error } = await supabase
+      .from('fp_members')
+      .select('id, code_number, branch, display_name, created_at, last_login_at')
+      .order('created_at', { ascending: false })
+      .range(start, start + LOOKUP_CHUNK_SIZE - 1);
+    if (error) throw new Error(error.message);
+    members.push(...(data || []));
+    if (!data || data.length < LOOKUP_CHUNK_SIZE) break;
+  }
+  return members;
+}
+
+async function deleteMember(req, res, supabase) {
+  try {
+    const body = await readJson(req);
+    const codeNumber = cleanText(body.codeNumber || body.code_number, 80).toUpperCase();
+    if (!codeNumber) return res.status(400).json({ error: '삭제할 회원 코드번호가 필요합니다.' });
+    const { data, error } = await supabase
+      .from('fp_members')
+      .delete()
+      .eq('code_number', codeNumber)
+      .select('code_number');
+    if (error) throw new Error(error.message);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, deleted: (data || []).length });
+  } catch (error) {
+    console.error(error);
+    if (isMissingMemberTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '회원을 삭제하지 못했습니다.' });
+  }
+}
+
+function normalizeMember(row = {}) {
+  return {
+    id: row.id,
+    code_number: cleanText(row.code_number, 80),
+    branch: cleanText(row.branch, 80),
+    display_name: cleanText(row.display_name, 80) || '회원',
+    created_at: row.created_at || null,
+    last_login_at: row.last_login_at || null
+  };
 }
 
 async function handlePopupSetting(req, res) {
@@ -273,6 +423,15 @@ function normalizeCodeRow(row) {
 function isMissingMemberTable(error) {
   const message = String(error && error.message ? error.message : '');
   return message.includes('public.fp_member_codes') || message.includes('public.fp_members');
+}
+
+function isMissingPinnedColumn(error) {
+  return Boolean(error && String(error.message || '').includes('is_pinned'));
+}
+
+function isMissingStatsTable(error) {
+  const message = String(error && error.message || '');
+  return message.includes('fp_post_stats') || message.includes('public.fp_post_stats');
 }
 
 function isMissingDisplayNameColumn(error) {
