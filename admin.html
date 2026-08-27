@@ -116,6 +116,10 @@ a{color:inherit;text-decoration:none}
 .ghost{padding:0 15px;background:#F4F6F8;color:var(--ink2)}
 .danger{min-height:40px;padding:0 12px;background:#F4F6F8;color:var(--ink2);font-size:12.5px}
 .danger:hover{background:#EDF6FF;color:var(--brand2)}
+.item-actions{display:flex;align-items:center;gap:6px}
+.pin-toggle{min-height:40px;padding:0 12px;border-radius:10px;background:var(--brand-soft);color:var(--brand2);font-size:12.5px;font-weight:850}
+.pin-toggle[aria-pressed="true"]{background:var(--brand2);color:#fff}
+.pin-toggle:disabled{opacity:.58;cursor:progress}
 .hint{margin:9px 0 0;color:var(--ink3);font-size:12px;line-height:1.5}
 .tag-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .tag-chip{height:34px;padding:0 12px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:12.5px;font-weight:800}
@@ -173,7 +177,7 @@ a{color:inherit;text-decoration:none}
 @media(max-width:380px){
   .top{gap:6px}.top-copy span{font-size:11.5px}.top h1{font-size:20px}
   .item{grid-template-columns:62px 1fr;align-items:start}
-  .item-media{width:62px;height:62px}.item .danger{grid-column:2;justify-self:start;min-height:34px}
+  .item-media{width:62px;height:62px}.item-actions{grid-column:2;justify-self:start}.item .danger,.pin-toggle{min-height:34px}
   .preview-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 </style>
@@ -526,6 +530,11 @@ async function apiJson(url,options){
   return {...data,ok:response.ok,status:response.status};
 }
 list.addEventListener('click',e=>{
+  const pinBtn=e.target.closest('[data-toggle-pin]');
+  if(pinBtn){
+    togglePostPin(pinBtn.dataset.togglePin,pinBtn.dataset.pinned!=='true',pinBtn);
+    return;
+  }
   const btn=e.target.closest('[data-del]');if(!btn)return;
   deletePost(btn.dataset.del,btn.dataset.path);
 });
@@ -557,6 +566,31 @@ async function deletePost(id,path){
     setPosts(getPosts().filter(p=>p.id!==id));
   }
   render();toast('자료를 삭제했습니다');
+}
+async function togglePostPin(id,isPinned,button){
+  if(!supabaseClient){toast('Supabase 연결이 필요합니다');return}
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  if(button){
+    button.disabled=true;
+    button.textContent=isPinned?'고정 중':'해제 중';
+  }
+  try{
+    const result=await apiJson('/api/admin/passcode?action=pin',{
+      method:'PATCH',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({id,isPinned})
+    });
+    if(!result.ok)throw new Error(result.error||'상단고정 변경에 실패했습니다');
+    await render();
+    toast(isPinned?'상단에 고정했습니다':'상단고정을 해제했습니다');
+  }catch(error){
+    toast(error.message||'상단고정 변경에 실패했습니다');
+    if(button){
+      button.disabled=false;
+      button.textContent=isPinned?'고정':'해제';
+    }
+  }
 }
 async function getAdminComments(){
   if(!supabaseClient)return [];
@@ -749,7 +783,10 @@ async function render(){
   list.innerHTML=filtered.map(p=>`<article class="item">
     <div class="item-media">${p.type==='image'||p.src?`<img src="${p.src}" alt="">`:'<div class="pdf">PDF</div>'}</div>
     <div><h3>${escapeHtml(p.title)}${p.isPinned?'<span class="pin-label">상단고정</span>':''}</h3><p>${escapeHtml(p.category)} · ${escapeHtml(p.date)} · ${escapeHtml(p.author)} · ${(p.attachments||[]).length||1}개 파일 · ${p.storageProvider==='google_drive'?'Google Drive':'Local'}</p><div class="metric-row"><span>조회 ${Number(p.stats&&p.stats.view_count||0)}</span><span>좋아요 ${Number(p.stats&&p.stats.like_count||0)}</span><span>공유 ${Number(p.stats&&p.stats.share_count||0)}</span></div></div>
-    <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
+    <div class="item-actions">
+      <button class="pin-toggle" data-toggle-pin="${p.id}" data-pinned="${p.isPinned?'true':'false'}" aria-pressed="${p.isPinned?'true':'false'}" type="button">${p.isPinned?'해제':'고정'}</button>
+      <button class="danger" data-del="${p.id}" data-path="${p.storagePath||''}" type="button">삭제</button>
+    </div>
   </article>`).join('');
 }
 function renderTagSuggestions(posts){

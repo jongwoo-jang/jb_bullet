@@ -17,6 +17,7 @@ module.exports = async function handler(req, res) {
   if (url.searchParams.get('action') === 'feed-token') return createFeedToken(admin, res);
   if (url.searchParams.get('action') === 'popup') return handlePopupSetting(req, res);
   if (url.searchParams.get('action') === 'posts') return listAdminPosts(req, res, admin.supabase);
+  if (url.searchParams.get('action') === 'pin') return updatePostPin(req, res, admin.supabase);
   if (url.searchParams.get('action') === 'members') return handleMembers(req, res, admin.supabase);
 
   if (req.method === 'GET') return getStatus(res);
@@ -96,6 +97,35 @@ async function attachPostStats(supabase, posts) {
     if (!isMissingStatsTable(error)) console.error('admin post stats skipped:', error.message || error);
   }
   return posts.map((post) => ({ ...post, stats: statsByPostId.get(String(post.id)) || defaultStats() }));
+}
+
+async function updatePostPin(req, res, supabase) {
+  if (req.method !== 'PATCH' && req.method !== 'POST') {
+    res.setHeader('Allow', 'PATCH, POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  try {
+    const body = await readJson(req);
+    const id = String(body.id || '').trim();
+    if (!id) return res.status(400).json({ error: '게시물 ID가 필요합니다.' });
+
+    const { data, error } = await supabase
+      .from('fp_posts')
+      .update({ is_pinned: Boolean(body.isPinned) })
+      .eq('id', id)
+      .select('*')
+      .single();
+    if (isMissingPinnedColumn(error)) {
+      return res.status(500).json({ error: 'Supabase fp_posts 테이블에 is_pinned 컬럼이 필요합니다. 최신 supabase-schema.sql을 SQL Editor에서 실행해 주세요.' });
+    }
+    if (error) throw new Error(error.message);
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, post: data });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: error.message || '상단고정 변경에 실패했습니다.' });
+  }
 }
 
 function defaultStats() {
