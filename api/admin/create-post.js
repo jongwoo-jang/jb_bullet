@@ -2,7 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { requireAdmin } = require('../_auth');
 const { requirePublicAccess } = require('../_public-access');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
-const { getDrive, getMissingDriveEnv } = require('../_google-drive');
+const { getDrive, getDriveUserMessage, getMissingDriveEnv, isInvalidGoogleGrant, logDriveError } = require('../_google-drive');
 const { logActivity } = require('../_activity');
 
 const MAX_FILES = 20;
@@ -62,7 +62,7 @@ module.exports = async function handler(req, res) {
     });
     return res.status(201).json({ post });
   } catch (error) {
-    console.error(error);
+    logDriveError('create post failed', error);
     await Promise.all(driveFileIds.map((fileId) => safeDeleteDriveFile(fileId)));
     return res.status(500).json({ error: getCreatePostErrorMessage(error) });
   }
@@ -174,7 +174,7 @@ async function safeDeleteDriveFile(fileId) {
   try {
     await getDrive().files.delete({ fileId, supportsAllDrives: true });
   } catch (error) {
-    console.error('Failed to clean up Drive file', error);
+    logDriveError('failed to clean up Drive file', error);
   }
 }
 
@@ -231,6 +231,9 @@ function driveDownloadUrl(fileId) {
 }
 
 function getCreatePostErrorMessage(error) {
+  if (isInvalidGoogleGrant(error)) {
+    return getDriveUserMessage(error);
+  }
   if (error.driveStage === 'share' && error.code === 403) {
     return '파일 업로드는 되었지만 공개 링크 권한 설정이 차단되었습니다. Google Drive 폴더의 링크 공유 설정을 확인해 주세요.';
   }

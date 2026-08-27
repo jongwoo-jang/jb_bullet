@@ -1,4 +1,5 @@
 const { requireAdmin } = require('../_auth');
+const { getDriveUserMessage, isInvalidGoogleGrant, logDriveError } = require('../_google-drive');
 
 const MAX_CHUNK_BYTES = Number(process.env.MAX_UPLOAD_CHUNK_BYTES || 3 * 1024 * 1024);
 
@@ -49,8 +50,8 @@ module.exports = async function handler(req, res) {
     }
     return res.status(200).json({ done: true, file });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: error.message || 'Google Drive 조각 업로드에 실패했습니다.' });
+    logDriveError('drive chunk failed', error);
+    return res.status(500).json({ error: isInvalidGoogleGrant(error) ? getDriveUserMessage(error) : error.message || 'Google Drive 조각 업로드에 실패했습니다.' });
   }
 };
 

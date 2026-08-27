@@ -3,7 +3,7 @@ const Busboy = require('busboy');
 const { Readable } = require('stream');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
-const { getDrive, getDriveAuthMode, getMissingDriveEnv } = require('../_google-drive');
+const { getDrive, getDriveAuthMode, getDriveUserMessage, getMissingDriveEnv, isInvalidGoogleGrant, logDriveError } = require('../_google-drive');
 
 const MAX_FILE_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 100 * 1024 * 1024);
 const ALLOWED_MIME_PREFIXES = ['image/'];
@@ -55,7 +55,7 @@ module.exports = async function handler(req, res) {
 
     return res.status(201).json({ post });
   } catch (error) {
-    console.error(error);
+    logDriveError('legacy upload failed', error);
     await Promise.all(uploadedDriveFileIds.map((fileId) => safeDeleteDriveFile(fileId)));
     return res.status(500).json({ error: getUploadErrorMessage(error) });
   }
@@ -148,6 +148,9 @@ async function withDriveStage(stage, action) {
 }
 
 function getUploadErrorMessage(error) {
+  if (isInvalidGoogleGrant(error)) {
+    return getDriveUserMessage(error);
+  }
   if (error.driveStage === 'upload' && error.code === 404) {
     if (getDriveAuthMode() === 'oauth') {
       return 'Google Drive 폴더를 찾지 못했습니다. GOOGLE_DRIVE_FOLDER_ID 값과 OAuth로 연결한 Google 계정의 폴더 접근 권한을 확인해 주세요.';
@@ -190,7 +193,7 @@ async function safeDeleteDriveFile(fileId) {
     const drive = getDrive();
     await drive.files.delete({ fileId, supportsAllDrives: true });
   } catch (error) {
-    console.error('Failed to clean up Drive file', error);
+    logDriveError('failed to clean up Drive file', error);
   }
 }
 

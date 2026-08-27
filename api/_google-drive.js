@@ -49,6 +49,32 @@ function getMissingDriveEnv() {
   return OAUTH_ENV.concat(folderMissing);
 }
 
+function isInvalidGoogleGrant(error) {
+  const responseError = error && error.response && error.response.data && error.response.data.error;
+  const causeMessage = error && error.cause && error.cause.message;
+  const message = String(error && (error.message || error.code || '') || '');
+  return responseError === 'invalid_grant' || causeMessage === 'invalid_grant' || message.includes('invalid_grant');
+}
+
+function getDriveUserMessage(error, fallback = 'Google Drive 처리에 실패했습니다.') {
+  if (isInvalidGoogleGrant(error)) {
+    return 'Google Drive 인증이 만료되었습니다. Vercel의 GOOGLE_REFRESH_TOKEN을 새로 발급한 값으로 교체한 뒤 Redeploy 해주세요.';
+  }
+  return error && error.message ? error.message : fallback;
+}
+
+function logDriveError(context, error) {
+  const response = error && error.response;
+  const data = response && response.data || {};
+  console.error(context, {
+    message: error && error.message,
+    code: error && error.code,
+    status: error && error.status || response && response.status,
+    googleError: data.error,
+    googleErrorDescription: data.error_description
+  });
+}
+
 function missing(names) {
   return names.filter((name) => !hasValue(name));
 }
@@ -57,4 +83,4 @@ function hasValue(name) {
   return Boolean(String(process.env[name] || '').trim());
 }
 
-module.exports = { getDrive, getDriveAuth, getDriveAuthMode, getMissingDriveEnv };
+module.exports = { getDrive, getDriveAuth, getDriveAuthMode, getMissingDriveEnv, getDriveUserMessage, isInvalidGoogleGrant, logDriveError };

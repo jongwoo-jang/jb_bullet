@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const { requireAdmin } = require('../_auth');
 const { normalizeSupabaseUrl } = require('../_supabase-url');
-const { getDrive, getMissingDriveEnv } = require('../_google-drive');
+const { getDrive, getDriveUserMessage, getMissingDriveEnv, isInvalidGoogleGrant, logDriveError } = require('../_google-drive');
 const { logActivity } = require('../_activity');
 
 module.exports = async function handler(req, res) {
@@ -41,8 +41,8 @@ module.exports = async function handler(req, res) {
     });
     return res.status(200).json({ ok: true });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: error.message || '삭제에 실패했습니다.' });
+    logDriveError('delete post failed', error);
+    return res.status(500).json({ error: isInvalidGoogleGrant(error) ? getDriveUserMessage(error) : error.message || '삭제에 실패했습니다.' });
   }
 };
 

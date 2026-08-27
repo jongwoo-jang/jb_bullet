@@ -1,5 +1,5 @@
 const { requireAdmin } = require('../_auth');
-const { getDriveAuth, getMissingDriveEnv } = require('../_google-drive');
+const { getDriveAuth, getDriveUserMessage, getMissingDriveEnv, logDriveError } = require('../_google-drive');
 
 const MAX_DIRECT_UPLOAD_BYTES = Number(process.env.MAX_DIRECT_UPLOAD_BYTES || 250 * 1024 * 1024);
 const ALLOWED_MIME_PREFIXES = ['image/'];
@@ -50,8 +50,8 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).json({ uploadUrl });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ error: error.message || 'Google Drive 업로드 세션 생성에 실패했습니다.' });
+    logDriveError('drive session failed', error);
+    return res.status(500).json({ error: getDriveUserMessage(error, 'Google Drive 업로드 세션 생성에 실패했습니다.') });
   }
 };
 

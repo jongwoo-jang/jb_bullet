@@ -1,4 +1,4 @@
-const { getDrive, getDriveAuthMode, getMissingDriveEnv } = require('./_google-drive');
+const { getDrive, getDriveAuthMode, getDriveUserMessage, getMissingDriveEnv, isInvalidGoogleGrant } = require('./_google-drive');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -41,6 +41,9 @@ module.exports = async function handler(req, res) {
 
 function getDriveHelpMessage(error) {
   const authMode = getDriveAuthMode();
+  if (isInvalidGoogleGrant(error)) {
+    return getDriveUserMessage(error);
+  }
   if (error.code === 404) {
     if (authMode === 'oauth') {
       return 'GOOGLE_DRIVE_FOLDER_ID가 잘못됐거나, OAuth로 연결한 Google 계정이 해당 폴더에 접근할 수 없습니다.';
