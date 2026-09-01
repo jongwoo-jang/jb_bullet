@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>실적 JSON 생성기</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{
+  --bg:#F3F5F7;--surface:#fff;--ink:#20242A;--ink2:#626B76;--ink3:#A4ACB5;
+  --brand:#003CDC;--brand-soft:#E8F8FD;--line:#ECEFF2;--danger:#D94343;
+  --shadow:0 12px 34px rgba(24,34,45,.09);--ease:cubic-bezier(.22,.8,.28,1);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;letter-spacing:0;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit}
+button{border:0;background:none;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
+.wrap{width:min(720px,100%);margin:0 auto;padding:22px 14px 48px}
+.top{margin-bottom:16px}
+.top span{display:block;margin-bottom:6px;color:var(--brand);font-size:12px;font-weight:900}
+.top h1{margin:0;font-size:26px;line-height:1.15;font-weight:900}
+.tabs{position:sticky;top:0;z-index:3;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;padding:6px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.94);box-shadow:var(--shadow);backdrop-filter:blur(14px)}
+.tab{min-height:50px;border-radius:10px;color:var(--ink2);font-size:15px;font-weight:900}
+.tab[aria-selected="true"]{background:var(--brand);color:#fff}
+.panel{display:none;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.panel.active{display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{margin-bottom:14px}
+.field label,.group-label{display:block;margin-bottom:8px;color:var(--ink2);font-size:13px;font-weight:850}
+.field input,.field textarea,.field select{
+  width:100%;min-height:52px;border:1px solid var(--line);border-radius:11px;background:#FBFCFD;color:var(--ink);
+  padding:13px 14px;font-size:15px;outline:none;transition:border-color .16s,box-shadow .16s,background .16s;
+}
+.field textarea{min-height:300px;line-height:1.5;resize:vertical}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,60,220,.08)}
+.check-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.check{display:flex;align-items:center;gap:8px;min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#FBFCFD;font-size:14px;font-weight:850;color:var(--ink2)}
+.check input{width:18px;height:18px;accent-color:var(--brand)}
+.actions{position:sticky;bottom:0;display:flex;gap:8px;margin-top:14px;padding-top:12px;background:linear-gradient(180deg,rgba(243,245,247,0),var(--bg) 38%)}
+.primary,.ghost{min-height:54px;border-radius:12px;font-weight:900}
+.primary{flex:1;background:var(--brand);color:#fff;box-shadow:0 12px 24px rgba(0,60,220,.18)}
+.ghost{padding:0 16px;background:#fff;border:1px solid var(--line);color:var(--ink2)}
+.summary{margin-top:12px;padding:13px 14px;border-radius:12px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:850;line-height:1.5}
+.error{background:#FFF1F1;color:var(--danger)}
+@media(max-width:520px){
+  .wrap{padding:16px 10px 36px}.top h1{font-size:24px}.grid{grid-template-columns:1fr}.check-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <span>전환법인 라운지</span>
+    <h1>실적 JSON 생성기</h1>
+  </header>
+  <nav class="tabs" aria-label="실적 JSON 생성 단계">
+    <button class="tab" type="button" data-tab="condition" aria-selected="true">시상조건</button>
+    <button class="tab" type="button" data-tab="data" aria-selected="false">실적데이터 입력</button>
+  </nav>
+
+  <section class="panel active" data-panel="condition">
+    <div class="grid">
+      <div class="field"><label for="month">대상월</label><input id="month" type="month" required></div>
+      <div class="field"><label for="awardDate">시상날짜</label><input id="awardDate" type="date"></div>
+    </div>
+    <div class="field"><label for="awardName">시상이름</label><input id="awardName" placeholder="9월 인보험 시상" required></div>
+    <div class="grid">
+      <div class="field"><label for="conditionType">달성조건</label><select id="conditionType"><option value="premiumSum">월납환산합산금액</option><option value="paymentCount">납입건수</option></select></div>
+      <div class="field"><label for="targetValue">달성 기준값</label><input id="targetValue" inputmode="numeric" placeholder="300000" required></div>
+    </div>
+    <div class="field"><label for="awardAmount">시상금액</label><input id="awardAmount" inputmode="numeric" placeholder="50000" required></div>
+    <span class="group-label">장기세분</span>
+    <div class="check-grid" id="longTermTypes"></div>
+    <label class="check"><input id="excludeActualLoss" type="checkbox" checked>실손 제외</label>
+    <div class="summary">실손 제외를 선택하면 실손구분에 전환표준 또는 유병노후가 포함된 건은 계산에서 제외됩니다.</div>
+  </section>
+
+  <section class="panel" data-panel="data">
+    <div class="field">
+      <label for="rawData">실적데이터 붙여넣기</label>
+      <textarea id="rawData" placeholder="엑셀에서 헤더 행과 데이터 행을 함께 복사해 붙여넣기"></textarea>
+    </div>
+    <div class="summary" id="parseSummary">실적데이터를 붙여넣으면 저장 시 자동으로 JSON 구조로 변환됩니다.</div>
+  </section>
+
+  <div class="actions">
+    <button class="primary" id="downloadBtn" type="button">JSON 파일로 저장하기</button>
+    <button class="ghost" id="resetBtn" type="button">초기화</button>
+  </div>
+</main>
+
+<script>
+const HEADERS={
+  region:'지역단명',
+  branch:'지점명',
+  contractClosedAt:'계약마감시간',
+  longTermType:'장기마케팅세분',
+  agencyName:'성명_대리점',
+  userCode:'사용인코드',
+  userName:'사용인명',
+  monthlyPremium:'월환산보험료',
+  paymentCount:'납입건수',
+  actualLossType:'실손구분',
+  selfType:'본인여부'
+};
+const ACTUAL_LOSS_KEYWORDS=['전환표준','유병노후'];
+const longTermTypes=document.getElementById('longTermTypes');
+const parseSummary=document.getElementById('parseSummary');
+['A01','A02','A03','A04','A05'].forEach(code=>{
+  longTermTypes.insertAdjacentHTML('beforeend',`<label class="check"><input type="checkbox" value="${code}" checked>${code}</label>`);
+});
+document.getElementById('month').value=new Date().toISOString().slice(0,7);
+document.querySelectorAll('[data-tab]').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('[data-tab]').forEach(item=>item.setAttribute('aria-selected',String(item===tab)));
+    document.querySelectorAll('[data-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.panel===tab.dataset.tab));
+  });
+});
+document.getElementById('rawData').addEventListener('input',()=>{
+  const rows=parsePerformanceRows(document.getElementById('rawData').value);
+  parseSummary.textContent=rows.length?`${rows.length.toLocaleString()}건을 인식했습니다.`:'실적데이터를 인식하지 못했습니다.';
+  parseSummary.classList.toggle('error',!rows.length&&document.getElementById('rawData').value.trim());
+});
+document.getElementById('downloadBtn').addEventListener('click',()=>{
+  const dataset=buildDataset();
+  if(!dataset)return;
+  const blob=new Blob([JSON.stringify(dataset,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`performance-${dataset.month}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+document.getElementById('resetBtn').addEventListener('click',()=>location.reload());
+function buildDataset(){
+  const awardName=document.getElementById('awardName').value.trim();
+  const targetValue=toNumber(document.getElementById('targetValue').value);
+  const awardAmount=toNumber(document.getElementById('awardAmount').value);
+  const rows=parsePerformanceRows(document.getElementById('rawData').value);
+  if(!awardName){alert('시상이름을 입력해 주세요.');return null}
+  if(targetValue<=0){alert('달성 기준값을 입력해 주세요.');return null}
+  if(awardAmount<=0){alert('시상금액을 입력해 주세요.');return null}
+  if(!rows.length){alert('실적데이터를 붙여넣어 주세요.');return null}
+  const excludeActualLoss=document.getElementById('excludeActualLoss').checked;
+  return {
+    schemaVersion:'fp-performance-v1',
+    createdAt:new Date().toISOString(),
+    month:document.getElementById('month').value||new Date().toISOString().slice(0,7),
+    title:awardName,
+    awardConditions:[{
+      name:awardName,
+      conditionType:document.getElementById('conditionType').value,
+      awardDate:document.getElementById('awardDate').value,
+      targetValue,
+      awardAmount,
+      longTermTypes:[...longTermTypes.querySelectorAll('input:checked')].map(input=>input.value),
+      excludeActualLoss,
+      actualLossKeywords:excludeActualLoss?ACTUAL_LOSS_KEYWORDS:[]
+    }],
+    performanceRows:rows
+  };
+}
+function parsePerformanceRows(text){
+  const table=parseDelimited(text);
+  if(table.length<2)return [];
+  const headers=table[0].map(value=>String(value||'').trim());
+  return table.slice(1).map(row=>{
+    const item={};
+    Object.entries(HEADERS).forEach(([key,label])=>{
+      const index=headers.indexOf(label);
+      item[key]=index>=0?String(row[index]||'').trim():'';
+    });
+    item.userCode=item.userCode.replace(/\s+/g,'');
+    item.longTermType=item.longTermType.toUpperCase().replace(/^AO/,'A0');
+    item.monthlyPremium=toNumber(item.monthlyPremium);
+    item.paymentCount=toNumber(item.paymentCount);
+    item.isActualLoss=ACTUAL_LOSS_KEYWORDS.some(keyword=>item.actualLossType.includes(keyword));
+    return item;
+  }).filter(row=>row.userCode);
+}
+function parseDelimited(text){
+  const clean=String(text||'').trim();
+  if(!clean)return [];
+  const delimiter=detectDelimiter(clean);
+  return clean.split(/\r?\n/).map(line=>line.split(delimiter).map(value=>value.trim())).filter(row=>row.some(Boolean));
+}
+function detectDelimiter(text){
+  const sample=text.split(/\r?\n/).slice(0,5).join('\n');
+  const counts=[['\t',(sample.match(/\t/g)||[]).length],[',',(sample.match(/,/g)||[]).length],[';',(sample.match(/;/g)||[]).length]];
+  counts.sort((a,b)=>b[1]-a[1]);
+  return counts[0][1]>0?counts[0][0]:'\t';
+}
+function toNumber(value){
+  const number=Number(String(value||'').replace(/,/g,'').replace(/[^\d.-]/g,''));
+  return Number.isFinite(number)?number:0;
+}
+</script>
+</body>
+</html>

@@ -37,7 +37,7 @@ a{color:inherit;text-decoration:none}
 .layout[hidden]{display:none}
 .panel{background:rgba(255,255,255,.96);border:1px solid rgba(236,239,242,.95);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
 .admin-tabs{
-  position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;
+  position:sticky;top:0;z-index:4;display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:6px;
   padding:6px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.96);
   box-shadow:var(--shadow);backdrop-filter:blur(14px);
 }
@@ -230,6 +230,7 @@ a{color:inherit;text-decoration:none}
       <button class="admin-tab" type="button" data-admin-tab="comments" aria-selected="false">댓글 관리</button>
       <button class="admin-tab" type="button" data-admin-tab="memberList" aria-selected="false">회원 관리</button>
       <button class="admin-tab" type="button" data-admin-tab="popup" aria-selected="false">접속 팝업</button>
+      <button class="admin-tab" type="button" data-admin-tab="performance" aria-selected="false">실적 반영</button>
       <button class="admin-tab" type="button" data-admin-tab="members" aria-selected="false">회원 코드</button>
     </nav>
 
@@ -313,6 +314,17 @@ a{color:inherit;text-decoration:none}
       </form>
     </section>
 
+    <section class="panel settings-panel admin-panel" data-admin-panel="performance" hidden>
+      <div class="section-head"><div><b>실적 반영</b><span>시상조건과 실적데이터가 포함된 JSON 파일을 반영합니다. 사용자 화면에는 아직 표시하지 않습니다.</span></div></div>
+      <form class="passcode-form" id="performanceForm">
+        <div class="field"><label for="performanceJson">JSON 파일</label><input id="performanceJson" type="file" accept=".json,application/json" required></div>
+        <button class="primary" id="savePerformanceBtn" type="submit">반영하기</button>
+        <button class="ghost" id="refreshPerformanceBtn" type="button">새로고침</button>
+        <span class="passcode-status" id="performanceStatus">상태 확인 중</span>
+      </form>
+      <div class="comment-list" id="performanceList"></div>
+    </section>
+
     <section class="panel settings-panel admin-panel" data-admin-panel="members" hidden>
       <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 코드번호, B열은 실명으로 저장합니다.</span></div></div>
       <form class="passcode-form" id="memberCodeForm">
@@ -365,6 +377,12 @@ const popupPreview=document.getElementById('popupPreview');
 const popupPostId=document.getElementById('popupPostId');
 const popupStatus=document.getElementById('popupStatus');
 const clearPopupBtn=document.getElementById('clearPopupBtn');
+const performanceForm=document.getElementById('performanceForm');
+const performanceJson=document.getElementById('performanceJson');
+const savePerformanceBtn=document.getElementById('savePerformanceBtn');
+const refreshPerformanceBtn=document.getElementById('refreshPerformanceBtn');
+const performanceStatus=document.getElementById('performanceStatus');
+const performanceList=document.getElementById('performanceList');
 const submitButton=form.querySelector('button[type="submit"]');
 const DRIVE_CHUNK_BYTES=2.5*1024*1024;
 let selected=[];
@@ -392,6 +410,7 @@ function switchAdminTab(target){
   if(target==='posts'||target==='comments')render();
   if(target==='memberList')renderAdminMembers();
   if(target==='popup')loadPopupSetting();
+  if(target==='performance')loadPerformanceDatasets();
   if(target==='members')loadMemberCodeStatus();
 }
 adminTabs.forEach(tab=>{
@@ -918,6 +937,88 @@ clearPopupBtn.addEventListener('click',async()=>{
   }finally{
     clearPopupBtn.disabled=false;
     clearPopupBtn.textContent='초기화';
+  }
+});
+async function loadPerformanceDatasets(){
+  const token=getAccessToken();
+  if(!token)return;
+  performanceStatus.textContent='상태 확인 중';
+  try{
+    const result=await apiJson('/api/admin/passcode?action=performance',{
+      headers:{Authorization:`Bearer ${token}`},
+      cache:'no-store'
+    });
+    if(!result.ok)throw new Error(result.error||'실적 반영 이력을 불러오지 못했습니다');
+    renderPerformanceDatasets(result.datasets||[]);
+    performanceStatus.textContent=(result.datasets||[]).length?`최근 ${(result.datasets||[]).length}건`:'반영 이력 없음';
+  }catch(error){
+    performanceStatus.textContent='상태 확인 실패';
+    performanceList.innerHTML='<p class="empty">실적 반영 이력을 불러오지 못했습니다.</p>';
+    toast(error.message||'실적 반영 이력을 불러오지 못했습니다');
+  }
+}
+function renderPerformanceDatasets(items){
+  if(!items.length){
+    performanceList.innerHTML='<p class="empty">아직 반영한 실적 데이터가 없습니다.</p>';
+    return;
+  }
+  performanceList.innerHTML=items.map(item=>`<article class="comment-item">
+    <div>
+      <h3>${escapeHtml(item.title||'인보험 실적')}${item.is_active?'<span class="pin-label">현재 반영</span>':''}</h3>
+      <p>${escapeHtml(item.month||'')} · ${Number(item.row_count||0).toLocaleString()}건 · ${escapeHtml(formatDateTime(item.created_at))}</p>
+      <div class="comment-meta"><span>${escapeHtml(item.source_filename||'JSON')}</span><span>${escapeHtml(item.uploaded_by||'관리자')}</span></div>
+    </div>
+    <button class="danger" data-performance-del="${item.id}" type="button">삭제</button>
+  </article>`).join('');
+}
+performanceForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const token=getAccessToken();
+  const file=performanceJson.files&&performanceJson.files[0];
+  if(!token){toast('로그인이 필요합니다');return}
+  if(!file){toast('JSON 파일을 선택해 주세요');return}
+  savePerformanceBtn.disabled=true;
+  savePerformanceBtn.textContent='반영 중';
+  performanceStatus.textContent='JSON 확인 중';
+  try{
+    const dataset=JSON.parse(await file.text());
+    const result=await apiJson('/api/admin/passcode?action=performance',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({dataset,filename:file.name})
+    });
+    if(!result.ok)throw new Error(result.error||'실적 데이터 반영에 실패했습니다');
+    performanceJson.value='';
+    toast('실적 데이터를 반영했습니다');
+    await loadPerformanceDatasets();
+  }catch(error){
+    performanceStatus.textContent='반영 실패';
+    toast(error.message||'실적 데이터 반영에 실패했습니다');
+  }finally{
+    savePerformanceBtn.disabled=false;
+    savePerformanceBtn.textContent='반영하기';
+  }
+});
+refreshPerformanceBtn.addEventListener('click',loadPerformanceDatasets);
+performanceList.addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-performance-del]');
+  if(!btn)return;
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  if(!confirm('선택한 실적 반영 데이터를 삭제할까요?'))return;
+  btn.disabled=true;
+  try{
+    const result=await apiJson('/api/admin/passcode?action=performance',{
+      method:'DELETE',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({id:btn.dataset.performanceDel})
+    });
+    if(!result.ok)throw new Error(result.error||'실적 데이터 삭제에 실패했습니다');
+    toast('실적 데이터를 삭제했습니다');
+    await loadPerformanceDatasets();
+  }catch(error){
+    btn.disabled=false;
+    toast(error.message||'실적 데이터 삭제에 실패했습니다');
   }
 });
 function parseMemberCodeCsv(text){

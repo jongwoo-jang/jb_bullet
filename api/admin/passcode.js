@@ -7,6 +7,8 @@ const LOOKUP_CHUNK_SIZE = 1000;
 const DELETE_CHUNK_SIZE = 500;
 const ADMIN_POST_LIMIT = 500;
 const ADMIN_FEED_TOKEN_TTL_SECONDS = 60 * 60 * 3;
+const PERFORMANCE_ROW_LIMIT = 20000;
+const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
 const DEFAULT_BRANCH = '전환법인';
 
 module.exports = async function handler(req, res) {
@@ -18,6 +20,7 @@ module.exports = async function handler(req, res) {
   if (url.searchParams.get('action') === 'popup') return handlePopupSetting(req, res);
   if (url.searchParams.get('action') === 'posts') return listAdminPosts(req, res, admin.supabase);
   if (url.searchParams.get('action') === 'pin') return updatePostPin(req, res, admin.supabase);
+  if (url.searchParams.get('action') === 'performance') return handlePerformanceDataset(req, res, admin.supabase, admin.user);
   if (url.searchParams.get('action') === 'members') return handleMembers(req, res, admin.supabase);
 
   if (req.method === 'GET') return getStatus(res);
@@ -290,6 +293,96 @@ async function deletePopupSetting(res) {
   }
 }
 
+async function handlePerformanceDataset(req, res, supabase, user = {}) {
+  if (req.method === 'GET') return listPerformanceDatasets(res, supabase);
+  if (req.method === 'POST') return savePerformanceDataset(req, res, supabase, user);
+  if (req.method === 'DELETE') return deletePerformanceDataset(req, res, supabase);
+  res.setHeader('Allow', 'GET, POST, DELETE');
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
+async function listPerformanceDatasets(res, supabase) {
+  try {
+    const { data, error } = await supabase
+      .from('fp_performance_datasets')
+      .select('id, month, title, row_count, is_active, source_filename, uploaded_by, created_at')
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error) throw new Error(error.message);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, datasets: data || [] });
+  } catch (error) {
+    console.error(error);
+    if (isMissingPerformanceTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '실적 반영 이력을 불러오지 못했습니다.' });
+  }
+}
+
+async function savePerformanceDataset(req, res, supabase, user = {}) {
+  try {
+    const body = await readJson(req);
+    const dataset = normalizePerformanceDataset(body.dataset || body.performance || body, body.filename || body.sourceFilename);
+    if (!dataset.award_conditions.length) return res.status(400).json({ error: '시상조건이 필요합니다.' });
+    if (!dataset.performance_rows.length) return res.status(400).json({ error: '실적데이터가 필요합니다.' });
+
+    const now = new Date().toISOString();
+    const activeClear = await supabase
+      .from('fp_performance_datasets')
+      .update({ is_active: false })
+      .eq('is_active', true);
+    if (activeClear.error && !isMissingPerformanceTable(activeClear.error)) throw new Error(activeClear.error.message);
+
+    const { data, error } = await supabase
+      .from('fp_performance_datasets')
+      .insert({
+        month: dataset.month,
+        title: dataset.title,
+        award_conditions: dataset.award_conditions,
+        performance_rows: dataset.performance_rows,
+        row_count: dataset.performance_rows.length,
+        is_active: true,
+        source_filename: dataset.source_filename,
+        uploaded_by: String(user.email || '').slice(0, 160),
+        created_at: now
+      })
+      .select('id, month, title, row_count, is_active, source_filename, uploaded_by, created_at')
+      .single();
+    if (error) throw new Error(error.message);
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true, dataset: data });
+  } catch (error) {
+    console.error(error);
+    if (isMissingPerformanceTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '실적 데이터를 저장하지 못했습니다.' });
+  }
+}
+
+async function deletePerformanceDataset(req, res, supabase) {
+  try {
+    const body = await readJson(req);
+    const id = Number(body.id);
+    if (!Number.isSafeInteger(id) || id <= 0) return res.status(400).json({ error: '삭제할 실적 데이터 ID가 필요합니다.' });
+    const { error } = await supabase
+      .from('fp_performance_datasets')
+      .delete()
+      .eq('id', id);
+    if (error) throw new Error(error.message);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    if (isMissingPerformanceTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '실적 데이터를 삭제하지 못했습니다.' });
+  }
+}
+
 async function getStatus(res) {
   try {
     const supabase = getSupabaseAdmin();
@@ -464,6 +557,11 @@ function isMissingStatsTable(error) {
   return message.includes('fp_post_stats') || message.includes('public.fp_post_stats');
 }
 
+function isMissingPerformanceTable(error) {
+  const message = String(error && error.message || '');
+  return message.includes('fp_performance_datasets') || message.includes('public.fp_performance_datasets');
+}
+
 function isMissingDisplayNameColumn(error) {
   return Boolean(error && String(error.message || '').includes('display_name'));
 }
@@ -479,6 +577,99 @@ function chunkArray(items, size) {
     chunks.push(items.slice(index, index + size));
   }
   return chunks;
+}
+
+function normalizePerformanceDataset(value = {}, filename = '') {
+  const source = value && typeof value === 'object' ? value : {};
+  const awardConditions = normalizeAwardConditions(
+    source.awardConditions || source.award_conditions || source.awardCondition || source.award_condition
+  );
+  const performanceRows = normalizePerformanceRows(
+    source.performanceRows || source.performance_rows || source.rows || source.data || source.records
+  );
+  const month = cleanMonth(source.month || inferMonth(awardConditions) || new Date().toISOString().slice(0, 7));
+  return {
+    month,
+    title: cleanText(source.title || source.name || (awardConditions[0] && awardConditions[0].name) || `${month} 인보험 실적`, 120),
+    award_conditions: awardConditions,
+    performance_rows: performanceRows,
+    source_filename: cleanText(filename || source.sourceFilename || source.source_filename || '', 180)
+  };
+}
+
+function normalizeAwardConditions(value) {
+  const list = Array.isArray(value) ? value : (value ? [value] : []);
+  return list.map((condition) => {
+    const item = condition && typeof condition === 'object' ? condition : {};
+    const conditionType = normalizeConditionType(item.conditionType || item.condition_type || item.metric || item['달성조건']);
+    const excludeActualLoss = Boolean(item.excludeActualLoss || item.exclude_actual_loss || item['실손제외']);
+    return {
+      name: cleanText(item.name || item.title || item['시상이름'], 120),
+      conditionType,
+      awardDate: cleanDate(item.awardDate || item.award_date || item['시상날짜']),
+      targetValue: toNumber(item.targetValue || item.target_value || item.targetAmount || item.target_amount || item['달성금액']),
+      awardAmount: toNumber(item.awardAmount || item.award_amount || item['시상금액']),
+      longTermTypes: normalizeLongTermTypes(item.longTermTypes || item.long_term_types || item['장기세분'] || item['장기마케팅세분']),
+      excludeActualLoss,
+      actualLossKeywords: excludeActualLoss ? ACTUAL_LOSS_KEYWORDS : []
+    };
+  }).filter((condition) => condition.name && condition.targetValue > 0);
+}
+
+function normalizePerformanceRows(value) {
+  const rows = Array.isArray(value) ? value : [];
+  return rows.slice(0, PERFORMANCE_ROW_LIMIT).map((row) => {
+    const actualLossType = cleanText(row.actualLossType || row.actual_loss_type || row['실손구분'], 80);
+    return {
+      region: cleanText(row.region || row['지역단명'], 80),
+      branch: cleanText(row.branch || row['지점명'], 80),
+      contractClosedAt: cleanText(row.contractClosedAt || row.contract_closed_at || row['계약마감시간'], 32),
+      longTermType: cleanText(row.longTermType || row.long_term_type || row['장기마케팅세분'], 12).toUpperCase().replace(/^AO/, 'A0'),
+      agencyName: cleanText(row.agencyName || row.agency_name || row['성명_대리점'], 160),
+      userCode: cleanText(row.userCode || row.user_code || row['사용인코드'], 80).replace(/\s+/g, ''),
+      userName: cleanText(row.userName || row.user_name || row['사용인명'], 80),
+      monthlyPremium: toNumber(row.monthlyPremium || row.monthly_premium || row['월환산보험료']),
+      paymentCount: toNumber(row.paymentCount || row.payment_count || row['납입건수']),
+      actualLossType,
+      isActualLoss: ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword)),
+      selfType: cleanText(row.selfType || row.self_type || row['본인여부'], 40)
+    };
+  }).filter((row) => row.userCode);
+}
+
+function normalizeConditionType(value) {
+  const text = cleanText(value, 80).toLowerCase();
+  if (text.includes('납입') || text.includes('count')) return 'paymentCount';
+  return 'premiumSum';
+}
+
+function normalizeLongTermTypes(value) {
+  const list = Array.isArray(value) ? value : String(value || '').split(/[,|\s]+/);
+  const allowed = new Set(['A01', 'A02', 'A03', 'A04', 'A05']);
+  return [...new Set(list.map((item) => cleanText(item, 12).toUpperCase().replace(/^AO/, 'A0')).filter((item) => allowed.has(item)))];
+}
+
+function cleanMonth(value) {
+  const text = cleanText(value, 20);
+  const match = text.match(/(\d{4})[-.]?(\d{2})/);
+  return match ? `${match[1]}-${match[2]}` : new Date().toISOString().slice(0, 7);
+}
+
+function cleanDate(value) {
+  const text = cleanText(value, 30);
+  const match = text.match(/(\d{4})[-.]?(\d{2})[-.]?(\d{2})/);
+  return match ? `${match[1]}-${match[2]}-${match[3]}` : text;
+}
+
+function inferMonth(conditions = []) {
+  const date = conditions.find((condition) => condition.awardDate);
+  return date ? date.awardDate : '';
+}
+
+function toNumber(value) {
+  const text = String(value || '').replace(/,/g, '').replace(/[^\d.-]/g, '');
+  const number = Number(text);
+  return Number.isFinite(number) ? number : 0;
 }
 
 function normalizePopupSetting(value) {

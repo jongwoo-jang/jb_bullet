@@ -4,6 +4,7 @@ const { logActivity } = require('./_activity');
 const FEED_EVENTS = new Set(['view', 'like', 'unlike', 'save', 'unsave', 'download', 'share', 'popup_view', 'popup_click']);
 const DEFAULT_FEED_LIMIT = 30;
 const MAX_FEED_LIMIT = 60;
+const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
 const STAT_FIELDS = {
   view: 'view_count',
   like: 'like_count',
@@ -28,6 +29,10 @@ module.exports = async function handler(req, res) {
 
   try {
     const supabase = getSupabaseAdmin();
+    const url = new URL(req.url || '/', 'http://localhost');
+    if (url.searchParams.get('view') === 'performance') {
+      return getMyPerformance(req, res, supabase, access.payload);
+    }
     const pagination = getPagination(req);
     let { data, error } = await supabase
       .from('fp_posts')
@@ -74,6 +79,80 @@ function getPagination(req) {
     : DEFAULT_FEED_LIMIT;
   const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
   return { limit, offset };
+}
+
+async function getMyPerformance(req, res, supabase, payload = {}) {
+  try {
+    const codeNumber = cleanText(payload && payload.codeNumber, 80).replace(/\s+/g, '');
+    if (!codeNumber) return res.status(403).json({ error: '로그인이 필요합니다.' });
+    const { data, error } = await supabase
+      .from('fp_performance_datasets')
+      .select('id, month, title, award_conditions, performance_rows, row_count, created_at')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!data) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).json({ ok: true, performance: null });
+    }
+    const rows = Array.isArray(data.performance_rows) ? data.performance_rows : [];
+    const myRows = rows.filter((row) => cleanText(row.userCode || row.user_code || row['사용인코드'], 80).replace(/\s+/g, '') === codeNumber);
+    const conditions = Array.isArray(data.award_conditions) ? data.award_conditions : [];
+    const awards = conditions.map((condition) => calculateAward(condition, myRows));
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({
+      ok: true,
+      performance: {
+        id: data.id,
+        month: data.month,
+        title: data.title,
+        rowCount: myRows.length,
+        userCode: codeNumber,
+        userName: myRows[0] && (myRows[0].userName || myRows[0].user_name || myRows[0]['사용인명']) || payload.displayName || '',
+        awards,
+        updatedAt: data.created_at
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    if (isMissingPerformanceTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '내 실적을 불러오지 못했습니다.' });
+  }
+}
+
+function calculateAward(condition = {}, rows = []) {
+  const longTermTypes = normalizeStringList(condition.longTermTypes || condition.long_term_types);
+  const excludeActualLoss = Boolean(condition.excludeActualLoss || condition.exclude_actual_loss);
+  const filtered = rows.filter((row) => {
+    const longTermType = cleanText(row.longTermType || row.long_term_type || row['장기마케팅세분'], 12).toUpperCase().replace(/^AO/, 'A0');
+    if (longTermTypes.length && !longTermTypes.includes(longTermType)) return false;
+    if (!excludeActualLoss) return true;
+    const actualLossType = cleanText(row.actualLossType || row.actual_loss_type || row['실손구분'], 80);
+    return !ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword));
+  });
+  const conditionType = String(condition.conditionType || condition.condition_type || '').includes('payment') ? 'paymentCount' : 'premiumSum';
+  const currentValue = filtered.reduce((sum, row) => {
+    return sum + (conditionType === 'paymentCount'
+      ? toNumber(row.paymentCount || row.payment_count || row['납입건수'])
+      : toNumber(row.monthlyPremium || row.monthly_premium || row['월환산보험료']));
+  }, 0);
+  const targetValue = toNumber(condition.targetValue || condition.target_value || condition.targetAmount || condition.target_amount);
+  const achieved = targetValue > 0 && currentValue >= targetValue;
+  return {
+    name: cleanText(condition.name || condition.title || '인보험 시상', 120),
+    conditionType,
+    awardDate: cleanText(condition.awardDate || condition.award_date, 30),
+    targetValue,
+    currentValue,
+    achievementRate: targetValue > 0 ? Math.min(999, Math.round((currentValue / targetValue) * 1000) / 10) : 0,
+    achieved,
+    awardAmount: achieved ? toNumber(condition.awardAmount || condition.award_amount) : 0,
+    eligibleRowCount: filtered.length
+  };
 }
 
 async function recordFeedActivity(req, res, payload) {
@@ -317,6 +396,21 @@ function parseJson(value) {
   } catch (error) {
     return null;
   }
+}
+
+function normalizeStringList(value) {
+  const list = Array.isArray(value) ? value : String(value || '').split(/[,|\s]+/);
+  return [...new Set(list.map((item) => cleanText(item, 12).toUpperCase().replace(/^AO/, 'A0')).filter(Boolean))];
+}
+
+function toNumber(value) {
+  const number = Number(String(value || '').replace(/,/g, '').replace(/[^\d.-]/g, ''));
+  return Number.isFinite(number) ? number : 0;
+}
+
+function isMissingPerformanceTable(error) {
+  const message = String(error && error.message || '');
+  return message.includes('fp_performance_datasets') || message.includes('public.fp_performance_datasets');
 }
 
 function cleanText(value, maxLength) {
