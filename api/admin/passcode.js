@@ -656,7 +656,6 @@ function normalizePerformanceRows(value) {
       longTermType: cleanText(row.longTermType || row.long_term_type || row['장기마케팅세분'], 12).toUpperCase().replace(/^AO/, 'A0'),
       agencyName: cleanText(row.agencyName || row.agency_name || row['성명_대리점'], 160),
       userCode: cleanText(row.userCode || row.user_code || row['사용인코드'], 80).replace(/\s+/g, ''),
-      userName: cleanText(row.userName || row.user_name || row['사용인명'], 80),
       monthlyPremium: toNumber(row.monthlyPremium || row.monthly_premium || row['월환산보험료']),
       paymentCount: toNumber(row.paymentCount || row.payment_count || row['납입건수']),
       actualLossType,

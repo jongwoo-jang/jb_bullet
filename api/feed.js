@@ -113,7 +113,7 @@ async function getMyPerformance(req, res, supabase, payload = {}) {
         title: data.title,
         rowCount: myRows.length,
         userCode: codeNumber,
-        userName: myRows[0] && (myRows[0].userName || myRows[0].user_name || myRows[0]['사용인명']) || payload.displayName || '',
+        userName: payload.displayName || myRows[0] && (myRows[0].userName || myRows[0].user_name || myRows[0]['사용인명']) || '',
         summary: {
           rowCount: myRows.length,
           insuranceRowCount: insuranceRows.length,
