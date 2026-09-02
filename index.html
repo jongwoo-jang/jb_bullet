@@ -97,11 +97,14 @@ a{color:inherit;text-decoration:none}
 }
 .icon-btn.has-unread .notice-dot{display:block}
 .tabs{
-  flex:0 0 auto;position:relative;display:flex;gap:24px;margin:0;padding:0 16px;
+  flex:0 0 auto;position:relative;display:flex;gap:20px;margin:0;padding:0 16px;
   background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);
+  overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain;
 }
+.tabs::-webkit-scrollbar{display:none}
 .tab{position:relative;z-index:2;min-height:50px;padding:16px 0 14px;color:var(--ink2);font-size:15.5px;font-weight:780}
 .tab[aria-selected="true"]{color:var(--ink)}
+.tab.performance-tab{flex:0 0 auto;color:var(--brand2);font-weight:900}
 .tab-ind{position:absolute;left:16px;bottom:-1px;height:2px;border-radius:2px;background:var(--brand2);transition:transform .32s var(--ease),width .32s var(--ease)}
 .search-wrap{padding:0 16px 16px;background:rgba(255,255,255,.94)}
 .tabs[hidden],.search-wrap[hidden],.scroller[hidden]{display:none}
@@ -220,6 +223,33 @@ a{color:inherit;text-decoration:none}
 }
 .feed-more button:active{transform:scale(.96)}
 .feed-more button:disabled{color:var(--ink3);cursor:not-allowed}
+.performance-view{display:grid;gap:12px;padding:2px 4px 12px}
+.performance-head{padding:16px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.performance-head h2{margin:0;color:var(--ink);font-size:23px;font-weight:900;line-height:1.25}
+.performance-head p{margin:7px 0 0;color:var(--ink2);font-size:13.8px;font-weight:680;line-height:1.5}
+.performance-summary{display:grid;grid-template-columns:1.35fr 1fr;gap:8px}
+.metric-card{min-height:98px;padding:15px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.metric-card span{display:block;color:var(--ink2);font-size:12.8px;font-weight:850}
+.metric-card strong{display:block;margin-top:9px;color:var(--ink);font-size:25px;font-weight:900;line-height:1.1}
+.metric-card small{display:block;margin-top:7px;color:var(--ink3);font-size:12.3px;font-weight:720;line-height:1.35}
+.award-list{display:grid;gap:9px}
+.award-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.award-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
+.award-top strong{flex:1;min-width:0;color:var(--ink);font-size:16px;font-weight:900;line-height:1.35}
+.award-state{flex:0 0 auto;height:27px;padding:0 9px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:12.2px;font-weight:900;display:inline-flex;align-items:center}
+.award-card.done .award-state{background:var(--brand-soft);color:var(--brand2)}
+.award-period{margin:-2px 0 10px;color:var(--ink3);font-size:12.5px;font-weight:720}
+.award-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
+.award-values div{min-width:0;padding:10px 11px;border-radius:11px;background:#F8FAFB}
+.award-values span{display:block;color:var(--ink3);font-size:11.8px;font-weight:820}
+.award-values b{display:block;margin-top:5px;color:var(--ink);font-size:15.5px;font-weight:900;line-height:1.25}
+.progress-track{height:7px;border-radius:999px;background:#E9EEF3;overflow:hidden}
+.progress-bar{height:100%;width:min(var(--progress,0%),100%);border-radius:inherit;background:var(--brand2)}
+.award-result{margin:11px 0 0;color:var(--ink2);font-size:13.3px;font-weight:760;line-height:1.48}
+.award-result b{color:var(--brand2);font-weight:900}
+.performance-note{padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;color:var(--ink2);font-size:12.8px;font-weight:720;line-height:1.6;word-break:keep-all}
+.performance-empty{margin:38px 18px;color:var(--ink2);text-align:center;font-size:15px;font-weight:720;line-height:1.55}
+@media(max-width:360px){.performance-summary,.award-values{grid-template-columns:1fr}.metric-card strong{font-size:23px}}
 .pin{
   width:100%;display:block;text-align:left;
   opacity:0;transform:translateY(14px);transition:opacity .42s var(--ease),transform .42s var(--ease);
@@ -406,6 +436,7 @@ a{color:inherit;text-decoration:none}
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-product">상품</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-award">시상</button>
     <button class="tab" role="tab" aria-selected="false" aria-controls="p-mixed">복합</button>
+    <button class="tab performance-tab" role="tab" aria-selected="false" aria-controls="p-performance">내 실적</button>
   </nav>
   <div class="search-wrap" id="searchWrap" hidden>
     <label class="search-box" for="searchInput">
@@ -490,6 +521,7 @@ a{color:inherit;text-decoration:none}
     <section class="panel" id="p-product" role="tabpanel" hidden><div class="masonry" id="gridProduct"></div><p class="empty" id="emptyProduct">등록된 상품 자료가 없습니다.</p></section>
     <section class="panel" id="p-award" role="tabpanel" hidden><div class="masonry" id="gridAward"></div><p class="empty" id="emptyAward">등록된 시상 자료가 없습니다.</p></section>
     <section class="panel" id="p-mixed" role="tabpanel" hidden><div class="masonry" id="gridMixed"></div><p class="empty" id="emptyMixed">등록된 복합 자료가 없습니다.</p></section>
+    <section class="panel" id="p-performance" role="tabpanel" hidden><div class="performance-view" id="performanceView"></div></section>
     <div class="feed-more" id="feedMore" hidden><button type="button" id="loadMoreBtn">더 보기</button></div>
   </main>
 
@@ -603,6 +635,7 @@ let entryPopup=null;
 let feedOffset=0;
 let feedHasMore=false;
 let feedLoading=false;
+let performanceState={loading:false,loaded:false,data:null,error:''};
 let unreadOnly=false;
 let searchQuery='';
 let publicAccessToken=getStoredAccessToken();
@@ -849,6 +882,7 @@ async function render(options={}){
   const {fetchPosts=true,reset=false}=options;
   if(fetchPosts)await loadPosts({reset});
   renderPosts();
+  if(isPerformanceTabActive())await renderPerformancePanel();
 }
 function renderPosts(){
   const searchedPosts=posts.filter(matchesSearch);
@@ -869,11 +903,122 @@ function renderPosts(){
   updateLoadMoreUi();
   maybeShowEntryPopup();
 }
+function isPerformanceTabActive(){
+  return document.querySelector('.tab[aria-controls="p-performance"]')?.getAttribute('aria-selected')==='true';
+}
+function updateSearchVisibility(){
+  const wrap=document.getElementById('searchWrap');
+  if(!wrap||document.getElementById('authScreen').hidden===false)return;
+  wrap.hidden=isPerformanceTabActive();
+}
+async function renderPerformancePanel({force=false}={}){
+  const view=document.getElementById('performanceView');
+  if(!view)return;
+  if(!publicAccessToken){
+    view.innerHTML=performanceEmptyMarkup('로그인 후 내 실적을 확인할 수 있습니다.');
+    return;
+  }
+  const payload=getAccessPayload();
+  if(!payload?.codeNumber){
+    view.innerHTML=performanceEmptyMarkup('회원 코드번호로 로그인한 경우에만 내 실적을 확인할 수 있습니다.');
+    return;
+  }
+  if(!performanceState.loaded||force){
+    performanceState={loading:true,loaded:false,data:null,error:''};
+    view.innerHTML=performanceLoadingMarkup();
+    updateLoadMoreUi();
+    try{
+      const response=await fetch('/api/feed?view=performance',{headers:{Authorization:`Bearer ${publicAccessToken}`},cache:'no-store'});
+      const result=await response.json().catch(()=>({error:'실적 응답을 읽을 수 없습니다.'}));
+      if(response.status===401){
+        clearPublicAccess();
+        showAuth();
+        toast(result.error||'다시 로그인해 주세요');
+        return;
+      }
+      if(!response.ok)throw new Error(result.error||'내 실적을 불러오지 못했습니다.');
+      performanceState={loading:false,loaded:true,data:result.performance||null,error:''};
+    }catch(error){
+      performanceState={loading:false,loaded:true,data:null,error:error.message||'내 실적을 불러오지 못했습니다.'};
+    }
+  }
+  if(performanceState.error){
+    view.innerHTML=performanceEmptyMarkup(performanceState.error);
+    return;
+  }
+  if(!performanceState.data){
+    view.innerHTML=performanceEmptyMarkup('아직 반영된 실적 데이터가 없습니다.');
+    return;
+  }
+  view.innerHTML=performanceMarkup(performanceState.data);
+}
+function performanceLoadingMarkup(){
+  return `<div class="performance-head"><h2>내 실적</h2><p>실적 데이터를 불러오는 중입니다.</p></div>`;
+}
+function performanceEmptyMarkup(message){
+  return `<div class="performance-head"><h2>내 실적</h2><p>${escapeHtml(message)}</p></div><p class="performance-empty">관리자가 실적을 반영하면 이 화면에서 확인할 수 있습니다.</p>${performanceNoticeMarkup()}`;
+}
+function performanceMarkup(data){
+  const summary=data.summary||{};
+  const awards=Array.isArray(data.awards)?data.awards:[];
+  const achievedAwards=awards.filter(award=>award.achieved);
+  const totalAwardAmount=achievedAwards.reduce((sum,award)=>sum+Number(award.awardAmount||0),0);
+  const awardItems=achievedAwards.map(award=>award.awardItem).filter(Boolean);
+  return `
+    <div class="performance-head">
+      <h2>${escapeHtml(formatMonthLabel(data.month))} 내 실적</h2>
+      <p>${escapeHtml(data.userName||'회원')}님의 현재 반영 기준입니다.</p>
+    </div>
+    <div class="performance-summary">
+      <div class="metric-card"><span>인보험 월환산</span><strong>${formatMetric(summary.insuranceMonthlyPremium||0,'원')}</strong><small>실손 제외 기준</small></div>
+      <div class="metric-card"><span>납입건수</span><strong>${formatMetric(summary.insurancePaymentCount||0,'건')}</strong><small>실손 제외 기준</small></div>
+      <div class="metric-card"><span>달성 시상</span><strong>${totalAwardAmount>0?formatMetric(totalAwardAmount,'원'):(awardItems.length?`${awardItems.length}개`:'0원')}</strong><small>${awardItems.length?escapeHtml(awardItems.join(', ')):'달성 시상 없음'}</small></div>
+      <div class="metric-card"><span>반영 건수</span><strong>${formatMetric(summary.rowCount||data.rowCount||0,'건')}</strong><small>전체 등록 실적</small></div>
+    </div>
+    <div class="award-list">
+      ${awards.length?awards.map(awardMarkup).join(''):'<p class="performance-empty">등록된 시상조건이 없습니다.</p>'}
+    </div>
+    ${performanceNoticeMarkup()}
+  `;
+}
+function awardMarkup(award){
+  const isCount=award.conditionType==='paymentCount';
+  const unit=isCount?'건':'원';
+  const progress=Math.max(0,Math.min(100,Number(award.achievementRate||0)));
+  const period=[award.awardStartDate,award.awardEndDate].filter(Boolean).join(' ~ ');
+  const result=award.achieved
+    ? `달성 시상 ${award.awardAmount?`<b>${formatMetric(award.awardAmount,'원')}</b>`:''}${award.awardItem?` <b>${escapeHtml(award.awardItem)}</b>`:''}`
+    : `다음 기준까지 ${formatMetric(Math.max(0,Number(award.targetValue||0)-Number(award.currentValue||0)),unit)} 남았습니다.`;
+  return `
+    <article class="award-card ${award.achieved?'done':''}">
+      <div class="award-top"><strong>${escapeHtml(award.name||'시상조건')}</strong><span class="award-state">${award.achieved?'달성':'진행중'}</span></div>
+      ${period?`<div class="award-period">${escapeHtml(period)}</div>`:''}
+      <div class="award-values">
+        <div><span>현재</span><b>${formatMetric(award.currentValue||0,unit)}</b></div>
+        <div><span>기준</span><b>${formatMetric(award.targetValue||0,unit)}</b></div>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-bar" style="--progress:${progress}%"></div></div>
+      <p class="award-result">${result}</p>
+    </article>
+  `;
+}
+function performanceNoticeMarkup(){
+  return '<p class="performance-note">실제 시상과는 차이가 있을 수 있으니, 자세한 내용은 화재 지점장, 팀장에게 문의주세요.</p>';
+}
+function formatMetric(value,unit=''){
+  const number=Number(value||0);
+  const formatted=Number.isFinite(number)?Math.round(number).toLocaleString('ko-KR'):'0';
+  return `${formatted}${unit}`;
+}
+function formatMonthLabel(month=''){
+  const match=String(month||'').match(/^(\d{4})-(\d{2})/);
+  return match?`${Number(match[2])}월`:'이번달';
+}
 function updateLoadMoreUi(){
   const wrap=document.getElementById('feedMore');
   const button=document.getElementById('loadMoreBtn');
   if(!wrap||!button)return;
-  wrap.hidden=!feedHasMore;
+  wrap.hidden=!feedHasMore||isPerformanceTabActive();
   button.disabled=feedLoading;
   button.textContent=feedLoading?'불러오는 중':'더 보기';
 }
@@ -948,6 +1093,7 @@ function showFeed(){
   document.getElementById('tabs').hidden=false;
   document.getElementById('searchWrap').hidden=false;
   document.getElementById('scroller').hidden=false;
+  updateSearchVisibility();
   const bell=document.getElementById('bellBtn');
   if(bell)bell.hidden=false;
   resetAutoLock();
@@ -1000,6 +1146,7 @@ function applyFeedHistoryState(state={}){
   searchQuery=String(state.search||'');
   document.getElementById('searchInput').value=searchQuery;
   document.getElementById('scroller').scrollTo({top:0,behavior:'auto'});
+  updateSearchVisibility();
   render({fetchPosts:false});
   requestAnimationFrame(moveTabIndicator);
   applyingHistory=false;
@@ -1206,6 +1353,9 @@ function setupTabs(){
     });
     document.getElementById('scroller').scrollTo({top:0,behavior:'smooth'});
     move();
+    updateSearchVisibility();
+    updateLoadMoreUi();
+    if(tab.getAttribute('aria-controls')==='p-performance')renderPerformancePanel();
     syncFeedHistory();
   }));
   window.addEventListener('resize',move);
@@ -1244,6 +1394,7 @@ function clearPublicAccess(){
   localStorage.removeItem(ACCESS_PERSIST_KEY);
   localStorage.removeItem(AUTO_LOGIN_KEY);
   posts=[];
+  performanceState={loading:false,loaded:false,data:null,error:''};
   appHistoryReady=false;
 }
 function stopAutoLock(){
@@ -1640,6 +1791,7 @@ document.getElementById('accessForm').addEventListener('submit',async e=>{
     const result=await response.json().catch(()=>({error:'접속 확인에 실패했습니다.'}));
     if(!response.ok){showAccessError(result.error||'회원 정보 또는 비밀번호를 확인해 주세요');return}
     publicAccessToken=result.token||'';
+    performanceState={loading:false,loaded:false,data:null,error:''};
     await saveLoginOptions(codeNumber.value.trim(),password.value,remember.checked,autoLogin.checked);
     setAccessMessage('확인되었습니다',true);
     document.getElementById('accessForm').reset();

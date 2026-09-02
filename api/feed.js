@@ -99,6 +99,7 @@ async function getMyPerformance(req, res, supabase, payload = {}) {
     }
     const rows = Array.isArray(data.performance_rows) ? data.performance_rows : [];
     const myRows = rows.filter((row) => cleanText(row.userCode || row.user_code || row['사용인코드'], 80).replace(/\s+/g, '') === codeNumber);
+    const insuranceRows = myRows.filter((row) => !isActualLossPerformanceRow(row));
     const conditions = Array.isArray(data.award_conditions) ? data.award_conditions : [];
     const awards = conditions.map((condition) => calculateAward(condition, myRows));
     res.setHeader('Cache-Control', 'no-store');
@@ -111,6 +112,15 @@ async function getMyPerformance(req, res, supabase, payload = {}) {
         rowCount: myRows.length,
         userCode: codeNumber,
         userName: myRows[0] && (myRows[0].userName || myRows[0].user_name || myRows[0]['사용인명']) || payload.displayName || '',
+        summary: {
+          rowCount: myRows.length,
+          insuranceRowCount: insuranceRows.length,
+          actualLossRowCount: myRows.length - insuranceRows.length,
+          monthlyPremium: sumPerformanceField(myRows, 'monthlyPremium', 'monthly_premium', '월환산보험료'),
+          paymentCount: sumPerformanceField(myRows, 'paymentCount', 'payment_count', '납입건수'),
+          insuranceMonthlyPremium: sumPerformanceField(insuranceRows, 'monthlyPremium', 'monthly_premium', '월환산보험료'),
+          insurancePaymentCount: sumPerformanceField(insuranceRows, 'paymentCount', 'payment_count', '납입건수')
+        },
         awards,
         updatedAt: data.created_at
       }
@@ -122,6 +132,16 @@ async function getMyPerformance(req, res, supabase, payload = {}) {
     }
     return res.status(500).json({ error: error.message || '내 실적을 불러오지 못했습니다.' });
   }
+}
+
+function isActualLossPerformanceRow(row = {}) {
+  if (row.isActualLoss === true || row.is_actual_loss === true) return true;
+  const actualLossType = cleanText(row.actualLossType || row.actual_loss_type || row['실손구분'], 80);
+  return ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword));
+}
+
+function sumPerformanceField(rows = [], camelKey, snakeKey, koreanKey) {
+  return rows.reduce((sum, row) => sum + toNumber(row[camelKey] || row[snakeKey] || row[koreanKey]), 0);
 }
 
 function calculateAward(condition = {}, rows = []) {
