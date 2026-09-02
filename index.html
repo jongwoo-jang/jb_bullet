@@ -997,8 +997,8 @@ function performanceMarkup(data){
       </div>
     </div>
     <div class="performance-summary">
-      <div class="metric-card"><span>달성 시상</span><strong>${totalAwardAmount>0?formatMetric(totalAwardAmount,'원'):(awardItems.length?`${awardItems.length}개`:'0원')}</strong><small>${awardItems.length?escapeHtml(awardItems.join(', ')):'달성 시상 없음'}</small></div>
-      <div class="metric-card"><span>대상 건수</span><strong>${formatMetric(primaryCount,'건')}</strong><small>실손 제외</small></div>
+      <div class="metric-card"><span>달성 총 시상금</span><strong>${formatMetric(totalAwardAmount,'원')}</strong><small>누적 시상금</small></div>
+      <div class="metric-card"><span>달성 총 시상건수</span><strong>${formatMetric(achievedAwards.length,'건')}</strong><small>${awardItems.length?escapeHtml(awardItems.join(', ')):'누적 시상 달성건'}</small></div>
     </div>
     <h3 class="performance-section-title">시상 달성 현황</h3>
     <div class="award-list">
