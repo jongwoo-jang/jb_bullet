@@ -240,7 +240,7 @@ a{color:inherit;text-decoration:none}
 .performance-hero-value span{display:block;color:var(--ink2);font-size:12.8px;font-weight:850}
 .performance-hero-value strong{display:block;margin-top:5px;color:var(--brand2);font-size:35px;font-weight:900;line-height:1.05}
 .performance-hero-value small{display:block;margin-top:6px;color:var(--ink2);font-size:12.8px;font-weight:760}
-.performance-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.performance-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .metric-card{min-height:86px;padding:13px 12px;border:1px solid var(--line);border-radius:14px;background:#fff}
 .metric-card span{display:block;color:var(--ink2);font-size:12.1px;font-weight:850}
 .metric-card strong{display:block;margin-top:7px;color:var(--ink);font-size:22px;font-weight:900;line-height:1.1}
@@ -258,6 +258,11 @@ a{color:inherit;text-decoration:none}
 .award-values div{min-width:0;padding:10px 11px;border-radius:12px;background:#F8FAFB}
 .award-values span{display:block;color:var(--ink3);font-size:11.8px;font-weight:820}
 .award-values b{display:block;margin-top:5px;color:var(--ink);font-size:15.8px;font-weight:900;line-height:1.25}
+.award-rewards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-1px 0 12px}
+.award-rewards div{min-width:0;padding:11px;border:1px solid #E7EDF5;border-radius:12px;background:#fff}
+.award-rewards span{display:block;color:var(--ink3);font-size:11.8px;font-weight:820}
+.award-rewards b{display:block;margin-top:5px;color:var(--brand2);font-size:14.8px;font-weight:900;line-height:1.3;word-break:keep-all}
+.award-rewards .muted b{color:var(--ink3)}
 .award-progress-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 7px;color:var(--ink2);font-size:12.6px;font-weight:820}
 .progress-track{height:8px;border-radius:999px;background:#E9EEF3;overflow:hidden}
 .progress-bar{height:100%;width:min(var(--progress,0%),100%);border-radius:inherit;background:linear-gradient(90deg,var(--brand2),#5BC2E7)}
@@ -265,7 +270,7 @@ a{color:inherit;text-decoration:none}
 .award-result b{color:var(--brand2);font-weight:900}
 .performance-note{padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;color:var(--ink2);font-size:12.9px;font-weight:720;line-height:1.62;word-break:keep-all}
 .performance-empty{margin:38px 18px;color:var(--ink2);text-align:center;font-size:15px;font-weight:720;line-height:1.55}
-@media(max-width:360px){.performance-summary,.award-values{grid-template-columns:1fr}.performance-hero-value strong{font-size:31px}.metric-card strong{font-size:22px}}
+@media(max-width:360px){.performance-summary,.award-values,.award-rewards{grid-template-columns:1fr}.performance-hero-value strong{font-size:31px}.metric-card strong{font-size:22px}}
 .pin{
   width:100%;display:block;text-align:left;
   opacity:0;transform:translateY(14px);transition:opacity .42s var(--ease),transform .42s var(--ease);
@@ -996,7 +1001,6 @@ function performanceMarkup(data){
     <div class="performance-summary">
       <div class="metric-card"><span>달성 시상</span><strong>${totalAwardAmount>0?formatMetric(totalAwardAmount,'원'):(awardItems.length?`${awardItems.length}개`:'0원')}</strong><small>${awardItems.length?escapeHtml(awardItems.join(', ')):'달성 시상 없음'}</small></div>
       <div class="metric-card"><span>대상 건수</span><strong>${formatMetric(primaryCount,'건')}</strong><small>실손 제외</small></div>
-      <div class="metric-card"><span>반영 건수</span><strong>${formatMetric(summary.rowCount||data.rowCount||0,'건')}</strong><small>전체</small></div>
     </div>
     <h3 class="performance-section-title">시상 달성 현황</h3>
     <div class="award-list">
@@ -1011,6 +1015,7 @@ function awardMarkup(award){
   const progress=Math.max(0,Math.min(100,Number(award.achievementRate||0)));
   const period=[award.awardStartDate,award.awardEndDate].filter(Boolean).join(' ~ ');
   const remaining=Math.max(0,Number(award.targetValue||0)-Number(award.currentValue||0));
+  const rewardTier=award.achievedTier||award.nextTier||award;
   const result=award.achieved
     ? `달성 시상 ${awardRewardMarkup(award)}`
     : `다음 기준까지 <b>${formatMetric(remaining,unit)}</b> 남았습니다.`;
@@ -1021,6 +1026,10 @@ function awardMarkup(award){
       <div class="award-values">
         <div><span>현재</span><b>${formatMetric(award.currentValue||0,unit)}</b></div>
         <div><span>기준</span><b>${formatMetric(award.targetValue||0,unit)}</b></div>
+      </div>
+      <div class="award-rewards" aria-label="시상 보상">
+        <div class="${rewardTier.awardAmount?'':'muted'}"><span>${award.achieved?'달성 시상금':'시상금액'}</span><b>${rewardTier.awardAmount?formatMetric(rewardTier.awardAmount,'원'):'없음'}</b></div>
+        <div class="${rewardTier.awardItem?'':'muted'}"><span>${award.achieved?'달성 물품':'시상물품'}</span><b>${rewardTier.awardItem?escapeHtml(rewardTier.awardItem):'없음'}</b></div>
       </div>
       <div class="award-progress-head"><span>달성률</span><b>${formatRate(progress)}</b></div>
       <div class="progress-track" aria-hidden="true"><div class="progress-bar" style="--progress:${progress}%"></div></div>
