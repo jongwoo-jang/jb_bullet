@@ -223,33 +223,49 @@ a{color:inherit;text-decoration:none}
 }
 .feed-more button:active{transform:scale(.96)}
 .feed-more button:disabled{color:var(--ink3);cursor:not-allowed}
-.performance-view{display:grid;gap:12px;padding:2px 4px 12px}
-.performance-head{padding:16px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
-.performance-head h2{margin:0;color:var(--ink);font-size:23px;font-weight:900;line-height:1.25}
-.performance-head p{margin:7px 0 0;color:var(--ink2);font-size:13.8px;font-weight:680;line-height:1.5}
-.performance-summary{display:grid;grid-template-columns:1.35fr 1fr;gap:8px}
-.metric-card{min-height:98px;padding:15px 14px;border:1px solid var(--line);border-radius:14px;background:#fff}
-.metric-card span{display:block;color:var(--ink2);font-size:12.8px;font-weight:850}
-.metric-card strong{display:block;margin-top:9px;color:var(--ink);font-size:25px;font-weight:900;line-height:1.1}
-.metric-card small{display:block;margin-top:7px;color:var(--ink3);font-size:12.3px;font-weight:720;line-height:1.35}
-.award-list{display:grid;gap:9px}
-.award-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
-.award-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:10px}
-.award-top strong{flex:1;min-width:0;color:var(--ink);font-size:16px;font-weight:900;line-height:1.35}
-.award-state{flex:0 0 auto;height:27px;padding:0 9px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:12.2px;font-weight:900;display:inline-flex;align-items:center}
-.award-card.done .award-state{background:var(--brand-soft);color:var(--brand2)}
-.award-period{margin:-2px 0 10px;color:var(--ink3);font-size:12.5px;font-weight:720}
+.performance-view{display:grid;gap:13px;padding:0 2px 12px}
+.performance-head{
+  position:relative;overflow:hidden;padding:18px 16px 16px;border:1px solid #DDE6F3;border-radius:16px;
+  background:linear-gradient(145deg,#FFFFFF 0%,#F2F7FF 100%);
+}
+.performance-head::after{
+  content:"";position:absolute;right:-40px;top:-44px;width:138px;height:138px;border-radius:50%;
+  background:rgba(91,194,231,.2);pointer-events:none;
+}
+.performance-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;color:var(--brand2);font-size:12.4px;font-weight:900}
+.performance-date{color:var(--ink3);font-size:12.1px;font-weight:760}
+.performance-head h2{position:relative;margin:0;color:var(--ink);font-size:24px;font-weight:900;line-height:1.22}
+.performance-head p{position:relative;margin:8px 0 0;color:var(--ink2);font-size:14.2px;font-weight:700;line-height:1.5}
+.performance-hero-value{position:relative;margin-top:18px}
+.performance-hero-value span{display:block;color:var(--ink2);font-size:12.8px;font-weight:850}
+.performance-hero-value strong{display:block;margin-top:5px;color:var(--brand2);font-size:35px;font-weight:900;line-height:1.05}
+.performance-hero-value small{display:block;margin-top:6px;color:var(--ink2);font-size:12.8px;font-weight:760}
+.performance-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.metric-card{min-height:86px;padding:13px 12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.metric-card span{display:block;color:var(--ink2);font-size:12.1px;font-weight:850}
+.metric-card strong{display:block;margin-top:7px;color:var(--ink);font-size:22px;font-weight:900;line-height:1.1}
+.metric-card small{display:block;margin-top:6px;color:var(--ink3);font-size:11.8px;font-weight:720;line-height:1.35}
+.performance-section-title{margin:2px 2px -2px;color:var(--ink);font-size:16.2px;font-weight:900}
+.award-list{display:grid;gap:10px}
+.award-card{padding:15px;border:1px solid var(--line);border-radius:15px;background:#fff}
+.award-card.done{border-color:#C9DAFF;background:linear-gradient(180deg,#fff 0%,#F7FAFF 100%)}
+.award-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
+.award-top strong{flex:1;min-width:0;color:var(--ink);font-size:16.3px;font-weight:900;line-height:1.35;word-break:keep-all}
+.award-state{flex:0 0 auto;height:28px;padding:0 10px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:12.4px;font-weight:900;display:inline-flex;align-items:center}
+.award-card.done .award-state{background:var(--brand2);color:#fff}
+.award-period{display:flex;align-items:center;gap:5px;margin:0 0 12px;color:var(--ink3);font-size:12.6px;font-weight:760}
 .award-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
-.award-values div{min-width:0;padding:10px 11px;border-radius:11px;background:#F8FAFB}
+.award-values div{min-width:0;padding:10px 11px;border-radius:12px;background:#F8FAFB}
 .award-values span{display:block;color:var(--ink3);font-size:11.8px;font-weight:820}
-.award-values b{display:block;margin-top:5px;color:var(--ink);font-size:15.5px;font-weight:900;line-height:1.25}
-.progress-track{height:7px;border-radius:999px;background:#E9EEF3;overflow:hidden}
-.progress-bar{height:100%;width:min(var(--progress,0%),100%);border-radius:inherit;background:var(--brand2)}
-.award-result{margin:11px 0 0;color:var(--ink2);font-size:13.3px;font-weight:760;line-height:1.48}
+.award-values b{display:block;margin-top:5px;color:var(--ink);font-size:15.8px;font-weight:900;line-height:1.25}
+.award-progress-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 7px;color:var(--ink2);font-size:12.6px;font-weight:820}
+.progress-track{height:8px;border-radius:999px;background:#E9EEF3;overflow:hidden}
+.progress-bar{height:100%;width:min(var(--progress,0%),100%);border-radius:inherit;background:linear-gradient(90deg,var(--brand2),#5BC2E7)}
+.award-result{margin:12px 0 0;color:var(--ink2);font-size:13.6px;font-weight:760;line-height:1.5;word-break:keep-all}
 .award-result b{color:var(--brand2);font-weight:900}
-.performance-note{padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;color:var(--ink2);font-size:12.8px;font-weight:720;line-height:1.6;word-break:keep-all}
+.performance-note{padding:13px 14px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD;color:var(--ink2);font-size:12.9px;font-weight:720;line-height:1.62;word-break:keep-all}
 .performance-empty{margin:38px 18px;color:var(--ink2);text-align:center;font-size:15px;font-weight:720;line-height:1.55}
-@media(max-width:360px){.performance-summary,.award-values{grid-template-columns:1fr}.metric-card strong{font-size:23px}}
+@media(max-width:360px){.performance-summary,.award-values{grid-template-columns:1fr}.performance-hero-value strong{font-size:31px}.metric-card strong{font-size:22px}}
 .pin{
   width:100%;display:block;text-align:left;
   opacity:0;transform:translateY(14px);transition:opacity .42s var(--ease),transform .42s var(--ease);
@@ -953,10 +969,10 @@ async function renderPerformancePanel({force=false}={}){
   view.innerHTML=performanceMarkup(performanceState.data);
 }
 function performanceLoadingMarkup(){
-  return `<div class="performance-head"><h2>내 실적</h2><p>실적 데이터를 불러오는 중입니다.</p></div>`;
+  return `<div class="performance-head"><div class="performance-kicker"><span>실적 리포트</span></div><h2>내 실적</h2><p>실적 데이터를 불러오는 중입니다.</p></div>`;
 }
 function performanceEmptyMarkup(message){
-  return `<div class="performance-head"><h2>내 실적</h2><p>${escapeHtml(message)}</p></div><p class="performance-empty">관리자가 실적을 반영하면 이 화면에서 확인할 수 있습니다.</p>${performanceNoticeMarkup()}`;
+  return `<div class="performance-head"><div class="performance-kicker"><span>실적 리포트</span></div><h2>내 실적</h2><p>${escapeHtml(message)}</p></div><p class="performance-empty">관리자가 실적을 반영하면 이 화면에서 확인할 수 있습니다.</p>${performanceNoticeMarkup()}`;
 }
 function performanceMarkup(data){
   const summary=data.summary||{};
@@ -964,17 +980,25 @@ function performanceMarkup(data){
   const achievedAwards=awards.filter(award=>award.achieved);
   const totalAwardAmount=achievedAwards.reduce((sum,award)=>sum+Number(award.awardAmount||0),0);
   const awardItems=achievedAwards.map(award=>award.awardItem).filter(Boolean);
+  const primaryPremium=Number(summary.insuranceMonthlyPremium||0);
+  const primaryCount=Number(summary.insurancePaymentCount||0);
   return `
     <div class="performance-head">
+      <div class="performance-kicker"><span>실적 리포트</span><span class="performance-date">${escapeHtml(formatDateLabel(data.updatedAt))}</span></div>
       <h2>${escapeHtml(formatMonthLabel(data.month))} 내 실적</h2>
       <p>${escapeHtml(data.userName||'회원')}님의 현재 반영 기준입니다.</p>
+      <div class="performance-hero-value">
+        <span>인보험 월환산</span>
+        <strong>${formatMetric(primaryPremium,'원')}</strong>
+        <small>실손 제외 기준 · 납입 ${formatMetric(primaryCount,'건')}</small>
+      </div>
     </div>
     <div class="performance-summary">
-      <div class="metric-card"><span>인보험 월환산</span><strong>${formatMetric(summary.insuranceMonthlyPremium||0,'원')}</strong><small>실손 제외 기준</small></div>
-      <div class="metric-card"><span>납입건수</span><strong>${formatMetric(summary.insurancePaymentCount||0,'건')}</strong><small>실손 제외 기준</small></div>
       <div class="metric-card"><span>달성 시상</span><strong>${totalAwardAmount>0?formatMetric(totalAwardAmount,'원'):(awardItems.length?`${awardItems.length}개`:'0원')}</strong><small>${awardItems.length?escapeHtml(awardItems.join(', ')):'달성 시상 없음'}</small></div>
-      <div class="metric-card"><span>반영 건수</span><strong>${formatMetric(summary.rowCount||data.rowCount||0,'건')}</strong><small>전체 등록 실적</small></div>
+      <div class="metric-card"><span>대상 건수</span><strong>${formatMetric(primaryCount,'건')}</strong><small>실손 제외</small></div>
+      <div class="metric-card"><span>반영 건수</span><strong>${formatMetric(summary.rowCount||data.rowCount||0,'건')}</strong><small>전체</small></div>
     </div>
+    <h3 class="performance-section-title">시상 달성 현황</h3>
     <div class="award-list">
       ${awards.length?awards.map(awardMarkup).join(''):'<p class="performance-empty">등록된 시상조건이 없습니다.</p>'}
     </div>
@@ -986,29 +1010,49 @@ function awardMarkup(award){
   const unit=isCount?'건':'원';
   const progress=Math.max(0,Math.min(100,Number(award.achievementRate||0)));
   const period=[award.awardStartDate,award.awardEndDate].filter(Boolean).join(' ~ ');
+  const remaining=Math.max(0,Number(award.targetValue||0)-Number(award.currentValue||0));
   const result=award.achieved
-    ? `달성 시상 ${award.awardAmount?`<b>${formatMetric(award.awardAmount,'원')}</b>`:''}${award.awardItem?` <b>${escapeHtml(award.awardItem)}</b>`:''}`
-    : `다음 기준까지 ${formatMetric(Math.max(0,Number(award.targetValue||0)-Number(award.currentValue||0)),unit)} 남았습니다.`;
+    ? `달성 시상 ${awardRewardMarkup(award)}`
+    : `다음 기준까지 <b>${formatMetric(remaining,unit)}</b> 남았습니다.`;
   return `
     <article class="award-card ${award.achieved?'done':''}">
       <div class="award-top"><strong>${escapeHtml(award.name||'시상조건')}</strong><span class="award-state">${award.achieved?'달성':'진행중'}</span></div>
-      ${period?`<div class="award-period">${escapeHtml(period)}</div>`:''}
+      ${period?`<div class="award-period">${escapeHtml(formatPeriodLabel(period))}</div>`:''}
       <div class="award-values">
         <div><span>현재</span><b>${formatMetric(award.currentValue||0,unit)}</b></div>
         <div><span>기준</span><b>${formatMetric(award.targetValue||0,unit)}</b></div>
       </div>
+      <div class="award-progress-head"><span>달성률</span><b>${formatRate(progress)}</b></div>
       <div class="progress-track" aria-hidden="true"><div class="progress-bar" style="--progress:${progress}%"></div></div>
       <p class="award-result">${result}</p>
     </article>
   `;
 }
+function awardRewardMarkup(award){
+  const parts=[];
+  if(award.awardAmount)parts.push(`<b>${formatMetric(award.awardAmount,'원')}</b>`);
+  if(award.awardItem)parts.push(`<b>${escapeHtml(award.awardItem)}</b>`);
+  return parts.length?parts.join(' + '):'<b>달성</b>';
+}
 function performanceNoticeMarkup(){
   return '<p class="performance-note">실제 시상과는 차이가 있을 수 있으니, 자세한 내용은 화재 지점장, 팀장에게 문의주세요.</p>';
+}
+function formatRate(value){
+  const number=Number(value||0);
+  return `${Number.isFinite(number)?number.toLocaleString('ko-KR',{maximumFractionDigits:1}):0}%`;
 }
 function formatMetric(value,unit=''){
   const number=Number(value||0);
   const formatted=Number.isFinite(number)?Math.round(number).toLocaleString('ko-KR'):'0';
   return `${formatted}${unit}`;
+}
+function formatDateLabel(value){
+  const date=value?new Date(value):null;
+  if(!date||Number.isNaN(date.getTime()))return '최신 반영';
+  return `${date.getMonth()+1}.${String(date.getDate()).padStart(2,'0')} 반영`;
+}
+function formatPeriodLabel(value){
+  return String(value||'').replaceAll('-','.');
 }
 function formatMonthLabel(month=''){
   const match=String(month||'').match(/^(\d{4})-(\d{2})/);
