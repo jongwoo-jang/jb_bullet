@@ -5,6 +5,7 @@ const FEED_EVENTS = new Set(['view', 'like', 'unlike', 'save', 'unsave', 'downlo
 const DEFAULT_FEED_LIMIT = 30;
 const MAX_FEED_LIMIT = 60;
 const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
+const CORPORATE_GROUP_KEYWORD = '법인단체';
 const STAT_FIELDS = {
   view: 'view_count',
   like: 'like_count',
@@ -140,6 +141,12 @@ function isActualLossPerformanceRow(row = {}) {
   return ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword));
 }
 
+function isCorporateGroupPerformanceRow(row = {}) {
+  if (row.isCorporateGroup === true || row.is_corporate_group === true) return true;
+  const corporateGroupType = cleanText(row.corporateGroupType || row.corporate_group_type || row['법인단체'], 80);
+  return corporateGroupType.includes(CORPORATE_GROUP_KEYWORD);
+}
+
 function sumPerformanceField(rows = [], camelKey, snakeKey, koreanKey) {
   return rows.reduce((sum, row) => sum + toNumber(row[camelKey] || row[snakeKey] || row[koreanKey]), 0);
 }
@@ -147,13 +154,14 @@ function sumPerformanceField(rows = [], camelKey, snakeKey, koreanKey) {
 function calculateAward(condition = {}, rows = []) {
   const longTermTypes = normalizeStringList(condition.longTermTypes || condition.long_term_types);
   const excludeActualLoss = Boolean(condition.excludeActualLoss || condition.exclude_actual_loss);
+  const excludeCorporateGroup = Boolean(condition.excludeCorporateGroup || condition.exclude_corporate_group);
   const filtered = rows.filter((row) => {
     if (!isWithinAwardPeriod(row, condition)) return false;
     const longTermType = cleanText(row.longTermType || row.long_term_type || row['장기마케팅세분'], 12).toUpperCase().replace(/^AO/, 'A0');
     if (longTermTypes.length && !longTermTypes.includes(longTermType)) return false;
-    if (!excludeActualLoss) return true;
-    const actualLossType = cleanText(row.actualLossType || row.actual_loss_type || row['실손구분'], 80);
-    return !ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword));
+    if (excludeActualLoss && isActualLossPerformanceRow(row)) return false;
+    if (excludeCorporateGroup && isCorporateGroupPerformanceRow(row)) return false;
+    return true;
   });
   const conditionType = String(condition.conditionType || condition.condition_type || '').includes('payment') ? 'paymentCount' : 'premiumSum';
   const currentValue = filtered.reduce((sum, row) => {

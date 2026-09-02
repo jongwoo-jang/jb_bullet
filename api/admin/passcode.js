@@ -9,6 +9,7 @@ const ADMIN_POST_LIMIT = 500;
 const ADMIN_FEED_TOKEN_TTL_SECONDS = 60 * 60 * 3;
 const PERFORMANCE_ROW_LIMIT = 20000;
 const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
+const CORPORATE_GROUP_KEYWORD = '법인단체';
 const DEFAULT_BRANCH = '전환법인';
 
 module.exports = async function handler(req, res) {
@@ -605,6 +606,7 @@ function normalizeAwardConditions(value) {
     const firstTier = tiers[0] || {};
     const conditionType = normalizeConditionType(item.conditionType || item.condition_type || item.metric || item['달성조건']);
     const excludeActualLoss = Boolean(item.excludeActualLoss || item.exclude_actual_loss || item['실손제외']);
+    const excludeCorporateGroup = Boolean(item.excludeCorporateGroup || item.exclude_corporate_group || item['법인단체제외']);
     return {
       name: cleanText(item.name || item.title || item['시상이름'], 120),
       conditionType,
@@ -617,7 +619,9 @@ function normalizeAwardConditions(value) {
       tiers,
       longTermTypes: normalizeLongTermTypes(item.longTermTypes || item.long_term_types || item['장기세분'] || item['장기마케팅세분']),
       excludeActualLoss,
-      actualLossKeywords: excludeActualLoss ? ACTUAL_LOSS_KEYWORDS : []
+      actualLossKeywords: excludeActualLoss ? ACTUAL_LOSS_KEYWORDS : [],
+      excludeCorporateGroup,
+      corporateGroupKeyword: excludeCorporateGroup ? CORPORATE_GROUP_KEYWORD : ''
     };
   }).filter((condition) => condition.name && condition.tiers.length);
 }
@@ -640,6 +644,7 @@ function normalizePerformanceRows(value) {
   const rows = Array.isArray(value) ? value : [];
   return rows.slice(0, PERFORMANCE_ROW_LIMIT).map((row) => {
     const actualLossType = cleanText(row.actualLossType || row.actual_loss_type || row['실손구분'], 80);
+    const corporateGroupType = cleanText(row.corporateGroupType || row.corporate_group_type || row['법인단체'], 80);
     return {
       region: cleanText(row.region || row['지역단명'], 80),
       branch: cleanText(row.branch || row['지점명'], 80),
@@ -652,6 +657,8 @@ function normalizePerformanceRows(value) {
       paymentCount: toNumber(row.paymentCount || row.payment_count || row['납입건수']),
       actualLossType,
       isActualLoss: ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword)),
+      corporateGroupType,
+      isCorporateGroup: corporateGroupType.includes(CORPORATE_GROUP_KEYWORD),
       selfType: cleanText(row.selfType || row.self_type || row['본인여부'], 40)
     };
   }).filter((row) => row.userCode);
