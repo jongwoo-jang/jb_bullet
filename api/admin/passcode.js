@@ -10,6 +10,7 @@ const ADMIN_FEED_TOKEN_TTL_SECONDS = 60 * 60 * 3;
 const PERFORMANCE_ROW_LIMIT = 20000;
 const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
 const CORPORATE_GROUP_KEYWORD = '법인단체';
+const SELF_CONTRACT_KEYWORD = '본인';
 const AWARD_YEAR_LABELS = { firstYear: '1차년 시상', secondYear: '2차년 시상' };
 const DEFAULT_BRANCH = '전환법인';
 
@@ -608,6 +609,7 @@ function normalizeAwardConditions(value) {
     const conditionType = normalizeConditionType(item.conditionType || item.condition_type || item.metric || item['달성조건']);
     const excludeActualLoss = Boolean(item.excludeActualLoss || item.exclude_actual_loss || item['실손제외']);
     const excludeCorporateGroup = Boolean(item.excludeCorporateGroup || item.exclude_corporate_group || item['법인단체제외']);
+    const excludeSelfContract = Boolean(item.excludeSelfContract || item.exclude_self_contract || item['본인계약제외'] || item['본인계약 제외']);
     const awardYearType = normalizeAwardYearType(item.awardYearType || item.award_year_type || item.awardYearLabel || item.award_year_label || item['시상구분']);
     return {
       name: cleanText(item.name || item.title || item['시상이름'], 120),
@@ -625,7 +627,9 @@ function normalizeAwardConditions(value) {
       excludeActualLoss,
       actualLossKeywords: excludeActualLoss ? ACTUAL_LOSS_KEYWORDS : [],
       excludeCorporateGroup,
-      corporateGroupKeyword: excludeCorporateGroup ? CORPORATE_GROUP_KEYWORD : ''
+      corporateGroupKeyword: excludeCorporateGroup ? CORPORATE_GROUP_KEYWORD : '',
+      excludeSelfContract,
+      selfContractKeyword: excludeSelfContract ? SELF_CONTRACT_KEYWORD : ''
     };
   }).filter((condition) => condition.name && condition.tiers.length);
 }
@@ -649,6 +653,7 @@ function normalizePerformanceRows(value) {
   return rows.slice(0, PERFORMANCE_ROW_LIMIT).map((row) => {
     const actualLossType = cleanText(row.actualLossType || row.actual_loss_type || row['실손구분'], 80);
     const corporateGroupType = cleanText(row.corporateGroupType || row.corporate_group_type || row['법인단체'], 80);
+    const selfType = cleanText(row.selfType || row.self_type || row['본인여부'], 40);
     return {
       region: cleanText(row.region || row['지역단명'], 80),
       branch: cleanText(row.branch || row['지점명'], 80),
@@ -662,9 +667,17 @@ function normalizePerformanceRows(value) {
       isActualLoss: ACTUAL_LOSS_KEYWORDS.some((keyword) => actualLossType.includes(keyword)),
       corporateGroupType,
       isCorporateGroup: corporateGroupType.includes(CORPORATE_GROUP_KEYWORD),
-      selfType: cleanText(row.selfType || row.self_type || row['본인여부'], 40)
+      selfType,
+      isSelfContract: isSelfContractValue(selfType)
     };
   }).filter((row) => row.userCode);
+}
+
+function isSelfContractValue(value) {
+  const text = cleanText(value, 40).replace(/\s+/g, '');
+  if (!text) return false;
+  if (text.includes('外') || text.includes('외')) return false;
+  return text === '본인' || text === '본인계약';
 }
 
 function normalizeConditionType(value) {

@@ -100,7 +100,7 @@ button{border:0;background:none;color:inherit;cursor:pointer}
     </div>
     <div class="condition-list" id="conditionList"></div>
     <div class="add-row"><button class="ghost" id="addConditionBtn" type="button">시상조건 추가</button></div>
-    <div class="summary">시상조건은 여러 개를 한 JSON에 함께 저장합니다. 각 조건마다 기간, 장기세분, 실손 제외, 법인단체 제외, 구간별 시상금액과 시상물품을 다르게 설정할 수 있습니다.</div>
+    <div class="summary">시상조건은 여러 개를 한 JSON에 함께 저장합니다. 각 조건마다 기간, 장기세분, 실손 제외, 법인단체 제외, 본인계약 제외, 구간별 시상금액과 시상물품을 다르게 설정할 수 있습니다.</div>
   </section>
 
   <section class="panel" data-panel="data">
@@ -133,6 +133,7 @@ const HEADERS={
 };
 const ACTUAL_LOSS_KEYWORDS=['전환표준','유병노후'];
 const CORPORATE_GROUP_KEYWORD='법인단체';
+const SELF_CONTRACT_KEYWORD='본인';
 const AWARD_YEAR_LABELS={firstYear:'1차년 시상',secondYear:'2차년 시상'};
 const MAX_CONDITIONS=20;
 const MAX_TIERS=20;
@@ -237,6 +238,7 @@ function addCondition(values={}){
     </div>
     <label class="check"><input data-field="excludeActualLoss" type="checkbox" checked>실손 제외</label>
     <label class="check"><input data-field="excludeCorporateGroup" type="checkbox">법인단체 제외</label>
+    <label class="check"><input data-field="excludeSelfContract" type="checkbox">본인계약 제외</label>
   `;
   conditionList.appendChild(card);
   const tiers=Array.isArray(values.tiers)&&values.tiers.length?values.tiers:[values];
@@ -278,6 +280,8 @@ function setConditionValues(card,values){
   if(exclude)exclude.checked=values.excludeActualLoss!==false;
   const excludeCorporate=card.querySelector('[data-field="excludeCorporateGroup"]');
   if(excludeCorporate)excludeCorporate.checked=Boolean(values.excludeCorporateGroup||values.exclude_corporate_group);
+  const excludeSelf=card.querySelector('[data-field="excludeSelfContract"]');
+  if(excludeSelf)excludeSelf.checked=Boolean(values.excludeSelfContract||values.exclude_self_contract||values['본인계약제외']||values['본인계약 제외']);
   const selected=new Set(Array.isArray(values.longTermTypes)?values.longTermTypes:['A01','A02','A03','A04','A05']);
   card.querySelectorAll('[data-field="longTermTypes"] input').forEach(input=>{input.checked=selected.has(input.value)});
 }
@@ -402,6 +406,7 @@ function readAwardConditions({strict=true}={}){
     if(strict&&!longTermTypes.length){alert(`${label}의 장기세분을 1개 이상 선택해 주세요.`);return null}
     const excludeActualLoss=card.querySelector('[data-field="excludeActualLoss"]').checked;
     const excludeCorporateGroup=card.querySelector('[data-field="excludeCorporateGroup"]').checked;
+    const excludeSelfContract=card.querySelector('[data-field="excludeSelfContract"]').checked;
     conditions.push({
       name:name||`${index+1}번 시상조건`,
       awardYearType:normalizeAwardYearType(card.querySelector('[data-field="awardYearType"]').value),
@@ -417,7 +422,9 @@ function readAwardConditions({strict=true}={}){
       excludeActualLoss,
       actualLossKeywords:excludeActualLoss?ACTUAL_LOSS_KEYWORDS:[],
       excludeCorporateGroup,
-      corporateGroupKeyword:excludeCorporateGroup?CORPORATE_GROUP_KEYWORD:''
+      corporateGroupKeyword:excludeCorporateGroup?CORPORATE_GROUP_KEYWORD:'',
+      excludeSelfContract,
+      selfContractKeyword:excludeSelfContract?SELF_CONTRACT_KEYWORD:''
     });
   }
   return conditions;
@@ -456,8 +463,15 @@ function parsePerformanceRows(text){
     item.paymentCount=toNumber(item.paymentCount);
     item.isActualLoss=ACTUAL_LOSS_KEYWORDS.some(keyword=>item.actualLossType.includes(keyword));
     item.isCorporateGroup=item.corporateGroupType.includes(CORPORATE_GROUP_KEYWORD);
+    item.isSelfContract=isSelfContractValue(item.selfType);
     return item;
   }).filter(row=>row.userCode);
+}
+function isSelfContractValue(value){
+  const text=String(value||'').trim().replace(/\s+/g,'');
+  if(!text)return false;
+  if(text.includes('外')||text.includes('외'))return false;
+  return text==='본인'||text==='본인계약';
 }
 function parseDelimited(text){
   const clean=String(text||'').trim();

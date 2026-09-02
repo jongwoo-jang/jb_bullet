@@ -6,6 +6,7 @@ const DEFAULT_FEED_LIMIT = 30;
 const MAX_FEED_LIMIT = 60;
 const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
 const CORPORATE_GROUP_KEYWORD = '법인단체';
+const SELF_CONTRACT_KEYWORD = '본인';
 const AWARD_YEAR_LABELS = { firstYear: '1차년 시상', secondYear: '2차년 시상' };
 const STAT_FIELDS = {
   view: 'view_count',
@@ -148,6 +149,14 @@ function isCorporateGroupPerformanceRow(row = {}) {
   return corporateGroupType.includes(CORPORATE_GROUP_KEYWORD);
 }
 
+function isSelfContractPerformanceRow(row = {}) {
+  if (row.isSelfContract === true || row.is_self_contract === true) return true;
+  const selfType = cleanText(row.selfType || row.self_type || row['본인여부'], 40).replace(/\s+/g, '');
+  if (!selfType) return false;
+  if (selfType.includes('外') || selfType.includes('외')) return false;
+  return selfType === SELF_CONTRACT_KEYWORD || selfType === '본인계약';
+}
+
 function sumPerformanceField(rows = [], camelKey, snakeKey, koreanKey) {
   return rows.reduce((sum, row) => sum + toNumber(row[camelKey] || row[snakeKey] || row[koreanKey]), 0);
 }
@@ -156,6 +165,7 @@ function calculateAward(condition = {}, rows = []) {
   const longTermTypes = normalizeStringList(condition.longTermTypes || condition.long_term_types);
   const excludeActualLoss = Boolean(condition.excludeActualLoss || condition.exclude_actual_loss);
   const excludeCorporateGroup = Boolean(condition.excludeCorporateGroup || condition.exclude_corporate_group);
+  const excludeSelfContract = Boolean(condition.excludeSelfContract || condition.exclude_self_contract);
   const awardYearType = normalizeAwardYearType(condition.awardYearType || condition.award_year_type || condition.awardYearLabel || condition.award_year_label);
   const filtered = rows.filter((row) => {
     if (!isWithinAwardPeriod(row, condition)) return false;
@@ -163,6 +173,7 @@ function calculateAward(condition = {}, rows = []) {
     if (longTermTypes.length && !longTermTypes.includes(longTermType)) return false;
     if (excludeActualLoss && isActualLossPerformanceRow(row)) return false;
     if (excludeCorporateGroup && isCorporateGroupPerformanceRow(row)) return false;
+    if (excludeSelfContract && isSelfContractPerformanceRow(row)) return false;
     return true;
   });
   const conditionType = String(condition.conditionType || condition.condition_type || '').includes('payment') ? 'paymentCount' : 'premiumSum';
