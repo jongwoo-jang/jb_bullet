@@ -35,6 +35,11 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 }
 .field textarea{min-height:300px;line-height:1.5;resize:vertical}
 .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--brand);background:#fff;box-shadow:0 0 0 4px rgba(0,60,220,.08)}
+.condition-tools{display:grid;grid-template-columns:1fr 1.45fr;gap:12px;margin-bottom:14px}
+.saved-panel{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#FBFCFD}
+.saved-panel .field{margin:0}
+.saved-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.saved-status{min-height:20px;margin:0;color:var(--ink2);font-size:12.5px;font-weight:800;line-height:1.45}
 .condition-list{display:grid;gap:12px}
 .condition-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff}
 .card-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
@@ -59,7 +64,7 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 @media(max-width:640px){
   .wrap{padding:16px 10px 36px}
   .top h1{font-size:24px}
-  .grid,.tier-row{grid-template-columns:1fr}
+  .grid,.tier-row,.condition-tools{grid-template-columns:1fr}
   .check-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .condition-card{padding:12px}
   .tier-row .icon-btn{width:100%}
@@ -79,6 +84,20 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 
   <section class="panel active" data-panel="condition">
     <div class="field"><label for="month">대상월</label><input id="month" type="month" required></div>
+    <div class="condition-tools" aria-label="저장된 시상조건 관리">
+      <div>
+        <div class="field"><label for="savedAwardName">저장 이름</label><input id="savedAwardName" placeholder="예: 9월 인보험 시상"></div>
+        <button class="primary" id="saveConditionSetBtn" type="button">시상조건 저장</button>
+      </div>
+      <div class="saved-panel">
+        <div class="field"><label for="savedAwardSelect">저장된 시상</label><select id="savedAwardSelect"><option value="">저장된 시상 없음</option></select></div>
+        <div class="saved-actions">
+          <button class="ghost" id="loadConditionSetBtn" type="button">수정하기</button>
+          <button class="ghost" id="deleteConditionSetBtn" type="button">삭제</button>
+        </div>
+        <p class="saved-status" id="savedAwardStatus">시상조건을 저장하면 이 브라우저에서 다시 불러올 수 있습니다.</p>
+      </div>
+    </div>
     <div class="condition-list" id="conditionList"></div>
     <div class="add-row"><button class="ghost" id="addConditionBtn" type="button">시상조건 추가</button></div>
     <div class="summary">시상조건은 여러 개를 한 JSON에 함께 저장합니다. 각 조건마다 기간, 장기세분, 실손 제외, 구간별 시상금액과 시상물품을 다르게 설정할 수 있습니다.</div>
@@ -115,13 +134,21 @@ const HEADERS={
 const ACTUAL_LOSS_KEYWORDS=['전환표준','유병노후'];
 const MAX_CONDITIONS=20;
 const MAX_TIERS=20;
+const MAX_SAVED_AWARDS=50;
+const AWARD_TEMPLATE_STORE_KEY='fpPerformanceAwardTemplates';
+const THOUSAND_UNIT=1000;
 const conditionList=document.getElementById('conditionList');
 const parseSummary=document.getElementById('parseSummary');
+const savedAwardName=document.getElementById('savedAwardName');
+const savedAwardSelect=document.getElementById('savedAwardSelect');
+const savedAwardStatus=document.getElementById('savedAwardStatus');
 let conditionSeq=0;
 let tierSeq=0;
+let loadedAwardTemplateId='';
 
 document.getElementById('month').value=new Date().toISOString().slice(0,7);
 addCondition();
+renderSavedAwardOptions();
 
 document.querySelectorAll('[data-tab]').forEach(tab=>{
   tab.addEventListener('click',()=>{
@@ -130,6 +157,14 @@ document.querySelectorAll('[data-tab]').forEach(tab=>{
   });
 });
 document.getElementById('addConditionBtn').addEventListener('click',()=>addCondition());
+document.getElementById('saveConditionSetBtn').addEventListener('click',saveCurrentAwardTemplate);
+document.getElementById('loadConditionSetBtn').addEventListener('click',()=>loadAwardTemplate(savedAwardSelect.value));
+document.getElementById('deleteConditionSetBtn').addEventListener('click',()=>deleteAwardTemplate(savedAwardSelect.value));
+savedAwardSelect.addEventListener('change',()=>{
+  const item=getAwardTemplates().find(template=>template.id===savedAwardSelect.value);
+  savedAwardName.value=item?item.name:'';
+  loadedAwardTemplateId=item?item.id:'';
+});
 conditionList.addEventListener('click',event=>{
   const removeCondition=event.target.closest('[data-remove-condition]');
   if(removeCondition){
@@ -211,14 +246,14 @@ function addTier(card,values={}){
   const row=document.createElement('div');
   row.className='tier-row';
   row.innerHTML=`
-    <div class="field"><label for="tierTarget${id}">달성 기준값</label><input id="tierTarget${id}" data-tier-field="targetValue" inputmode="numeric" placeholder="300000" required></div>
-    <div class="field"><label for="tierAmount${id}">시상금액</label><input id="tierAmount${id}" data-tier-field="awardAmount" inputmode="numeric" placeholder="50000"></div>
+    <div class="field"><label for="tierTarget${id}">달성 기준값(천원)</label><input id="tierTarget${id}" data-tier-field="targetValue" inputmode="numeric" placeholder="300" required></div>
+    <div class="field"><label for="tierAmount${id}">시상금액(천원)</label><input id="tierAmount${id}" data-tier-field="awardAmount" inputmode="numeric" placeholder="50"></div>
     <div class="field"><label for="tierItem${id}">시상물품</label><input id="tierItem${id}" data-tier-field="awardItem" placeholder="상품권, 여행권 등"></div>
     <button class="icon-btn" data-remove-tier type="button">삭제</button>
   `;
   tierList.appendChild(row);
-  row.querySelector('[data-tier-field="targetValue"]').value=values.targetValue||'';
-  row.querySelector('[data-tier-field="awardAmount"]').value=values.awardAmount||'';
+  row.querySelector('[data-tier-field="targetValue"]').value=toThousandInput(values.targetValue);
+  row.querySelector('[data-tier-field="awardAmount"]').value=toThousandInput(values.awardAmount);
   row.querySelector('[data-tier-field="awardItem"]').value=values.awardItem||'';
   renumberTiers(card);
 }
@@ -251,8 +286,83 @@ function renumberTiers(card){
   rows.forEach((row,index)=>{
     const remove=row.querySelector('[data-remove-tier]');
     remove.disabled=rows.length<=1;
-    row.querySelector('[data-tier-field="targetValue"]').previousElementSibling.textContent=`${index+1}구간 기준값`;
+    row.querySelector('[data-tier-field="targetValue"]').previousElementSibling.textContent=`${index+1}구간 기준값(천원)`;
   });
+}
+function getAwardTemplates(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(AWARD_TEMPLATE_STORE_KEY)||'[]');
+    return Array.isArray(parsed)?parsed:[];
+  }catch(error){
+    return [];
+  }
+}
+function setAwardTemplates(items){
+  localStorage.setItem(AWARD_TEMPLATE_STORE_KEY,JSON.stringify(items.slice(0,MAX_SAVED_AWARDS)));
+}
+function renderSavedAwardOptions(){
+  const items=getAwardTemplates();
+  savedAwardSelect.innerHTML=items.length?'<option value="">저장된 시상 선택</option>':'<option value="">저장된 시상 없음</option>';
+  items.forEach(item=>{
+    const option=document.createElement('option');
+    option.value=item.id;
+    option.textContent=item.name;
+    savedAwardSelect.appendChild(option);
+  });
+  savedAwardSelect.value=items.some(item=>item.id===loadedAwardTemplateId)?loadedAwardTemplateId:'';
+}
+function saveCurrentAwardTemplate(){
+  const awardConditions=readAwardConditions();
+  if(!awardConditions)return;
+  const month=document.getElementById('month').value||new Date().toISOString().slice(0,7);
+  const fallbackName=awardConditions[0]?.name||`${month} 시상조건`;
+  const name=savedAwardName.value.trim()||fallbackName;
+  const items=getAwardTemplates();
+  const id=loadedAwardTemplateId||`award-${Date.now()}`;
+  const existingIndex=items.findIndex(item=>item.id===id);
+  const template={id,name,month,awardConditions,updatedAt:new Date().toISOString()};
+  if(existingIndex>=0){
+    items[existingIndex]=template;
+  }else{
+    items.unshift(template);
+  }
+  loadedAwardTemplateId=id;
+  savedAwardName.value=name;
+  setAwardTemplates(items);
+  renderSavedAwardOptions();
+  savedAwardSelect.value=id;
+  savedAwardStatus.textContent=`'${name}' 시상조건을 저장했습니다.`;
+}
+function loadAwardTemplate(id){
+  const item=getAwardTemplates().find(template=>template.id===id);
+  if(!item){
+    savedAwardStatus.textContent='불러올 시상조건을 선택해 주세요.';
+    return;
+  }
+  conditionList.innerHTML='';
+  conditionSeq=0;
+  tierSeq=0;
+  loadedAwardTemplateId=item.id;
+  savedAwardName.value=item.name;
+  savedAwardSelect.value=item.id;
+  if(item.month)document.getElementById('month').value=item.month;
+  const conditions=Array.isArray(item.awardConditions)&&item.awardConditions.length?item.awardConditions:[{}];
+  conditions.forEach(condition=>addCondition(condition));
+  savedAwardStatus.textContent=`'${item.name}' 시상조건을 불러왔습니다. 수정 후 다시 저장할 수 있습니다.`;
+}
+function deleteAwardTemplate(id){
+  const item=getAwardTemplates().find(template=>template.id===id);
+  if(!item){
+    savedAwardStatus.textContent='삭제할 시상조건을 선택해 주세요.';
+    return;
+  }
+  if(!confirm(`'${item.name}' 시상조건을 삭제할까요?`))return;
+  const items=getAwardTemplates().filter(template=>template.id!==id);
+  setAwardTemplates(items);
+  loadedAwardTemplateId='';
+  savedAwardName.value='';
+  renderSavedAwardOptions();
+  savedAwardStatus.textContent=`'${item.name}' 시상조건을 삭제했습니다.`;
 }
 function buildDataset(){
   const rows=parsePerformanceRows(document.getElementById('rawData').value);
@@ -301,13 +411,13 @@ function readTiers(card){
   const rows=[...card.querySelectorAll('.tier-row')];
   const tiers=[];
   for(const [index,row] of rows.entries()){
-    const targetValue=toNumber(row.querySelector('[data-tier-field="targetValue"]').value);
-    const awardAmount=toNumber(row.querySelector('[data-tier-field="awardAmount"]').value);
+    const targetValue=fromThousandInput(row.querySelector('[data-tier-field="targetValue"]').value);
+    const awardAmount=fromThousandInput(row.querySelector('[data-tier-field="awardAmount"]').value);
     const awardItem=row.querySelector('[data-tier-field="awardItem"]').value.trim();
     const label=`${card.querySelector('.condition-index').textContent}번 시상조건 ${index+1}구간`;
     if(targetValue<=0){alert(`${label}의 달성 기준값을 입력해 주세요.`);return null}
     if(awardAmount<=0&&!awardItem){alert(`${label}에는 시상금액 또는 시상물품 중 하나가 필요합니다.`);return null}
-    tiers.push({targetValue,awardAmount,awardItem});
+    tiers.push({targetValue,awardAmount,awardItem,unit:'KRW'});
   }
   return tiers.sort((a,b)=>a.targetValue-b.targetValue);
 }
@@ -344,6 +454,13 @@ function detectDelimiter(text){
 function toNumber(value){
   const number=Number(String(value||'').replace(/,/g,'').replace(/[^\d.-]/g,''));
   return Number.isFinite(number)?number:0;
+}
+function fromThousandInput(value){
+  return Math.round(toNumber(value)*THOUSAND_UNIT);
+}
+function toThousandInput(value){
+  const number=toNumber(value);
+  return number>0?String(Math.round(number/THOUSAND_UNIT)):'';
 }
 </script>
 </body>
