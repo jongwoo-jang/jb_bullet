@@ -6,6 +6,7 @@ const DEFAULT_FEED_LIMIT = 30;
 const MAX_FEED_LIMIT = 60;
 const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
 const CORPORATE_GROUP_KEYWORD = '법인단체';
+const AWARD_YEAR_LABELS = { firstYear: '1차년 시상', secondYear: '2차년 시상' };
 const STAT_FIELDS = {
   view: 'view_count',
   like: 'like_count',
@@ -155,6 +156,7 @@ function calculateAward(condition = {}, rows = []) {
   const longTermTypes = normalizeStringList(condition.longTermTypes || condition.long_term_types);
   const excludeActualLoss = Boolean(condition.excludeActualLoss || condition.exclude_actual_loss);
   const excludeCorporateGroup = Boolean(condition.excludeCorporateGroup || condition.exclude_corporate_group);
+  const awardYearType = normalizeAwardYearType(condition.awardYearType || condition.award_year_type || condition.awardYearLabel || condition.award_year_label);
   const filtered = rows.filter((row) => {
     if (!isWithinAwardPeriod(row, condition)) return false;
     const longTermType = cleanText(row.longTermType || row.long_term_type || row['장기마케팅세분'], 12).toUpperCase().replace(/^AO/, 'A0');
@@ -177,6 +179,8 @@ function calculateAward(condition = {}, rows = []) {
   const achieved = Boolean(achievedTier);
   return {
     name: cleanText(condition.name || condition.title || '인보험 시상', 120),
+    awardYearType,
+    awardYearLabel: AWARD_YEAR_LABELS[awardYearType],
     conditionType,
     awardDate: cleanText(condition.awardDate || condition.award_date, 30),
     awardStartDate: cleanText(condition.awardStartDate || condition.award_start_date || condition.startDate || condition.start_date, 30),
@@ -457,6 +461,11 @@ function parseJson(value) {
 function normalizeStringList(value) {
   const list = Array.isArray(value) ? value : String(value || '').split(/[,|\s]+/);
   return [...new Set(list.map((item) => cleanText(item, 12).toUpperCase().replace(/^AO/, 'A0')).filter(Boolean))];
+}
+
+function normalizeAwardYearType(value) {
+  const text = cleanText(value, 40);
+  return text === 'secondYear' || text.includes('2') ? 'secondYear' : 'firstYear';
 }
 
 function normalizeAwardTiers(value) {

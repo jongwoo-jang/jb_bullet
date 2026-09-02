@@ -10,6 +10,7 @@ const ADMIN_FEED_TOKEN_TTL_SECONDS = 60 * 60 * 3;
 const PERFORMANCE_ROW_LIMIT = 20000;
 const ACTUAL_LOSS_KEYWORDS = ['전환표준', '유병노후'];
 const CORPORATE_GROUP_KEYWORD = '법인단체';
+const AWARD_YEAR_LABELS = { firstYear: '1차년 시상', secondYear: '2차년 시상' };
 const DEFAULT_BRANCH = '전환법인';
 
 module.exports = async function handler(req, res) {
@@ -607,8 +608,11 @@ function normalizeAwardConditions(value) {
     const conditionType = normalizeConditionType(item.conditionType || item.condition_type || item.metric || item['달성조건']);
     const excludeActualLoss = Boolean(item.excludeActualLoss || item.exclude_actual_loss || item['실손제외']);
     const excludeCorporateGroup = Boolean(item.excludeCorporateGroup || item.exclude_corporate_group || item['법인단체제외']);
+    const awardYearType = normalizeAwardYearType(item.awardYearType || item.award_year_type || item.awardYearLabel || item.award_year_label || item['시상구분']);
     return {
       name: cleanText(item.name || item.title || item['시상이름'], 120),
+      awardYearType,
+      awardYearLabel: AWARD_YEAR_LABELS[awardYearType],
       conditionType,
       awardDate: cleanDate(item.awardDate || item.award_date || item['시상날짜']),
       awardStartDate: cleanDate(item.awardStartDate || item.award_start_date || item.startDate || item.start_date || item['시작일']),
@@ -668,6 +672,11 @@ function normalizeConditionType(value) {
   const text = cleanText(value, 80).toLowerCase();
   if (text.includes('납입') || text.includes('count')) return 'paymentCount';
   return 'premiumSum';
+}
+
+function normalizeAwardYearType(value) {
+  const text = cleanText(value, 40);
+  return text === 'secondYear' || text.includes('2') ? 'secondYear' : 'firstYear';
 }
 
 function normalizeLongTermTypes(value) {

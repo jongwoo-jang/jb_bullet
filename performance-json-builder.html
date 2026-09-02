@@ -134,6 +134,7 @@ const HEADERS={
 };
 const ACTUAL_LOSS_KEYWORDS=['전환표준','유병노후'];
 const CORPORATE_GROUP_KEYWORD='법인단체';
+const AWARD_YEAR_LABELS={firstYear:'1차년 시상',secondYear:'2차년 시상'};
 const MAX_CONDITIONS=20;
 const MAX_TIERS=20;
 const MAX_SAVED_AWARDS=50;
@@ -222,6 +223,7 @@ function addCondition(values={}){
       <button class="icon-btn" data-remove-condition type="button">삭제</button>
     </div>
     <div class="field"><label for="awardName${id}">시상이름</label><input id="awardName${id}" data-field="name" placeholder="9월 인보험 시상" required></div>
+    <div class="field"><label for="awardYearType${id}">시상 구분</label><select id="awardYearType${id}" data-field="awardYearType"><option value="firstYear">1차년 시상</option><option value="secondYear">2차년 시상</option></select></div>
     <div class="grid">
       <div class="field"><label for="awardStartDate${id}">시작일</label><input id="awardStartDate${id}" data-field="awardStartDate" type="date"></div>
       <div class="field"><label for="awardEndDate${id}">종료일</label><input id="awardEndDate${id}" data-field="awardEndDate" type="date"></div>
@@ -272,6 +274,7 @@ function setConditionValues(card,values){
   set('awardStartDate',values.awardStartDate||values.startDate);
   set('awardEndDate',values.awardEndDate||values.endDate||values.awardDate);
   set('conditionType',values.conditionType);
+  set('awardYearType',normalizeAwardYearType(values.awardYearType||values.award_year_type||values.awardYearLabel||values.award_year_label||values['시상구분']));
   const exclude=card.querySelector('[data-field="excludeActualLoss"]');
   if(exclude)exclude.checked=values.excludeActualLoss!==false;
   const excludeCorporate=card.querySelector('[data-field="excludeCorporateGroup"]');
@@ -402,6 +405,8 @@ function readAwardConditions({strict=true}={}){
     const excludeCorporateGroup=card.querySelector('[data-field="excludeCorporateGroup"]').checked;
     conditions.push({
       name:name||`${index+1}번 시상조건`,
+      awardYearType:normalizeAwardYearType(card.querySelector('[data-field="awardYearType"]').value),
+      awardYearLabel:AWARD_YEAR_LABELS[normalizeAwardYearType(card.querySelector('[data-field="awardYearType"]').value)],
       conditionType:card.querySelector('[data-field="conditionType"]').value,
       awardStartDate:card.querySelector('[data-field="awardStartDate"]').value,
       awardEndDate:card.querySelector('[data-field="awardEndDate"]').value,
@@ -431,6 +436,10 @@ function readTiers(card,{strict=true}={}){
     tiers.push({targetValue,awardAmount,awardItem,unit:'KRW'});
   }
   return tiers.sort((a,b)=>a.targetValue-b.targetValue);
+}
+function normalizeAwardYearType(value){
+  const text=String(value||'').trim();
+  return text==='secondYear'||text.includes('2')?'secondYear':'firstYear';
 }
 function parsePerformanceRows(text){
   const table=parseDelimited(text);
