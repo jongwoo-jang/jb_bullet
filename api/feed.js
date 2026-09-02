@@ -128,6 +128,7 @@ function calculateAward(condition = {}, rows = []) {
   const longTermTypes = normalizeStringList(condition.longTermTypes || condition.long_term_types);
   const excludeActualLoss = Boolean(condition.excludeActualLoss || condition.exclude_actual_loss);
   const filtered = rows.filter((row) => {
+    if (!isWithinAwardPeriod(row, condition)) return false;
     const longTermType = cleanText(row.longTermType || row.long_term_type || row['장기마케팅세분'], 12).toUpperCase().replace(/^AO/, 'A0');
     if (longTermTypes.length && !longTermTypes.includes(longTermType)) return false;
     if (!excludeActualLoss) return true;
@@ -141,18 +142,45 @@ function calculateAward(condition = {}, rows = []) {
       : toNumber(row.monthlyPremium || row.monthly_premium || row['월환산보험료']));
   }, 0);
   const targetValue = toNumber(condition.targetValue || condition.target_value || condition.targetAmount || condition.target_amount);
-  const achieved = targetValue > 0 && currentValue >= targetValue;
+  const tiers = normalizeAwardTiers(condition.tiers || condition.awardTiers || condition.award_tiers || condition);
+  const nextTier = tiers.find((tier) => currentValue < tier.targetValue) || null;
+  const achievedTier = [...tiers].reverse().find((tier) => currentValue >= tier.targetValue) || null;
+  const displayTargetValue = nextTier ? nextTier.targetValue : (achievedTier ? achievedTier.targetValue : targetValue);
+  const achieved = Boolean(achievedTier);
   return {
     name: cleanText(condition.name || condition.title || '인보험 시상', 120),
     conditionType,
     awardDate: cleanText(condition.awardDate || condition.award_date, 30),
-    targetValue,
+    awardStartDate: cleanText(condition.awardStartDate || condition.award_start_date || condition.startDate || condition.start_date, 30),
+    awardEndDate: cleanText(condition.awardEndDate || condition.award_end_date || condition.endDate || condition.end_date || condition.awardDate || condition.award_date, 30),
+    targetValue: displayTargetValue,
     currentValue,
-    achievementRate: targetValue > 0 ? Math.min(999, Math.round((currentValue / targetValue) * 1000) / 10) : 0,
+    achievementRate: displayTargetValue > 0 ? Math.min(999, Math.round((currentValue / displayTargetValue) * 1000) / 10) : 0,
     achieved,
-    awardAmount: achieved ? toNumber(condition.awardAmount || condition.award_amount) : 0,
+    awardAmount: achievedTier ? achievedTier.awardAmount : 0,
+    awardItem: achievedTier ? achievedTier.awardItem : '',
+    achievedTier,
+    nextTier,
+    tiers,
     eligibleRowCount: filtered.length
   };
+}
+
+function isWithinAwardPeriod(row = {}, condition = {}) {
+  const start = dateKey(condition.awardStartDate || condition.award_start_date || condition.startDate || condition.start_date);
+  const end = dateKey(condition.awardEndDate || condition.award_end_date || condition.endDate || condition.end_date || condition.awardDate || condition.award_date);
+  if (!start && !end) return true;
+  const closedAt = dateKey(row.contractClosedAt || row.contract_closed_at || row['계약마감시간']);
+  if (!closedAt) return false;
+  if (start && closedAt < start) return false;
+  if (end && closedAt > end) return false;
+  return true;
+}
+
+function dateKey(value) {
+  const text = String(value || '').trim();
+  const match = text.match(/(\d{4})[-.]?(\d{2})[-.]?(\d{2})/);
+  return match ? `${match[1]}${match[2]}${match[3]}` : '';
 }
 
 async function recordFeedActivity(req, res, payload) {
@@ -401,6 +429,20 @@ function parseJson(value) {
 function normalizeStringList(value) {
   const list = Array.isArray(value) ? value : String(value || '').split(/[,|\s]+/);
   return [...new Set(list.map((item) => cleanText(item, 12).toUpperCase().replace(/^AO/, 'A0')).filter(Boolean))];
+}
+
+function normalizeAwardTiers(value) {
+  const list = Array.isArray(value) ? value : [value];
+  return list.map((tier) => {
+    const item = tier && typeof tier === 'object' ? tier : {};
+    return {
+      targetValue: toNumber(item.targetValue || item.target_value || item.targetAmount || item.target_amount),
+      awardAmount: toNumber(item.awardAmount || item.award_amount),
+      awardItem: cleanText(item.awardItem || item.award_item || item.prize, 160)
+    };
+  })
+    .filter((tier) => tier.targetValue > 0 && (tier.awardAmount > 0 || tier.awardItem))
+    .sort((a, b) => a.targetValue - b.targetValue);
 }
 
 function toNumber(value) {

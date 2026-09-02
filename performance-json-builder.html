@@ -17,7 +17,7 @@ body{background:var(--bg);color:var(--ink);font-family:"Pretendard",-apple-syste
 button,input,textarea,select{font:inherit}
 button{border:0;background:none;color:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--brand);outline-offset:2px;border-radius:8px}
-.wrap{width:min(760px,100%);margin:0 auto;padding:22px 14px 48px}
+.wrap{width:min(780px,100%);margin:0 auto;padding:22px 14px 48px}
 .top{margin-bottom:16px}
 .top span{display:block;margin-bottom:6px;color:var(--brand);font-size:12px;font-weight:900}
 .top h1{margin:0;font-size:26px;line-height:1.15;font-weight:900}
@@ -45,6 +45,9 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 .check-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px}
 .check{display:flex;align-items:center;gap:8px;min-height:46px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#FBFCFD;font-size:14px;font-weight:850;color:var(--ink2)}
 .check input{width:18px;height:18px;accent-color:var(--brand)}
+.tier-list{display:grid;gap:8px;margin-bottom:12px}
+.tier-row{display:grid;grid-template-columns:1fr 1fr 1.2fr auto;gap:8px;align-items:end;padding:10px;border:1px solid var(--line);border-radius:12px;background:#FBFCFD}
+.tier-row .field{margin:0}
 .add-row{margin-top:12px}
 .add-row .ghost{width:100%}
 .actions{position:sticky;bottom:0;display:flex;gap:8px;margin-top:14px;padding-top:12px;background:linear-gradient(180deg,rgba(243,245,247,0),var(--bg) 38%)}
@@ -53,12 +56,13 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 .ghost{padding:0 16px;background:#fff;border:1px solid var(--line);color:var(--ink2)}
 .summary{margin-top:12px;padding:13px 14px;border-radius:12px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:850;line-height:1.5}
 .error{background:#FFF1F1;color:var(--danger)}
-@media(max-width:520px){
+@media(max-width:640px){
   .wrap{padding:16px 10px 36px}
   .top h1{font-size:24px}
-  .grid{grid-template-columns:1fr}
+  .grid,.tier-row{grid-template-columns:1fr}
   .check-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .condition-card{padding:12px}
+  .tier-row .icon-btn{width:100%}
 }
 </style>
 </head>
@@ -77,7 +81,7 @@ button{border:0;background:none;color:inherit;cursor:pointer}
     <div class="field"><label for="month">대상월</label><input id="month" type="month" required></div>
     <div class="condition-list" id="conditionList"></div>
     <div class="add-row"><button class="ghost" id="addConditionBtn" type="button">시상조건 추가</button></div>
-    <div class="summary">시상조건은 여러 개를 한 JSON에 함께 저장합니다. 각 조건마다 장기세분과 실손 제외 여부를 다르게 설정할 수 있습니다.</div>
+    <div class="summary">시상조건은 여러 개를 한 JSON에 함께 저장합니다. 각 조건마다 기간, 장기세분, 실손 제외, 구간별 시상금액과 시상물품을 다르게 설정할 수 있습니다.</div>
   </section>
 
   <section class="panel" data-panel="data">
@@ -110,9 +114,11 @@ const HEADERS={
 };
 const ACTUAL_LOSS_KEYWORDS=['전환표준','유병노후'];
 const MAX_CONDITIONS=20;
+const MAX_TIERS=20;
 const conditionList=document.getElementById('conditionList');
 const parseSummary=document.getElementById('parseSummary');
 let conditionSeq=0;
+let tierSeq=0;
 
 document.getElementById('month').value=new Date().toISOString().slice(0,7);
 addCondition();
@@ -125,10 +131,23 @@ document.querySelectorAll('[data-tab]').forEach(tab=>{
 });
 document.getElementById('addConditionBtn').addEventListener('click',()=>addCondition());
 conditionList.addEventListener('click',event=>{
-  const button=event.target.closest('[data-remove-condition]');
-  if(!button)return;
-  button.closest('.condition-card').remove();
-  renumberConditions();
+  const removeCondition=event.target.closest('[data-remove-condition]');
+  if(removeCondition){
+    removeCondition.closest('.condition-card').remove();
+    renumberConditions();
+    return;
+  }
+  const addTierButton=event.target.closest('[data-add-tier]');
+  if(addTierButton){
+    addTier(addTierButton.closest('.condition-card'));
+    return;
+  }
+  const removeTier=event.target.closest('[data-remove-tier]');
+  if(removeTier){
+    const card=removeTier.closest('.condition-card');
+    removeTier.closest('.tier-row').remove();
+    renumberTiers(card);
+  }
 });
 document.getElementById('rawData').addEventListener('input',()=>{
   const rows=parsePerformanceRows(document.getElementById('rawData').value);
@@ -163,24 +182,45 @@ function addCondition(values={}){
       <strong>시상조건</strong>
       <button class="icon-btn" data-remove-condition type="button">삭제</button>
     </div>
+    <div class="field"><label for="awardName${id}">시상이름</label><input id="awardName${id}" data-field="name" placeholder="9월 인보험 시상" required></div>
     <div class="grid">
-      <div class="field"><label for="awardName${id}">시상이름</label><input id="awardName${id}" data-field="name" placeholder="9월 인보험 시상" required></div>
-      <div class="field"><label for="awardDate${id}">시상날짜</label><input id="awardDate${id}" data-field="awardDate" type="date"></div>
+      <div class="field"><label for="awardStartDate${id}">시작일</label><input id="awardStartDate${id}" data-field="awardStartDate" type="date"></div>
+      <div class="field"><label for="awardEndDate${id}">종료일</label><input id="awardEndDate${id}" data-field="awardEndDate" type="date"></div>
     </div>
-    <div class="grid">
-      <div class="field"><label for="conditionType${id}">달성조건</label><select id="conditionType${id}" data-field="conditionType"><option value="premiumSum">월납환산합산금액</option><option value="paymentCount">납입건수</option></select></div>
-      <div class="field"><label for="targetValue${id}">달성 기준값</label><input id="targetValue${id}" data-field="targetValue" inputmode="numeric" placeholder="300000" required></div>
-    </div>
-    <div class="field"><label for="awardAmount${id}">시상금액</label><input id="awardAmount${id}" data-field="awardAmount" inputmode="numeric" placeholder="50000" required></div>
-    <span class="group-label">장기세분</span>
+    <div class="field"><label for="conditionType${id}">달성조건</label><select id="conditionType${id}" data-field="conditionType"><option value="premiumSum">월납환산합산금액</option><option value="paymentCount">납입건수</option></select></div>
+    <span class="group-label">달성 구간</span>
+    <div class="tier-list" data-field="tiers"></div>
+    <button class="icon-btn" data-add-tier type="button">구간 추가</button>
+    <span class="group-label" style="margin-top:14px">장기세분</span>
     <div class="check-grid" data-field="longTermTypes">
       ${['A01','A02','A03','A04','A05'].map(code=>`<label class="check"><input type="checkbox" value="${code}" checked>${code}</label>`).join('')}
     </div>
     <label class="check"><input data-field="excludeActualLoss" type="checkbox" checked>실손 제외</label>
   `;
   conditionList.appendChild(card);
+  const tiers=Array.isArray(values.tiers)&&values.tiers.length?values.tiers:[values];
+  tiers.forEach(tier=>addTier(card,tier));
   setConditionValues(card,values);
   renumberConditions();
+}
+function addTier(card,values={}){
+  const tierList=card.querySelector('[data-field="tiers"]');
+  const count=tierList.querySelectorAll('.tier-row').length;
+  if(count>=MAX_TIERS){alert(`구간은 조건별 최대 ${MAX_TIERS}개까지 추가할 수 있습니다.`);return}
+  const id=++tierSeq;
+  const row=document.createElement('div');
+  row.className='tier-row';
+  row.innerHTML=`
+    <div class="field"><label for="tierTarget${id}">달성 기준값</label><input id="tierTarget${id}" data-tier-field="targetValue" inputmode="numeric" placeholder="300000" required></div>
+    <div class="field"><label for="tierAmount${id}">시상금액</label><input id="tierAmount${id}" data-tier-field="awardAmount" inputmode="numeric" placeholder="50000"></div>
+    <div class="field"><label for="tierItem${id}">시상물품</label><input id="tierItem${id}" data-tier-field="awardItem" placeholder="상품권, 여행권 등"></div>
+    <button class="icon-btn" data-remove-tier type="button">삭제</button>
+  `;
+  tierList.appendChild(row);
+  row.querySelector('[data-tier-field="targetValue"]').value=values.targetValue||'';
+  row.querySelector('[data-tier-field="awardAmount"]').value=values.awardAmount||'';
+  row.querySelector('[data-tier-field="awardItem"]').value=values.awardItem||'';
+  renumberTiers(card);
 }
 function setConditionValues(card,values){
   if(!values||!Object.keys(values).length)return;
@@ -189,10 +229,9 @@ function setConditionValues(card,values){
     if(input&&value!==undefined&&value!==null)input.value=value;
   };
   set('name',values.name);
-  set('awardDate',values.awardDate);
+  set('awardStartDate',values.awardStartDate||values.startDate);
+  set('awardEndDate',values.awardEndDate||values.endDate||values.awardDate);
   set('conditionType',values.conditionType);
-  set('targetValue',values.targetValue);
-  set('awardAmount',values.awardAmount);
   const exclude=card.querySelector('[data-field="excludeActualLoss"]');
   if(exclude)exclude.checked=values.excludeActualLoss!==false;
   const selected=new Set(Array.isArray(values.longTermTypes)?values.longTermTypes:['A01','A02','A03','A04','A05']);
@@ -204,6 +243,15 @@ function renumberConditions(){
     card.querySelector('.condition-index').textContent=String(index+1);
     const remove=card.querySelector('[data-remove-condition]');
     remove.disabled=cards.length<=1;
+    renumberTiers(card);
+  });
+}
+function renumberTiers(card){
+  const rows=[...card.querySelectorAll('.tier-row')];
+  rows.forEach((row,index)=>{
+    const remove=row.querySelector('[data-remove-tier]');
+    remove.disabled=rows.length<=1;
+    row.querySelector('[data-tier-field="targetValue"]').previousElementSibling.textContent=`${index+1}구간 기준값`;
   });
 }
 function buildDataset(){
@@ -213,7 +261,7 @@ function buildDataset(){
   if(!rows.length){alert('실적데이터를 붙여넣어 주세요.');return null}
   const month=document.getElementById('month').value||new Date().toISOString().slice(0,7);
   return {
-    schemaVersion:'fp-performance-v1',
+    schemaVersion:'fp-performance-v2',
     createdAt:new Date().toISOString(),
     month,
     title:`${month} 인보험 실적`,
@@ -226,27 +274,42 @@ function readAwardConditions(){
   const conditions=[];
   for(const [index,card] of cards.entries()){
     const name=card.querySelector('[data-field="name"]').value.trim();
-    const targetValue=toNumber(card.querySelector('[data-field="targetValue"]').value);
-    const awardAmount=toNumber(card.querySelector('[data-field="awardAmount"]').value);
     const longTermTypes=[...card.querySelectorAll('[data-field="longTermTypes"] input:checked')].map(input=>input.value);
+    const tiers=readTiers(card);
     const label=`${index+1}번 시상조건`;
     if(!name){alert(`${label}의 시상이름을 입력해 주세요.`);return null}
-    if(targetValue<=0){alert(`${label}의 달성 기준값을 입력해 주세요.`);return null}
-    if(awardAmount<=0){alert(`${label}의 시상금액을 입력해 주세요.`);return null}
+    if(!tiers)return null;
     if(!longTermTypes.length){alert(`${label}의 장기세분을 1개 이상 선택해 주세요.`);return null}
     const excludeActualLoss=card.querySelector('[data-field="excludeActualLoss"]').checked;
     conditions.push({
       name,
       conditionType:card.querySelector('[data-field="conditionType"]').value,
-      awardDate:card.querySelector('[data-field="awardDate"]').value,
-      targetValue,
-      awardAmount,
+      awardStartDate:card.querySelector('[data-field="awardStartDate"]').value,
+      awardEndDate:card.querySelector('[data-field="awardEndDate"]').value,
+      targetValue:tiers[0].targetValue,
+      awardAmount:tiers[0].awardAmount,
+      awardItem:tiers[0].awardItem,
+      tiers,
       longTermTypes,
       excludeActualLoss,
       actualLossKeywords:excludeActualLoss?ACTUAL_LOSS_KEYWORDS:[]
     });
   }
   return conditions;
+}
+function readTiers(card){
+  const rows=[...card.querySelectorAll('.tier-row')];
+  const tiers=[];
+  for(const [index,row] of rows.entries()){
+    const targetValue=toNumber(row.querySelector('[data-tier-field="targetValue"]').value);
+    const awardAmount=toNumber(row.querySelector('[data-tier-field="awardAmount"]').value);
+    const awardItem=row.querySelector('[data-tier-field="awardItem"]').value.trim();
+    const label=`${card.querySelector('.condition-index').textContent}번 시상조건 ${index+1}구간`;
+    if(targetValue<=0){alert(`${label}의 달성 기준값을 입력해 주세요.`);return null}
+    if(awardAmount<=0&&!awardItem){alert(`${label}에는 시상금액 또는 시상물품 중 하나가 필요합니다.`);return null}
+    tiers.push({targetValue,awardAmount,awardItem});
+  }
+  return tiers.sort((a,b)=>a.targetValue-b.targetValue);
 }
 function parsePerformanceRows(text){
   const table=parseDelimited(text);

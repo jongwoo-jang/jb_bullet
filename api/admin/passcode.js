@@ -601,19 +601,39 @@ function normalizeAwardConditions(value) {
   const list = Array.isArray(value) ? value : (value ? [value] : []);
   return list.map((condition) => {
     const item = condition && typeof condition === 'object' ? condition : {};
+    const tiers = normalizeAwardTiers(item.tiers || item.awardTiers || item.award_tiers || item);
+    const firstTier = tiers[0] || {};
     const conditionType = normalizeConditionType(item.conditionType || item.condition_type || item.metric || item['달성조건']);
     const excludeActualLoss = Boolean(item.excludeActualLoss || item.exclude_actual_loss || item['실손제외']);
     return {
       name: cleanText(item.name || item.title || item['시상이름'], 120),
       conditionType,
       awardDate: cleanDate(item.awardDate || item.award_date || item['시상날짜']),
-      targetValue: toNumber(item.targetValue || item.target_value || item.targetAmount || item.target_amount || item['달성금액']),
-      awardAmount: toNumber(item.awardAmount || item.award_amount || item['시상금액']),
+      awardStartDate: cleanDate(item.awardStartDate || item.award_start_date || item.startDate || item.start_date || item['시작일']),
+      awardEndDate: cleanDate(item.awardEndDate || item.award_end_date || item.endDate || item.end_date || item['종료일'] || item.awardDate || item.award_date || item['시상날짜']),
+      targetValue: firstTier.targetValue || 0,
+      awardAmount: firstTier.awardAmount || 0,
+      awardItem: firstTier.awardItem || '',
+      tiers,
       longTermTypes: normalizeLongTermTypes(item.longTermTypes || item.long_term_types || item['장기세분'] || item['장기마케팅세분']),
       excludeActualLoss,
       actualLossKeywords: excludeActualLoss ? ACTUAL_LOSS_KEYWORDS : []
     };
-  }).filter((condition) => condition.name && condition.targetValue > 0);
+  }).filter((condition) => condition.name && condition.tiers.length);
+}
+
+function normalizeAwardTiers(value) {
+  const list = Array.isArray(value) ? value : [value];
+  return list.map((tier) => {
+    const item = tier && typeof tier === 'object' ? tier : {};
+    return {
+      targetValue: toNumber(item.targetValue || item.target_value || item.targetAmount || item.target_amount || item['달성금액'] || item['달성 기준값']),
+      awardAmount: toNumber(item.awardAmount || item.award_amount || item['시상금액']),
+      awardItem: cleanText(item.awardItem || item.award_item || item.prize || item['시상물품'], 160)
+    };
+  })
+    .filter((tier) => tier.targetValue > 0 && (tier.awardAmount > 0 || tier.awardItem))
+    .sort((a, b) => a.targetValue - b.targetValue);
 }
 
 function normalizePerformanceRows(value) {
@@ -662,8 +682,8 @@ function cleanDate(value) {
 }
 
 function inferMonth(conditions = []) {
-  const date = conditions.find((condition) => condition.awardDate);
-  return date ? date.awardDate : '';
+  const date = conditions.find((condition) => condition.awardStartDate || condition.awardEndDate || condition.awardDate);
+  return date ? (date.awardStartDate || date.awardEndDate || date.awardDate) : '';
 }
 
 function toNumber(value) {
