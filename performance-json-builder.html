@@ -55,16 +55,19 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 .tier-row .field{margin:0}
 .add-row{margin-top:12px}
 .add-row .ghost{width:100%}
-.actions{position:sticky;bottom:0;display:flex;gap:8px;margin-top:14px;padding-top:12px;background:linear-gradient(180deg,rgba(243,245,247,0),var(--bg) 38%)}
+.actions{position:sticky;bottom:0;display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-top:14px;padding-top:12px;background:linear-gradient(180deg,rgba(243,245,247,0),var(--bg) 38%)}
 .primary,.ghost{min-height:54px;border-radius:12px;font-weight:900}
 .primary{flex:1;background:var(--brand);color:#fff;box-shadow:0 12px 24px rgba(0,60,220,.18)}
 .ghost{padding:0 16px;background:#fff;border:1px solid var(--line);color:var(--ink2)}
+.save-folder-status{margin:8px 2px 0;color:var(--ink2);font-size:12.5px;font-weight:800;line-height:1.45}
 .summary{margin-top:12px;padding:13px 14px;border-radius:12px;background:var(--brand-soft);color:var(--brand);font-size:13px;font-weight:850;line-height:1.5}
 .error{background:#FFF1F1;color:var(--danger)}
 @media(max-width:640px){
   .wrap{padding:16px 10px 36px}
   .top h1{font-size:24px}
   .grid,.tier-row,.condition-tools{grid-template-columns:1fr}
+  .actions{grid-template-columns:1fr 1fr}
+  .actions .primary{grid-column:1/-1}
   .check-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .condition-card{padding:12px}
   .tier-row .icon-btn{width:100%}
@@ -113,8 +116,10 @@ button{border:0;background:none;color:inherit;cursor:pointer}
 
   <div class="actions">
     <button class="primary" id="downloadBtn" type="button">JSON 파일로 저장하기</button>
+    <button class="ghost" id="chooseFolderBtn" type="button">저장폴더 선택</button>
     <button class="ghost" id="resetBtn" type="button">초기화</button>
   </div>
+  <p class="save-folder-status" id="saveFolderStatus">저장폴더를 선택하지 않으면 브라우저 기본 다운로드 폴더에 저장됩니다.</p>
 </main>
 
 <script>
@@ -145,9 +150,12 @@ const parseSummary=document.getElementById('parseSummary');
 const savedAwardName=document.getElementById('savedAwardName');
 const savedAwardSelect=document.getElementById('savedAwardSelect');
 const savedAwardStatus=document.getElementById('savedAwardStatus');
+const chooseFolderBtn=document.getElementById('chooseFolderBtn');
+const saveFolderStatus=document.getElementById('saveFolderStatus');
 let conditionSeq=0;
 let tierSeq=0;
 let loadedAwardTemplateId='';
+let selectedSaveDirectoryHandle=null;
 
 document.getElementById('month').value=new Date().toISOString().slice(0,7);
 addCondition();
@@ -194,20 +202,55 @@ document.getElementById('rawData').addEventListener('input',()=>{
   parseSummary.textContent=rows.length?`${rows.length.toLocaleString()}건을 인식했습니다.`:'실적데이터를 인식하지 못했습니다.';
   parseSummary.classList.toggle('error',!rows.length&&document.getElementById('rawData').value.trim());
 });
-document.getElementById('downloadBtn').addEventListener('click',()=>{
+chooseFolderBtn.addEventListener('click',async()=>{
+  if(!window.showDirectoryPicker){
+    saveFolderStatus.textContent='현재 브라우저는 저장폴더 선택을 지원하지 않아 기본 다운로드로 저장됩니다.';
+    return;
+  }
+  try{
+    selectedSaveDirectoryHandle=await window.showDirectoryPicker({mode:'readwrite'});
+    saveFolderStatus.textContent=`저장폴더: ${selectedSaveDirectoryHandle.name}`;
+  }catch(error){
+    if(error&&error.name==='AbortError')return;
+    selectedSaveDirectoryHandle=null;
+    saveFolderStatus.textContent='저장폴더 권한을 가져오지 못했습니다. 기본 다운로드로 저장됩니다.';
+  }
+});
+document.getElementById('downloadBtn').addEventListener('click',async()=>{
   const dataset=buildDataset();
   if(!dataset)return;
   const blob=new Blob([JSON.stringify(dataset,null,2)],{type:'application/json;charset=utf-8'});
+  const filename=`performance-${dataset.month}.json`;
+  if(selectedSaveDirectoryHandle&&await saveJsonToSelectedFolder(filename,blob))return;
+  downloadJsonFile(filename,blob);
+  saveFolderStatus.textContent='브라우저 기본 다운로드 폴더에 저장했습니다.';
+});
+document.getElementById('resetBtn').addEventListener('click',()=>location.reload());
+
+async function saveJsonToSelectedFolder(filename,blob){
+  try{
+    const fileHandle=await selectedSaveDirectoryHandle.getFileHandle(filename,{create:true});
+    const writable=await fileHandle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    saveFolderStatus.textContent=`${selectedSaveDirectoryHandle.name} 폴더에 ${filename} 파일을 저장했습니다.`;
+    return true;
+  }catch(error){
+    selectedSaveDirectoryHandle=null;
+    saveFolderStatus.textContent='선택한 폴더에 저장하지 못해 기본 다운로드로 저장합니다.';
+    return false;
+  }
+}
+function downloadJsonFile(filename,blob){
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download=`performance-${dataset.month}.json`;
+  a.download=filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-});
-document.getElementById('resetBtn').addEventListener('click',()=>location.reload());
+}
 
 function addCondition(values={}){
   const count=conditionList.querySelectorAll('.condition-card').length;
