@@ -25,6 +25,7 @@ module.exports = async function handler(req, res) {
   if (url.searchParams.get('action') === 'pin') return updatePostPin(req, res, admin.supabase);
   if (url.searchParams.get('action') === 'performance') return handlePerformanceDataset(req, res, admin.supabase, admin.user);
   if (url.searchParams.get('action') === 'members') return handleMembers(req, res, admin.supabase);
+  if (url.searchParams.get('action') === 'member-code') return handleMemberCode(req, res, admin.supabase);
 
   if (req.method === 'GET') return getStatus(res);
   if (req.method === 'POST') return updatePasscode(req, res);
@@ -149,6 +150,47 @@ async function handleMembers(req, res, supabase) {
   if (req.method === 'POST' || req.method === 'DELETE') return deleteMember(req, res, supabase);
   res.setHeader('Allow', 'GET, POST, DELETE');
   return res.status(405).json({ error: 'Method not allowed' });
+}
+
+async function handleMemberCode(req, res, supabase) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+  return addMemberCode(req, res, supabase);
+}
+
+async function addMemberCode(req, res, supabase) {
+  try {
+    const body = await readJson(req);
+    const codeNumber = String(body.codeNumber || body.code_number || '').trim().replace(/\s+/g, '').toUpperCase();
+    const displayName = String(body.displayName || body.display_name || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+    if (!codeNumber || !displayName) {
+      return res.status(400).json({ error: '코드번호와 실명을 입력해 주세요.' });
+    }
+
+    const existing = await getCodeExists(supabase, codeNumber);
+    const row = normalizeCodeRow({ codeNumber, displayName });
+    await upsertMemberCodes(supabase, [row]);
+
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).json({
+      ok: true,
+      created: !existing,
+      code: {
+        code_number: row.code_number,
+        display_name: row.display_name,
+        branch: row.branch,
+        is_active: row.is_active
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    if (isMissingMemberTable(error)) {
+      return res.status(500).json({ error: 'Supabase SQL Editor에서 최신 supabase-schema.sql을 먼저 실행해 주세요.' });
+    }
+    return res.status(500).json({ error: error.message || '회원코드를 추가하지 못했습니다.' });
+  }
 }
 
 async function listMembers(req, res, supabase) {
@@ -492,6 +534,16 @@ async function getAllExistingCodeNumbers(supabase) {
     if (!data || data.length < LOOKUP_CHUNK_SIZE) break;
   }
   return existing;
+}
+
+async function getCodeExists(supabase, codeNumber) {
+  const { data, error } = await supabase
+    .from('fp_member_codes')
+    .select('code_number')
+    .eq('code_number', codeNumber)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
 }
 
 async function upsertMemberCodes(supabase, codes) {

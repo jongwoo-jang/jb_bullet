@@ -55,7 +55,9 @@ a{color:inherit;text-decoration:none}
 .settings-panel{padding:18px}
 .settings-panel h2{margin:0 0 5px;font-size:16px;font-weight:850}
 .settings-panel p{margin:0 0 16px;color:var(--ink2);font-size:13.5px;line-height:1.55;word-break:keep-all}
+.member-code-block{padding-bottom:18px;margin-bottom:18px;border-bottom:1px solid var(--line)}
 .passcode-form{display:grid;grid-template-columns:minmax(0,190px) auto auto 1fr;gap:8px;align-items:end}
+.member-add-form{grid-template-columns:minmax(0,190px) minmax(0,190px) auto 1fr}
 .passcode-form .field{margin:0}
 .passcode-form button{height:52px;padding:0 18px}
 .passcode-status{align-self:center;display:inline-flex;align-items:center;color:var(--ink3);font-size:12.5px;font-weight:780}
@@ -326,6 +328,15 @@ a{color:inherit;text-decoration:none}
     </section>
 
     <section class="panel settings-panel admin-panel" data-admin-panel="members" hidden>
+      <div class="member-code-block">
+        <div class="section-head"><div><b>회원 개별 추가</b><span>코드번호와 실명을 입력해 가입 가능한 회원코드를 추가합니다.</span></div></div>
+        <form class="passcode-form member-add-form" id="memberAddForm">
+          <div class="field"><label for="memberAddCodeNumber">코드번호</label><input id="memberAddCodeNumber" autocomplete="off" inputmode="text" placeholder="코드번호" required></div>
+          <div class="field"><label for="memberAddDisplayName">실명</label><input id="memberAddDisplayName" autocomplete="off" placeholder="실명" required></div>
+          <button class="primary" id="saveMemberAddBtn" type="submit">회원추가</button>
+          <span class="passcode-status" id="memberAddStatus">개별 추가 대기</span>
+        </form>
+      </div>
       <div class="section-head"><div><b>회원가입 코드 업로드</b><span>CSV 파일의 A열은 코드번호, B열은 실명으로 저장합니다.</span></div></div>
       <form class="passcode-form" id="memberCodeForm">
         <div class="field"><label for="memberCodeCsv">CSV 파일</label><input id="memberCodeCsv" type="file" accept=".csv,text/csv" required></div>
@@ -364,6 +375,11 @@ const feedLink=document.getElementById('feedLink');
 const adminLayout=document.getElementById('adminLayout');
 const adminTabs=[...document.querySelectorAll('[data-admin-tab]')];
 const adminPanels=[...document.querySelectorAll('[data-admin-panel]')];
+const memberAddForm=document.getElementById('memberAddForm');
+const memberAddCodeNumber=document.getElementById('memberAddCodeNumber');
+const memberAddDisplayName=document.getElementById('memberAddDisplayName');
+const saveMemberAddBtn=document.getElementById('saveMemberAddBtn');
+const memberAddStatus=document.getElementById('memberAddStatus');
 const memberCodeForm=document.getElementById('memberCodeForm');
 const memberCodeCsv=document.getElementById('memberCodeCsv');
 const saveMemberCodesBtn=document.getElementById('saveMemberCodesBtn');
@@ -1094,6 +1110,37 @@ commentSearch.addEventListener('input',()=>renderAdminComments());
 refreshCommentsBtn.addEventListener('click',()=>renderAdminComments());
 memberSearch.addEventListener('input',()=>renderAdminMembers());
 refreshMembersBtn.addEventListener('click',()=>renderAdminMembers());
+memberAddForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const token=getAccessToken();
+  if(!token){toast('로그인이 필요합니다');return}
+  const codeNumber=memberAddCodeNumber.value.trim();
+  const displayName=memberAddDisplayName.value.trim();
+  if(!codeNumber||!displayName){memberAddStatus.textContent='코드번호와 실명을 입력해 주세요';return}
+  saveMemberAddBtn.disabled=true;
+  saveMemberAddBtn.textContent='저장 중';
+  memberAddStatus.textContent='회원코드 저장 중';
+  try{
+    const response=await fetch('/api/admin/passcode?action=member-code',{
+      method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+      body:JSON.stringify({codeNumber,displayName})
+    });
+    const result=await response.json().catch(()=>({error:'저장 응답을 읽을 수 없습니다.'}));
+    if(!response.ok){memberAddStatus.textContent='저장 실패';toast(result.error||'회원 추가에 실패했습니다');return}
+    memberAddForm.reset();
+    memberAddStatus.textContent=result.created?'신규 회원코드 추가 완료':'기존 회원코드 갱신 완료';
+    toast(result.created?'회원코드를 추가했습니다':'회원코드를 갱신했습니다');
+    loadMemberCodeStatus();
+    if(!document.querySelector('[data-admin-panel="memberList"]').hidden)renderAdminMembers();
+  }catch(error){
+    memberAddStatus.textContent='저장 실패';
+    toast(error.message||'회원 추가에 실패했습니다');
+  }finally{
+    saveMemberAddBtn.disabled=false;
+    saveMemberAddBtn.textContent='회원추가';
+  }
+});
 memberCodeForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const file=memberCodeCsv.files&&memberCodeCsv.files[0];
