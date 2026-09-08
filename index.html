@@ -254,10 +254,17 @@ a{color:inherit;text-decoration:none}
 .award-list{display:grid;gap:10px}
 .award-card{padding:15px;border:1px solid var(--line);border-radius:15px;background:#fff}
 .award-card.done{border-color:#C9DAFF;background:linear-gradient(180deg,#fff 0%,#F7FAFF 100%)}
+.award-card.ended{border-color:#E3E8EF;background:#F3F6F9;color:#697484}
+.award-card.ended .award-top strong{color:#657082}
+.award-card.ended .award-state{background:#DFE5EC;color:#697484}
+.award-card.ended .award-values div,.award-card.ended .award-rewards div{background:#EEF2F6;border-color:#E0E6ED}
+.award-card.ended .progress-track{background:#DFE5EC}
+.award-card.ended .progress-bar{background:#AAB4C1}
 .award-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:8px}
 .award-top strong{flex:1;min-width:0;color:var(--ink);font-size:16.3px;font-weight:900;line-height:1.35;word-break:keep-all}
 .award-state{flex:0 0 auto;height:28px;padding:0 10px;border-radius:999px;background:#F4F6F8;color:var(--ink2);font-size:12.4px;font-weight:900;display:inline-flex;align-items:center}
 .award-card.done .award-state{background:var(--brand2);color:#fff}
+.award-card.done.ended .award-state{background:#DCE3EC;color:#5F6B7B}
 .award-period{display:flex;align-items:center;gap:5px;margin:0 0 12px;color:var(--ink3);font-size:12.6px;font-weight:760}
 .award-values{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:11px}
 .award-values div{min-width:0;padding:10px 11px;border-radius:12px;background:#F8FAFB}
@@ -989,7 +996,7 @@ function performanceMarkup(data){
   const summary=data.summary||{};
   const awards=Array.isArray(data.awards)?data.awards:[];
   const awardGroups=getAwardYearGroups(awards);
-  const selectedAwards=awards.filter(award=>awardYearKey(award)===performanceAwardYearTab);
+  const selectedAwards=sortAwardsForGuide(awards.filter(award=>awardYearKey(award)===performanceAwardYearTab));
   const achievedAwards=awards.filter(award=>award.achieved);
   const totalAwardAmount=achievedAwards.reduce((sum,award)=>sum+Number(award.awardAmount||0),0);
   const awardItems=achievedAwards.map(award=>award.awardItem).filter(Boolean);
@@ -1036,6 +1043,17 @@ function awardYearTabsMarkup(groups=[]){
     ${groups.map(group=>`<button class="award-year-tab" type="button" role="tab" data-performance-award-year="${group.key}" aria-selected="${String(performanceAwardYearTab===group.key)}">${escapeHtml(group.label)}<span>${formatMetric(group.items.length,'개')}</span></button>`).join('')}
   </div>`;
 }
+function sortAwardsForGuide(awards=[]){
+  return [...awards].sort((a,b)=>{
+    const aEnded=isAwardEnded(a);
+    const bEnded=isAwardEnded(b);
+    if(aEnded!==bEnded)return aEnded?1:-1;
+    const aDate=awardSortDate(a);
+    const bDate=awardSortDate(b);
+    if(aEnded)return bDate.localeCompare(aDate);
+    return aDate.localeCompare(bDate);
+  });
+}
 function awardMarkup(award){
   const isCount=award.conditionType==='paymentCount';
   const unit=isCount?'건':'원';
@@ -1043,12 +1061,16 @@ function awardMarkup(award){
   const period=[award.awardStartDate,award.awardEndDate].filter(Boolean).join(' ~ ');
   const remaining=Math.max(0,Number(award.targetValue||0)-Number(award.currentValue||0));
   const rewardTier=award.achievedTier||award.nextTier||award;
-  const result=award.achieved
+  const ended=isAwardEnded(award);
+  const stateLabel=ended?'종료':(award.achieved?'달성':'진행중');
+  const result=ended&&!award.achieved
+    ? '종료된 시상입니다.'
+    : award.achieved
     ? `달성 시상 ${awardRewardMarkup(award)}`
     : `다음 기준까지 <b>${formatMetric(remaining,unit)}</b> 남았습니다.`;
   return `
-    <article class="award-card ${award.achieved?'done':''}">
-      <div class="award-top"><strong>${escapeHtml(award.name||'시상조건')}</strong><span class="award-state">${award.achieved?'달성':'진행중'}</span></div>
+    <article class="award-card ${award.achieved?'done':''} ${ended?'ended':''}">
+      <div class="award-top"><strong>${escapeHtml(award.name||'시상조건')}</strong><span class="award-state">${stateLabel}</span></div>
       ${period?`<div class="award-period">${escapeHtml(formatPeriodLabel(period))}</div>`:''}
       <div class="award-values">
         <div><span>현재</span><b>${formatMetric(award.currentValue||0,unit)}</b></div>
@@ -1063,6 +1085,22 @@ function awardMarkup(award){
       <p class="award-result">${result}</p>
     </article>
   `;
+}
+function isAwardEnded(award={}){
+  const end=awardDateKey(award.awardEndDate||award.award_end_date||award.endDate||award.end_date||award.awardDate||award.award_date);
+  return Boolean(end&&end<todayDateKey());
+}
+function awardSortDate(award={}){
+  return awardDateKey(award.awardEndDate||award.award_end_date||award.endDate||award.end_date||award.awardDate||award.award_date||award.awardStartDate||award.award_start_date)||'99999999';
+}
+function awardDateKey(value){
+  const text=String(value||'').trim();
+  const match=text.match(/(\d{4})[-.]?(\d{2})[-.]?(\d{2})/);
+  return match?`${match[1]}${match[2]}${match[3]}`:'';
+}
+function todayDateKey(){
+  const date=new Date();
+  return `${date.getFullYear()}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}`;
 }
 function awardRewardMarkup(award){
   const parts=[];
