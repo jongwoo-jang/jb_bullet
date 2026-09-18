@@ -1,10 +1,14 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/((?!site-disabled\\.html).*)",
-      "destination": "/site-disabled.html"
+      "src": "/site-disabled\\.html",
+      "dest": "/site-disabled.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/site-disabled.html"
     }
   ],
   "functions": {
