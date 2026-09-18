@@ -1,6 +1,12 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/((?!site-disabled\\.html).*)",
+      "destination": "/site-disabled.html"
+    }
+  ],
   "functions": {
     "api/admin/upload.js": {
       "maxDuration": 300
