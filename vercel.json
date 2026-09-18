@@ -1,16 +1,6 @@
 {
   "cleanUrls": true,
   "trailingSlash": false,
-  "routes": [
-    {
-      "src": "/site-disabled\\.html",
-      "dest": "/site-disabled.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/site-disabled.html"
-    }
-  ],
   "functions": {
     "api/admin/upload.js": {
       "maxDuration": 300
